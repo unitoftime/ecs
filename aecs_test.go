@@ -17,10 +17,10 @@ type d1List []d1
 func (t *d1List) ComponentSet(val interface{}) { *t = *val.(*d1List) }
 // func (t *d1List) ComponentGet(val interface{}) { val.(d1List) = *t  }
 func (t *d1List) InternalRead(index int, val interface{}) { *val.(*d1) = (*t)[index] }
-func (t *d1List) InternalWrite(index int, val interface{}) { (*t)[index] = *val.(*d1) }
+func (t *d1List) InternalWrite(index int, val interface{}) { (*t)[index] = val.(d1) }
 func (t *d1List) InternalAppend(val interface{}) { (*t) = append((*t), val.(d1)) }
 func (t *d1List) InternalPointer(index int) interface{} { return &(*t)[index]  }
-func (t *d1List) InternalRead2(index int) interface{} { return (*t)[index] }
+func (t *d1List) InternalReadVal(index int) interface{} { return (*t)[index] }
 func (t *d1List) Delete(index int) {
 	lastVal := (*t)[len(*t)-1]
 	(*t)[index] = lastVal
@@ -31,10 +31,10 @@ func (t *d1List) Len() int { return len(*t) }
 type d2List []d2
 func (t *d2List) ComponentSet(val interface{}) { *t = *val.(*d2List) }
 func (t *d2List) InternalRead(index int, val interface{}) { *val.(*d2) = (*t)[index] }
-func (t *d2List) InternalWrite(index int, val interface{}) { (*t)[index] = *val.(*d2) }
+func (t *d2List) InternalWrite(index int, val interface{}) { (*t)[index] = val.(d2) }
 func (t *d2List) InternalAppend(val interface{}) { (*t) = append((*t), val.(d2)) }
 func (t *d2List) InternalPointer(index int) interface{} { return &(*t)[index] }
-func (t *d2List) InternalRead2(index int) interface{} { return (*t)[index] }
+func (t *d2List) InternalReadVal(index int) interface{} { return (*t)[index] }
 func (t *d2List) Delete(index int) {
 	lastVal := (*t)[len(*t)-1]
 	(*t)[index] = lastVal
@@ -42,9 +42,9 @@ func (t *d2List) Delete(index int) {
 }
 func (t *d2List) Len() int { return len(*t) }
 
-type ComponentRegistry struct {
+type ComponentRegistry2 struct {
 }
-func (r *ComponentRegistry) GetArchStorageType(component interface{}) ArchComponent {
+func (r *ComponentRegistry2) GetArchStorageType(component interface{}) ArchComponent {
 	switch component.(type) {
 	case d1:
 		return &d1List{}
@@ -58,7 +58,7 @@ func (r *ComponentRegistry) GetArchStorageType(component interface{}) ArchCompon
 		panic(fmt.Sprintf("Unknown component type: %T", component))
 	}
 }
-func (r *ComponentRegistry) GetComponentMask(component interface{}) ArchMask {
+func (r *ComponentRegistry2) GetComponentMask(component interface{}) ArchMask {
 	switch component.(type) {
 	case d1:
 		return ArchMask(1 << 0)
@@ -71,6 +71,7 @@ func (r *ComponentRegistry) GetComponentMask(component interface{}) ArchMask {
 }
 
 func TestBuildEntities(t *testing.T) {
+	SetRegistry(&ComponentRegistry2{})
 	world := NewWorld()
 
 	n := 1_000_000
@@ -133,6 +134,7 @@ func TestBuildEntities(t *testing.T) {
 }
 
 func TestWorld(t *testing.T) {
+	SetRegistry(&ComponentRegistry2{})
 	world := NewWorld()
 	id := world.NewId()
 

@@ -2,7 +2,7 @@ package ecs
 
 import (
 	"fmt"
-	"log"
+	// "log"
 )
 
 type ArchMask uint64 // Restricts us to a max of 64 different components
@@ -13,7 +13,7 @@ type ArchComponent interface {
 	InternalWrite(int, interface{})
 	InternalAppend(interface{})
 	InternalPointer(int) interface{}
-	InternalRead2(int) interface{}
+	InternalReadVal(int) interface{}
 	Len() int
 	Delete(int)
 }
@@ -22,7 +22,6 @@ type ArchEngine struct {
 	archCounter ArchId
 	reg map[string]*ArchStorage
 	archLookup map[ArchMask]ArchId
-	compReg ComponentRegistry
 }
 
 func NewArchEngine() *ArchEngine {
@@ -30,7 +29,6 @@ func NewArchEngine() *ArchEngine {
 		archCounter: 0,
 		reg: make(map[string]*ArchStorage),
 		archLookup: make(map[ArchMask]ArchId),
-		compReg: ComponentRegistry{},
 	}
 }
 
@@ -49,7 +47,7 @@ func (e *ArchEngine) Print() {
 func (e *ArchEngine) GetArchMask(comp ...interface{}) ArchMask {
 	ret := ArchMask(0)
 	for i := range comp {
-		ret += e.compReg.GetComponentMask(comp[i])
+		ret += componentRegistry.GetComponentMask(comp[i])
 	}
 	return ret
 }
@@ -72,7 +70,7 @@ func (e *ArchEngine) GetArchId(comp ...interface{}) ArchId {
 
 		// Add all component Lists to this archetype
 		for i := range comp {
-			list := e.compReg.GetArchStorageType(comp[i])
+			list := componentRegistry.GetArchStorageType(comp[i])
 			ArchWrite(e, archId, list)
 		}
 	}
@@ -155,21 +153,21 @@ func ArchFilter(engine *ArchEngine, comp ...interface{}) []ArchId {
 
 	// Find all archetypes that have comp[0]
 	{
-		storageType := engine.compReg.GetArchStorageType(comp[0])
+		storageType := componentRegistry.GetArchStorageType(comp[0])
 		storage := ArchGetStorage(engine, storageType)
 		for id := range storage.list {
 			archIds = append(archIds, id)
 		}
 	}
 
-	log.Println("Initial:", archIds)
+	// log.Println("Initial:", archIds)
 
 	finalArchIds := make([]ArchId, 0)
 	// Loop over archetypes and remove ones that don't have all components
 	for _, archId := range archIds {
 		hasAllComps := true
 		for i := 1; i < len(comp); i++ {
-			storageType := engine.compReg.GetArchStorageType(comp[i])
+			storageType := componentRegistry.GetArchStorageType(comp[i])
 			hasAllComps = hasAllComps && ArchRead(engine, archId, storageType)
 
 			if !hasAllComps { break } // We can exit early if we are missing just one comp

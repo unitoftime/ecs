@@ -1,10 +1,20 @@
 package ecs
 
 import (
-	"log"
+	// "log"
 	"fmt"
 	"reflect"
 )
+
+type ComponentRegistry interface {
+	GetArchStorageType(interface{}) ArchComponent
+	GetComponentMask(interface{}) ArchMask
+}
+
+var componentRegistry ComponentRegistry
+func SetRegistry(compReg ComponentRegistry) {
+	componentRegistry = compReg
+}
 
 type Id uint32
 type ArchId uint32
@@ -64,9 +74,9 @@ func Read(world *World, id Id, comp ...interface{}) bool {
 	if !ok { panic("World bookkeeping said entity was here, but lookupList said it isn't") }
 
 	for i := range comp {
-		list := world.archEngine.compReg.GetArchStorageType(comp[i])
+		list := componentRegistry.GetArchStorageType(comp[i])
 		ok := ArchRead(world.archEngine, archId, list)
-		if !ok { panic("This archetype does not have this component!") } // TODO - return false?
+		if !ok { return false }
 		list.InternalRead(index, comp[i])
 	}
 
@@ -83,7 +93,7 @@ func Write(world *World, id Id, comp ...interface{}) {
 		if !ok { panic("World bookkeeping said entity was here, but lookupList said it isn't") }
 
 		for i := range comp {
-			list := world.archEngine.compReg.GetArchStorageType(comp[i])
+			list := componentRegistry.GetArchStorageType(comp[i])
 			ok := ArchRead(world.archEngine, archId, list)
 			if !ok {
 				//Archetype didn't have this component, move the entity to a new archetype
@@ -113,7 +123,7 @@ func Write(world *World, id Id, comp ...interface{}) {
 
 		for i := range comp {
 			// Attempt 2
-			list := world.archEngine.compReg.GetArchStorageType(comp[i])
+			list := componentRegistry.GetArchStorageType(comp[i])
 			ok := ArchRead(world.archEngine, archId, list)
 			if !ok { panic("Archetype didn't have this component!") }
 			list.InternalAppend(comp[i])
@@ -141,7 +151,7 @@ func ReadAll(world *World, id Id) []interface{} {
 
 	archComponents := ArchReadAll(world.archEngine, archId)
 	for _, archComp := range archComponents {
-		ret = append(ret, archComp.InternalRead2(index))
+		ret = append(ret, archComp.InternalReadVal(index))
 	}
 
 	return ret
@@ -183,7 +193,7 @@ func (w *World) overlay(original, overlay []interface{}) []interface{} {
 	for i := range original {
 		_, ok := original[i].(Id)
 		if !ok {
-			mask := w.archEngine.compReg.GetComponentMask(original[i])
+			mask := componentRegistry.GetComponentMask(original[i])
 			retMap[mask] = original[i]
 		}
 	}
@@ -191,7 +201,7 @@ func (w *World) overlay(original, overlay []interface{}) []interface{} {
 	for i := range overlay {
 		_, ok := overlay[i].(Id)
 		if !ok {
-			mask := w.archEngine.compReg.GetComponentMask(overlay[i])
+			mask := componentRegistry.GetComponentMask(overlay[i])
 			retMap[mask] = overlay[i]
 		}
 	}
@@ -218,7 +228,7 @@ func (w *World) unoverlay(original, overlay []interface{}) []interface{} {
 	for i := range original {
 		_, ok := original[i].(Id)
 		if !ok {
-			mask := w.archEngine.compReg.GetComponentMask(original[i])
+			mask := componentRegistry.GetComponentMask(original[i])
 			retMap[mask] = original[i]
 		}
 	}
@@ -226,7 +236,7 @@ func (w *World) unoverlay(original, overlay []interface{}) []interface{} {
 	for i := range overlay {
 		_, ok := overlay[i].(Id)
 		if !ok {
-			mask := w.archEngine.compReg.GetComponentMask(overlay[i])
+			mask := componentRegistry.GetComponentMask(overlay[i])
 			delete(retMap, mask)
 		}
 	}
@@ -245,6 +255,8 @@ type View struct {
 	components []interface{}
 }
 
+// View archetypes that have one set of components but miss another set
+
 // Returns a view that iterates over all archetypes that contain the designated components
 func ViewAll(world *World, comp ...interface{}) View {
 	return View{
@@ -256,14 +268,14 @@ func ViewAll(world *World, comp ...interface{}) View {
 func (v *View) Map(lambda func(id Id, comp ...interface{})) {
 	archIds := ArchFilter(v.world.archEngine, v.components...)
 
-	log.Println("archIds:", archIds)
+	// log.Println("archIds:", archIds)
 
 	compLists := make([]ArchComponent, 0)
 	for i := range v.components {
-		list := v.world.archEngine.compReg.GetArchStorageType(v.components[i])
+		list := componentRegistry.GetArchStorageType(v.components[i])
 		compLists = append(compLists, list)
 	}
-	log.Println(compLists)
+	// log.Println(compLists)
 
 	lookup := LookupList{}
 	for _, archId := range archIds {
@@ -273,7 +285,7 @@ func (v *View) Map(lambda func(id Id, comp ...interface{})) {
 
 		// Lookup all component lists for the archetype
 		for i := range compLists {
-			list := v.world.archEngine.compReg.GetArchStorageType(v.components[i])
+			list := componentRegistry.GetArchStorageType(v.components[i])
 			ok := ArchRead(v.world.archEngine, archId, list)
 			if !ok { panic("Couldn't find component list for archetype!") }
 			compLists[i] = list
@@ -299,10 +311,10 @@ type LookupList struct {
 }
 func (t *LookupList) ComponentSet(val interface{}) { *t = *val.(*LookupList) }
 func (t *LookupList) InternalRead(index int, val interface{}) { *val.(*Id) = t.Ids[index] }
-func (t *LookupList) InternalWrite(index int, val interface{}) { t.Ids[index] = *val.(*Id) }
+func (t *LookupList) InternalWrite(index int, val interface{}) { t.Ids[index] = val.(Id) }
 func (t *LookupList) InternalAppend(val interface{}) { t.Ids = append(t.Ids, val.(Id)) }
 func (t *LookupList) InternalPointer(index int) interface{} { return &t.Ids[index] }
-func (t *LookupList) InternalRead2(index int) interface{} { return t.Ids[index] }
+func (t *LookupList) InternalReadVal(index int) interface{} { return t.Ids[index] }
 func (t *LookupList) Delete(index int) {
 	oldId := t.Ids[index]
 	lastVal := t.Ids[len(t.Ids)-1]
