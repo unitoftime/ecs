@@ -64,28 +64,10 @@ func Read(world *World, id Id, comp ...interface{}) bool {
 	if !ok { panic("World bookkeeping said entity was here, but lookupList said it isn't") }
 
 	for i := range comp {
-		// Attempt 2
 		list := world.archEngine.compReg.GetArchStorageType(comp[i])
 		ok := ArchRead(world.archEngine, archId, list)
 		if !ok { panic("This archetype does not have this component!") } // TODO - return false?
 		list.InternalRead(index, comp[i])
-
-		// Attempt 1
-		// switch t := comp[i].(type) {
-		// case *d1:
-		// 	list := d1List{}
-		// 	ok := ArchRead(world.archEngine, archId, &list)
-		// 	if !ok { panic("This archetype does not have this component!") } // TODO - return false?
-		// 	// fmt.Println("here", index, list.List[index], t)
-		// 	*t = list[index] // Copy Data
-		// case *d2:
-		// 	list := d2List{}
-		// 	ok := ArchRead(world.archEngine, archId, &list)
-		// 	if !ok { panic("This archetype does not have this component!") } // TODO - return false?
-		// 	*t = list[index] // Copy Data
-		// default:
-		// 	panic("Unknown component")
-		// }
 	}
 
 	return true
@@ -101,30 +83,11 @@ func Write(world *World, id Id, comp ...interface{}) {
 		if !ok { panic("World bookkeeping said entity was here, but lookupList said it isn't") }
 
 		for i := range comp {
-			// Attempt 2
 			list := world.archEngine.compReg.GetArchStorageType(comp[i])
 			ok := ArchRead(world.archEngine, archId, list)
 			if !ok { panic("Archetype didn't have this component, need to move the entity to a new archetype!") }
 			list.InternalWrite(index, comp[i])
 			ArchWrite(world.archEngine, archId, list)
-
-			// Attempt 1
-			// switch t := comp[i].(type) {
-			// case d1:
-			// 	list := d1List{}
-			// 	ok := ArchRead(world.archEngine, archId, &list)
-			// 	if !ok { panic("Archetype didn't have this component, need to move the entity to a new archetype!") }
-			// 	list[index] = t
-			// 	ArchWrite(world.archEngine, archId, list)
-			// case d2:
-			// 	list := d2List{}
-			// 	ok := ArchRead(world.archEngine, archId, &list)
-			// 	if !ok { panic("Archetype didn't have this component, need to move the entity to a new archetype!") }
-			// 	list[index] = t
-			// 	ArchWrite(world.archEngine, archId, list)
-			// default:
-			// 	panic("Unknown component type!")
-			// }
 		}
 	} else {
 		// The Entity isn't added yet. Construct it based on components
@@ -152,28 +115,6 @@ func Write(world *World, id Id, comp ...interface{}) {
 				panic("lookupList length doesn't match component list length!")
 			}
 			ArchWrite(world.archEngine, archId, list)
-
-			// Attempt 1
-			// switch t := comp[i].(type) {
-			// case d1:
-			// 	list := d1List{}
-			// 	ArchRead(world.archEngine, archId, &list)
-			// 	list = append(list, t)
-			// 	if len(list) != len(lookup.Ids) {
-			// 		panic("lookupList size doesn't match component List")
-			// 	}
-			// 	ArchWrite(world.archEngine, archId, list)
-			// case d2:
-			// 	list := d2List{}
-			// 	ArchRead(world.archEngine, archId, &list)
-			// 	list = append(list, t)
-			// 	if len(list) != len(lookup.Ids) {
-			// 		panic("lookupList size doesn't match component List")
-			// 	}
-			// 	ArchWrite(world.archEngine, archId, list)
-			// default:
-			// 	panic("Unknown component type!")
-			// }
 		}
 		// n := name(comp)
 		// world.arch[n].Write(id, )
@@ -202,18 +143,6 @@ func (v *View) Map(lambda func(id Id, comp ...interface{})) {
 	for i := range v.components {
 		list := v.world.archEngine.compReg.GetArchStorageType(v.components[i])
 		compLists = append(compLists, list)
-
-		// Attempt 1
-		// switch v.components[i].(type) {
-		// case d1:
-		// 	list := d1List{}
-		// 	compLists = append(compLists, list)
-		// case d2:
-		// 	list := d2List{}
-		// 	compLists = append(compLists, list)
-		// default:
-		// 	panic("Unknown component type!")
-		// }
 	}
 	log.Println(compLists)
 
@@ -225,45 +154,17 @@ func (v *View) Map(lambda func(id Id, comp ...interface{})) {
 
 		// Lookup all component lists for the archetype
 		for i := range compLists {
-			// Attempt 2
 			list := v.world.archEngine.compReg.GetArchStorageType(v.components[i])
 			ok := ArchRead(v.world.archEngine, archId, list)
 			if !ok { panic("Couldn't find component list for archetype!") }
 			compLists[i] = list
-
-			// Attempt 1
-			// switch list := compLists[i].(type) {
-			// case d1List:
-			// 	ok := ArchRead(v.world.archEngine, archId, &list)
-			// 	if !ok { panic("Couldn't find component list for archetype!") }
-			// 	compLists[i] = list
-			// case d2List:
-			// 	ok := ArchRead(v.world.archEngine, archId, &list)
-			// 	if !ok { panic("Couldn't find component list for archetype!") }
-			// 	compLists[i] = list
-			// default:
-			// 	panic("Unknown component list type!")
-			// }
 		}
 
 		// Execute lambda function with all component lists
 		lambdaComps := v.components
 		for i := range lookup.Ids {
 			for j := range compLists {
-				// Attempt 2
 				lambdaComps[j] = compLists[j].InternalPointer(i)
-
-				// Attempt 1
-				// switch list := compLists[j].(type) {
-				// case d1List:
-				// 	// TODO - this could be wrapped into an interface if I want to push the work onto the client?
-				// 	log.Println(lambdaComps, list, j, i)
-				// 	lambdaComps[j] = list[i]
-				// case d2List:
-				// 	lambdaComps[j] = list[i]
-				// default:
-				// 	panic("Unknown component list type!")
-				// }
 			}
 
 			// Execute the function
