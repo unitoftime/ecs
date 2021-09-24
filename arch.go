@@ -1,4 +1,4 @@
-package aecs
+package ecs
 
 import (
 	"fmt"
@@ -13,7 +13,9 @@ type ArchComponent interface {
 	InternalWrite(int, interface{})
 	InternalAppend(interface{})
 	InternalPointer(int) interface{}
+	InternalRead2(int) interface{}
 	Len() int
+	Delete(int)
 }
 
 type ArchEngine struct {
@@ -62,7 +64,7 @@ func (e *ArchEngine) GetArchId(comp ...interface{}) ArchId {
 		e.archLookup[mask] = archId
 
 		// All archetypes get the LookupList component
-		lookup := LookupList{
+		lookup := &LookupList{
 			Lookup: make(map[Id]int),
 			Ids: make([]Id, 0),
 		}
@@ -107,11 +109,16 @@ func ArchWrite(e *ArchEngine, id ArchId, val interface{}) {
 	storage.Write(id, val)
 }
 
-// func ArchDelete(engine *ArchEngine, id ArchId) {
-// 	for _, storage := range engine.reg {
-// 		storage.Delete(id)
-// 	}
-// }
+func ArchReadAll(e *ArchEngine, archId ArchId) []ArchComponent {
+	ret := make([]ArchComponent, 0)
+	for _, storage := range e.reg {
+		comp, ok := storage.list[archId]
+		if !ok { continue }
+
+		ret = append(ret, comp.(ArchComponent))
+	}
+	return ret
+}
 
 func ArchEach(engine *ArchEngine, t interface{}, f func(id ArchId, a interface{})) {
 	storage := ArchGetStorage(engine, t)

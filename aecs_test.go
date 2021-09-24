@@ -1,4 +1,4 @@
-package aecs
+package ecs
 
 import (
 	"fmt"
@@ -16,18 +16,30 @@ type d2 struct {
 type d1List []d1
 func (t *d1List) ComponentSet(val interface{}) { *t = *val.(*d1List) }
 // func (t *d1List) ComponentGet(val interface{}) { val.(d1List) = *t  }
-func (t *d1List) InternalRead(index int, val interface{}) { *val.(*d1) = (*t)[index]  }
+func (t *d1List) InternalRead(index int, val interface{}) { *val.(*d1) = (*t)[index] }
 func (t *d1List) InternalWrite(index int, val interface{}) { (*t)[index] = *val.(*d1) }
 func (t *d1List) InternalAppend(val interface{}) { (*t) = append((*t), val.(d1)) }
 func (t *d1List) InternalPointer(index int) interface{} { return &(*t)[index]  }
+func (t *d1List) InternalRead2(index int) interface{} { return (*t)[index] }
+func (t *d1List) Delete(index int) {
+	lastVal := (*t)[len(*t)-1]
+	(*t)[index] = lastVal
+	(*t) = (*t)[:len(*t)-1]
+}
 func (t *d1List) Len() int { return len(*t) }
 
 type d2List []d2
 func (t *d2List) ComponentSet(val interface{}) { *t = *val.(*d2List) }
-func (t *d2List) InternalRead(index int, val interface{}) { *val.(*d2) = (*t)[index]  }
+func (t *d2List) InternalRead(index int, val interface{}) { *val.(*d2) = (*t)[index] }
 func (t *d2List) InternalWrite(index int, val interface{}) { (*t)[index] = *val.(*d2) }
 func (t *d2List) InternalAppend(val interface{}) { (*t) = append((*t), val.(d2)) }
 func (t *d2List) InternalPointer(index int) interface{} { return &(*t)[index] }
+func (t *d2List) InternalRead2(index int) interface{} { return (*t)[index] }
+func (t *d2List) Delete(index int) {
+	lastVal := (*t)[len(*t)-1]
+	(*t)[index] = lastVal
+	(*t) = (*t)[:len(*t)-1]
+}
 func (t *d2List) Len() int { return len(*t) }
 
 type ComponentRegistry struct {
@@ -56,6 +68,68 @@ func (r *ComponentRegistry) GetComponentMask(component interface{}) ArchMask {
 		panic(fmt.Sprintf("Unknown component type: %T", component))
 	}
 	return 0
+}
+
+func TestBuildEntities(t *testing.T) {
+	world := NewWorld()
+
+	n := 1_000_000
+	mod := 3
+
+	for i := 0; i < n; i++ {
+		id := world.NewId()
+		switch int(id) % mod {
+		case 0:
+			Write(world, id, d1{int(id)})
+		case 1:
+			Write(world, id, d2{int(id)})
+		case 2:
+			Write(world, id, d1{int(id)}, d2{int(id)})
+		}
+	}
+
+	{
+		view := ViewAll(world, &d1{}, &d2{})
+		view.Map(func(id Id, comp ...interface{}) {
+			if int(id) % mod == 0 || int(id) % mod == 1 {
+				t.Errorf("Failure - These entities should match the view")
+			}
+
+			a := comp[0].(*d1)
+			b := comp[1].(*d2)
+			if a.value != int(id) || b.value != int(id) {
+				t.Errorf("Failure - d1 and/or d2 are set wrong")
+			}
+		})
+	}
+
+	{
+		view := ViewAll(world, &d1{})
+		view.Map(func(id Id, comp ...interface{}) {
+			if int(id) % mod == 1 {
+				t.Errorf("Failure - These entities should match the view")
+			}
+
+			a := comp[0].(*d1)
+			if a.value != int(id) {
+				t.Errorf("Failure - d1 is set wrong")
+			}
+		})
+	}
+
+	{
+		view := ViewAll(world, &d2{})
+		view.Map(func(id Id, comp ...interface{}) {
+			if int(id) % mod == 0 {
+				t.Errorf("Failure - These entities should match the view")
+			}
+
+			a := comp[0].(*d2)
+			if a.value != int(id) {
+				t.Errorf("Failure - d2 is set wrong")
+			}
+		})
+	}
 }
 
 func TestWorld(t *testing.T) {
@@ -88,7 +162,21 @@ func TestWorld(t *testing.T) {
 			bb.value += 1
 		})
 	}
-	// TODO - make storage injected by client and implement a specific interface? What interface?
+
+	comps := ReadAll(world, id)
+	fmt.Println(comps)
+	Delete(world, id)
+	comps2 := ReadAll(world, id)
+	fmt.Println(comps2)
+
+	Write(world, id, d1{10})
+	fmt.Println(ReadAll(world, id))
+	Write(world, id, d2{11})
+	fmt.Println(ReadAll(world, id))
+	DeleteComponents(world, id, d1{})
+	fmt.Println(ReadAll(world, id))
+	Write(world, id, d1{15})
+	fmt.Println(ReadAll(world, id))
 }
 
 func TestArchEngine(t *testing.T) {
