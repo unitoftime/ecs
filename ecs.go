@@ -253,15 +253,27 @@ func (w *World) unoverlay(original, overlay []interface{}) []interface{} {
 type View struct {
 	world *World
 	components []interface{}
+	readonly []bool
 }
 
 // View archetypes that have one set of components but miss another set
 
 // Returns a view that iterates over all archetypes that contain the designated components
 func ViewAll(world *World, comp ...interface{}) View {
+	readonly := make([]bool, len(comp))
+	for i := range comp {
+		// TODO - kinda hacky
+		name := reflect.TypeOf(comp[i]).String()
+		if name[0] == '*' {
+			readonly[i] = false
+		} else {
+			readonly[i] = true
+		}
+	}
 	return View{
 		world: world,
 		components: comp,
+		readonly: readonly,
 	}
 }
 
@@ -295,7 +307,11 @@ func (v *View) Map(lambda func(id Id, comp ...interface{})) {
 		lambdaComps := v.components
 		for i := range lookup.Ids {
 			for j := range compLists {
-				lambdaComps[j] = compLists[j].InternalPointer(i)
+				if v.readonly[j] {
+					lambdaComps[j] = compLists[j].InternalReadVal(i)
+				} else {
+					lambdaComps[j] = compLists[j].InternalPointer(i)
+				}
 			}
 
 			// Execute the function
