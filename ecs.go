@@ -37,6 +37,7 @@ type World struct {
 	idCounter Id
 	archLookup map[Id]ArchId
 	archEngine *ArchEngine
+	tags map[string]map[Id]bool
 }
 
 func NewWorld() *World {
@@ -44,6 +45,7 @@ func NewWorld() *World {
 		idCounter: UniqueEntity + 1,
 		archLookup: make(map[Id]ArchId),
 		archEngine: NewArchEngine(),
+		tags: make(map[string]map[Id]bool),
 	}
 }
 
@@ -157,6 +159,29 @@ func ReadAll(world *World, id Id) []interface{} {
 	return ret
 }
 
+func Tag(world *World, id Id, tag string) {
+	tagList, ok := world.tags[tag]
+	if !ok {
+		tagList = make(map[Id]bool)
+	}
+	tagList[id] = true
+	world.tags[tag] = tagList
+}
+
+func TaggedWith(world *World, tag string) []Id {
+	ret := make([]Id, 0)
+	tagList, ok := world.tags[tag]
+	if !ok {
+		return ret
+	}
+
+	for k := range tagList {
+		ret = append(ret, k)
+	}
+	return ret
+}
+
+// TODO - this is not safe inside of a map lambda. Not really sure the best way to handle object deletion
 func Delete(world *World, id Id) {
 	archId, ok := world.archLookup[id]
 	if !ok { return }
@@ -173,6 +198,11 @@ func Delete(world *World, id Id) {
 	}
 
 	delete(world.archLookup, id)
+
+	// Delete from tags
+	for _, tagList := range world.tags {
+		delete(tagList, id)
+	}
 }
 
 func DeleteComponents(world *World, id Id, comp ...interface{}) {
@@ -342,3 +372,4 @@ func (t *LookupList) Delete(index int) {
 	delete(t.Lookup, oldId)
 }
 func (t *LookupList) Len() int { return len(t.Ids) }
+

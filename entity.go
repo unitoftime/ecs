@@ -33,6 +33,15 @@ func (e Entity) Write(c interface{}) {
 	e[name] = c
 }
 
+// func ReadEntity[T any](e Entity) (T, bool) { }
+
+func (e Entity) Read(c interface{}) interface{} {
+	name := name(c)
+	comp, ok := e[name]
+	if !ok { return nil }
+	return comp
+}
+
 // TODO - untested
 func GetEntity(world *World, id Id) Entity {
 	comps := ReadAll(world, id)
