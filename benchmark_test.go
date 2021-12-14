@@ -6,7 +6,7 @@ import (
 
 // goos: linux
 // goarch: amd64
-// pkg: github.com/jstewart7/ecs
+// pkg: github.com/unitoftime/ecs
 // cpu: Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz
 // BenchmarkSetup-12                  	       2	 763499410 ns/op
 // BenchmarkReads-12                  	       3	 354587956 ns/op

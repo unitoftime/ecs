@@ -1,3 +1,3 @@
-module github.com/jstewart7/ecs
+module github.com/unitoftime/ecs
 
 go 1.17
