@@ -1,31 +1,24 @@
 package ecs
 
 import (
-	// "log"
 	"fmt"
 	"reflect"
 )
 
-type ComponentRegistry interface {
-	GetArchStorageType(interface{}) ArchComponent
-	GetComponentMask(interface{}) ArchMask
-}
-
-var componentRegistry ComponentRegistry
-func SetRegistry(compReg ComponentRegistry) {
-	componentRegistry = compReg
-}
+// TODO - Replace with constraints
+type Slice[Elem any] interface { ~[]Elem }
 
 type Id uint32
 type ArchId uint32
 
-func name(t interface{}) string {
-	name := reflect.TypeOf(t).String()
-	if name[0] == '*' {
-		return name[1:]
+// TODO - Replace?
+func name[T any](t T) string {
+	n := reflect.TypeOf(t).String()
+	if n[0] == '*' {
+		return n[1:]
 	}
 
-	return name
+	return n
 }
 
 const (
@@ -63,313 +56,216 @@ func (w *World) Print() {
 	w.archEngine.Print()
 }
 
-func Read(world *World, id Id, comp ...interface{}) bool {
+// https://cs.opensource.google/go/go/+/refs/tags/go1.17.5:src/encoding/gob/type.go;l=807
+// TODO - RegisterName
+func Register[T any](world *World) {
+	var t T
+	n := name(t)
+	// world.archEngine.dcr.componentStorageType[n] = NewArchStorage[[]T, T]()
+	world.archEngine.reg[n] = NewArchStorage[[]T, T]()
+}
+
+func Read[T any](world *World, id Id) (T, bool) {
+	var ret T
+
 	archId, ok := world.archLookup[id]
 	if !ok {
 		// Entity ID does not exist if it doesn't exist in the bookkeeping
-		return false
+		return ret, false
 	}
 
-	lookup := LookupList{}
-	ArchRead(world.archEngine, archId, &lookup)
+	// lookup, ok := ArchRead[LookupList](world.archEngine, archId)
+	lookup, ok := world.archEngine.lookup[archId]
 	index, ok := lookup.Lookup[id]
 	if !ok { panic("World bookkeeping said entity was here, but lookupList said it isn't") }
 
-	for i := range comp {
-		list := componentRegistry.GetArchStorageType(comp[i])
-		ok := ArchRead(world.archEngine, archId, list)
-		if !ok { return false }
-		list.InternalRead(index, comp[i])
-	}
+	// list, ok := ArchRead[T](world.archEngine, archId)
+	// if !ok { return ret, false }
 
-	return true
+	// var list []T
+	// ok = world.archEngine.Read(archId, ret, &list)
+	// if !ok { return ret, false }
+
+	// ret = list[index]
+	// return ret, true
+
+	storage, ok := world.archEngine.Read2(archId, ret)
+	if !ok { return ret, false } // Arch doesn't have this component
+	val, ok := storage.InternalGet(archId, index)
+	if !ok { panic("Entity should have componenet because its in arch, but didn't") }
+	return val.(T), true
 }
 
-func Write(world *World, id Id, comp ...interface{}) {
+func Write(world *World, id Id, comp ...any) {
+	// var t T
 	archId, ok := world.archLookup[id]
+
 	if ok {
 		// The Entity is already constructed, Update the correct archetype
-		lookup := LookupList{}
-		ArchRead(world.archEngine, archId, &lookup)
+		lookup, ok := world.archEngine.lookup[archId]
+		if !ok { panic("LookupList is missing!") }
 		index, ok := lookup.Lookup[id]
 		if !ok { panic("World bookkeeping said entity was here, but lookupList said it isn't") }
 
-		for i := range comp {
-			list := componentRegistry.GetArchStorageType(comp[i])
-			ok := ArchRead(world.archEngine, archId, list)
+		// TODO - push this loop into another func? shared with other part of write
+		for _, c := range comp {
+			_, ok := world.archEngine.Read2(archId, c)
 			if !ok {
-				//Archetype didn't have this component, move the entity to a new archetype
-				moveAndAdd(world, id, comp...)
-				return
-			} else {
-				list.InternalWrite(index, comp[i])
-				ArchWrite(world.archEngine, archId, list)
+				// If we go in here then we will need to move the entity to a new archId
+				// Read entire entity
+				ent := ReadEntity(world, id)
+				// Delete the entity
+				Delete(world, id)
+				// Loop over all components and add them to the ent
+				for _, c := range comp {
+					ent.Add(c)
+				}
+
+				// Get a destination ArchId
+				// TODO - make a version of this function that uses an ent rather than comp slice?
+				archId = world.archEngine.GetArchId(ent.Comps()...)
+				lookup, ok := world.archEngine.lookup[archId]
+				if !ok { panic("LookupList is missing!") }
+				lookup.Ids = append(lookup.Ids, id)
+				index := len(lookup.Ids) - 1
+				lookup.Lookup[id] = index
+
+				world.archEngine.lookup[archId] = lookup
+
+				// Update the world's archetype lookup
+				world.archLookup[id] = archId
+
+				// Write the entity back
+				for _, c := range ent.comp {
+					storage, ok := world.archEngine.Read2(archId, c)
+					if !ok { panic("Unable to read storage for this component type") }
+					storage.InternalAppend(archId, c)
+				}
+
+				// Ensure we exit early now that we've written
 				return
 			}
 		}
+
+		// If we are here then the archId will not be changing. Just overwrite every component
+		for _, c := range comp {
+			storage, ok := world.archEngine.Read2(archId, c)
+			if !ok { panic("Unable to read storage for this component type") }
+			storage.InternalSet(archId, index, c)
+		}
+
+		// lookup := LookupList{}
+		// ArchRead(world.archEngine, archId, &lookup)
+		// index, ok := lookup.Lookup[id]
+		// if !ok { panic("World bookkeeping said entity was here, but lookupList said it isn't") }
+
+		// list := cList[T]{}
+		// ok = ArchRead(world.archEngine, archId, &list)
+		// if !ok {
+		// 	//Archetype didn't have this component, move the entity to a new archetype
+		// 	moveAndAdd[T](world, id, comp)
+		// 	return
+		// } else {
+		// 	list.InternalWrite(index, comp)
+		// 	ArchWrite(world.archEngine, archId, list)
+		// 	return
+		// }
 	} else {
 		// The Entity isn't added yet. Construct it based on components
 		archId = world.archEngine.GetArchId(comp...)
 
 		// Update the archetype's lookup with the new entity
-		lookup := &LookupList{}
-		ok := ArchRead(world.archEngine, archId, lookup)
+		lookup, ok := world.archEngine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 		lookup.Ids = append(lookup.Ids, id)
 		index := len(lookup.Ids) - 1
 		lookup.Lookup[id] = index
-		ArchWrite(world.archEngine, archId, lookup)
+
+		world.archEngine.lookup[archId] = lookup
 
 		// Update the world's archetype lookup
 		world.archLookup[id] = archId
 
-		for i := range comp {
-			// Attempt 2
-			list := componentRegistry.GetArchStorageType(comp[i])
-			ok := ArchRead(world.archEngine, archId, list)
-			if !ok { panic("Archetype didn't have this component!") }
-			list.InternalAppend(comp[i])
-			if list.Len() != lookup.Len() {
-				panic("lookupList length doesn't match component list length!")
-			}
-			ArchWrite(world.archEngine, archId, list)
+		// Read and append to the component list
+		// var list []T
+		// ok = world.archEngine.Read(archId, t, &list)
+		// if !ok { panic("Archetype didn't have this component!") }
+		for _, c := range comp {
+			storage, ok := world.archEngine.Read2(archId, c)
+			if !ok { panic("Unable to read storage for this component type") }
+			storage.InternalAppend(archId, c)
 		}
+
+
+		// list = append(list, comp)
+		// if len(list) != len(lookup.Lookup) {
+		// 	panic("lookupList length doesn't match component list length!")
+		// }
+
+		// // Write back the component list
+		// // ArchWrite(world.archEngine, archId, list)
+		// world.archEngine.Write(archId, t, list)
 	}
 }
 
-func ReadAll(world *World, id Id) []interface{} {
-	archId, ok := world.archLookup[id]
-	if !ok {
-		return []interface{}{}
-	}
-
-	ret := make([]interface{}, 0)
-
-	lookup := LookupList{}
-	ok = ArchRead(world.archEngine, archId, &lookup)
-	if !ok { panic("LookupList is missing!") }
-	index, ok := lookup.Lookup[id]
-	if !ok { panic("Entity ID doesn't exist in archetype ID!") }
-
-	archComponents := ArchReadAll(world.archEngine, archId)
-	for _, archComp := range archComponents {
-		ret = append(ret, archComp.InternalReadVal(index))
-	}
-
-	return ret
-}
-
-func Tag(world *World, id Id, tag string) {
-	tagList, ok := world.tags[tag]
-	if !ok {
-		tagList = make(map[Id]bool)
-	}
-	tagList[id] = true
-	world.tags[tag] = tagList
-}
-
-func TaggedWith(world *World, tag string) []Id {
-	ret := make([]Id, 0)
-	tagList, ok := world.tags[tag]
-	if !ok {
-		return ret
-	}
-
-	for k := range tagList {
-		ret = append(ret, k)
-	}
-	return ret
-}
-
-// TODO - this is not safe inside of a map lambda. Not really sure the best way to handle object deletion
 func Delete(world *World, id Id) {
 	archId, ok := world.archLookup[id]
-	if !ok { return }
+	if !ok { return } // Exit early if id doesn't exist
 
-	lookup := LookupList{}
-	ok = ArchRead(world.archEngine, archId, &lookup)
-	if !ok { panic("LookupList is missing!") }
-	index, ok := lookup.Lookup[id]
-	if !ok { panic("Entity ID doesn't exist in archetype ID!") }
-
-	archComponents := ArchReadAll(world.archEngine, archId)
-	for _, archComp := range archComponents {
-		archComp.Delete(index)
-	}
+	// Delete index from all relevant component storages
+	world.archEngine.DeleteAll(archId, id)
 
 	delete(world.archLookup, id)
+}
 
-	// Delete from tags
-	for _, tagList := range world.tags {
-		delete(tagList, id)
+// Delete a component from a entity
+// func DeleteComponents(world *World, id Id, comp ...interface{}) {
+// 	archId, ok := world.archLookup[id]
+// 	if !ok { return } // Return if id doesn't exist in the system
+
+// 	lookup, ok := world.archEngine.lookup[archId]
+// 	if !ok { panic("LookupList is missing!") }
+// 	index, ok := lookup.Lookup[id]
+// 	if !ok { panic("Entity ID doesn't exist in archetype ID!") }
+
+// 	archComponents := world.archEngine.ReadAll(archId)
+// 	for _, archComp := range archComponents {
+// 		archComp.Delete(index)
+// 	}
+// }
+
+// Represents a standalone entity with all of its components
+type Entity struct {
+	comp map[string]any
+}
+
+func NewEntity() Entity {
+	return Entity{
+		comp: make(map[string]any),
 	}
 }
 
-func DeleteComponents(world *World, id Id, comp ...interface{}) {
-	moveAndRemove(world, id, comp...)
+func (e *Entity) Add(comp any) {
+	n := name(comp)
+	e.comp[n] = comp
 }
 
-func moveAndAdd(world *World, id Id, comp ...interface{}) {
-	oldComps := ReadAll(world, id)
-	Delete(world, id)
-
-	finalComps := world.overlay(oldComps, comp)
-
-	Write(world, id, finalComps...)
-}
-
-func (w *World) overlay(original, overlay []interface{}) []interface{} {
-	retMap := make(map[ArchMask]interface{})
-	for i := range original {
-		_, ok := original[i].(Id)
-		if !ok {
-			mask := componentRegistry.GetComponentMask(original[i])
-			retMap[mask] = original[i]
-		}
+func (e *Entity) Comps() []any {
+	ret := make([]any, 0, len(e.comp))
+	for _, v := range e.comp {
+		ret = append(ret, v)
 	}
-
-	for i := range overlay {
-		_, ok := overlay[i].(Id)
-		if !ok {
-			mask := componentRegistry.GetComponentMask(overlay[i])
-			retMap[mask] = overlay[i]
-		}
-	}
-
-	ret := make([]interface{}, 0)
-	for k := range retMap {
-		ret = append(ret, retMap[k])
-	}
-
 	return ret
 }
 
-func moveAndRemove(world *World, id Id, comp ...interface{}) {
-	oldComps := ReadAll(world, id)
-	Delete(world, id)
-
-	finalComps := world.unoverlay(oldComps, comp)
-
-	Write(world, id, finalComps...)
-}
-
-func (w *World) unoverlay(original, overlay []interface{}) []interface{} {
-	retMap := make(map[ArchMask]interface{})
-	for i := range original {
-		_, ok := original[i].(Id)
-		if !ok {
-			mask := componentRegistry.GetComponentMask(original[i])
-			retMap[mask] = original[i]
-		}
+// TODO - Return a boolean as well?
+func ReadEntity(world *World, id Id) Entity {
+	archId, ok := world.archLookup[id]
+	if !ok {
+		return Entity{}
 	}
 
-	for i := range overlay {
-		_, ok := overlay[i].(Id)
-		if !ok {
-			mask := componentRegistry.GetComponentMask(overlay[i])
-			delete(retMap, mask)
-		}
-	}
+	ent := world.archEngine.ReadAll(archId, id)
 
-	ret := make([]interface{}, 0)
-	for k := range retMap {
-		ret = append(ret, retMap[k])
-	}
-
-	return ret
+	return ent
 }
-
-
-type View struct {
-	world *World
-	components []interface{}
-	readonly []bool
-}
-
-// View archetypes that have one set of components but miss another set
-
-// Returns a view that iterates over all archetypes that contain the designated components
-func ViewAll(world *World, comp ...interface{}) View {
-	readonly := make([]bool, len(comp))
-	for i := range comp {
-		// TODO - kinda hacky
-		name := reflect.TypeOf(comp[i]).String()
-		if name[0] == '*' {
-			readonly[i] = false
-		} else {
-			readonly[i] = true
-		}
-	}
-	return View{
-		world: world,
-		components: comp,
-		readonly: readonly,
-	}
-}
-
-func (v *View) Map(lambda func(id Id, comp ...interface{})) {
-	archIds := ArchFilter(v.world.archEngine, v.components...)
-
-	// log.Println("archIds:", archIds)
-
-	compLists := make([]ArchComponent, 0)
-	for i := range v.components {
-		list := componentRegistry.GetArchStorageType(v.components[i])
-		compLists = append(compLists, list)
-	}
-	// log.Println(compLists)
-
-	lookup := LookupList{}
-	for _, archId := range archIds {
-		// Read Lookup List (which every archetype has)
-		ok := ArchRead(v.world.archEngine, archId, &lookup)
-		if !ok { panic("LookupList is missing!") }
-
-		// Lookup all component lists for the archetype
-		for i := range compLists {
-			list := componentRegistry.GetArchStorageType(v.components[i])
-			ok := ArchRead(v.world.archEngine, archId, list)
-			if !ok { panic("Couldn't find component list for archetype!") }
-			compLists[i] = list
-		}
-
-		// Execute lambda function with all component lists
-		lambdaComps := v.components
-		for i := range lookup.Ids {
-			for j := range compLists {
-				if v.readonly[j] {
-					lambdaComps[j] = compLists[j].InternalReadVal(i)
-				} else {
-					lambdaComps[j] = compLists[j].InternalPointer(i)
-				}
-			}
-
-			// Execute the function
-			lambda(lookup.Ids[i], lambdaComps...)
-		}
-	}
-}
-
-// Archetype lookuplist component
-type LookupList struct {
-	Lookup map[Id]int
-	Ids []Id
-}
-func (t *LookupList) ComponentSet(val interface{}) { *t = *val.(*LookupList) }
-func (t *LookupList) InternalRead(index int, val interface{}) { *val.(*Id) = t.Ids[index] }
-func (t *LookupList) InternalWrite(index int, val interface{}) { t.Ids[index] = val.(Id) }
-func (t *LookupList) InternalAppend(val interface{}) { t.Ids = append(t.Ids, val.(Id)) }
-func (t *LookupList) InternalPointer(index int) interface{} { return &t.Ids[index] }
-func (t *LookupList) InternalReadVal(index int) interface{} { return t.Ids[index] }
-func (t *LookupList) Delete(index int) {
-	oldId := t.Ids[index]
-	lastVal := t.Ids[len(t.Ids)-1]
-	t.Ids[index] = lastVal
-	t.Ids = t.Ids[:len(t.Ids)-1]
-
-	// Re-key the map
-	t.Lookup[lastVal] = index
-	delete(t.Lookup, oldId)
-}
-func (t *LookupList) Len() int { return len(t.Ids) }
-

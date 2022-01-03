@@ -1,5 +1,6 @@
 package ecs
 
+/*
 import (
 	"testing"
 )
@@ -194,3 +195,4 @@ func BenchmarkBaselineMap(b *testing.B) {
 		})
 	}
 }
+*/

@@ -2,226 +2,391 @@ package ecs
 
 import (
 	"fmt"
-	// "log"
+	"sort"
 )
 
-type ArchMask uint64 // Restricts us to a max of 64 different components
-
-type ArchComponent interface {
-	ComponentSet(interface{})
-	InternalRead(int, interface{})
-	InternalWrite(int, interface{})
-	InternalAppend(interface{})
-	InternalPointer(int) interface{}
-	InternalReadVal(int) interface{}
-	Len() int
-	Delete(int)
+type LookupList struct {
+	Lookup map[Id]int
+	Ids []Id
 }
 
 type ArchEngine struct {
 	archCounter ArchId
-	reg map[string]*ArchStorage
-	archLookup map[ArchMask]ArchId
+	reg map[string]Storage
+	lookup map[ArchId]*LookupList
+	dcr *DCR
+}
+
+type Storage interface {
+	New(ArchId)
+	Get(ArchId, any) bool // Gets Component Storage []Component
+	Set(ArchId, any)      // Sets Component Storage []Component
+	InternalGet(ArchId, int) (any, bool)  // Gets a component from component storage at an index
+	InternalSet(ArchId, int, any) // Sets a component in component storage at an index
+	InternalAppend(ArchId, any) // Appends a component to componenet Storage
+	InternalDelete(ArchId, int) // Appends a component to componenet Storage
+	// Len() int // Gets the current number of components in storage
+	Has(ArchId) bool // Checks if the Storage has the ArchId in it
 }
 
 func NewArchEngine() *ArchEngine {
 	return &ArchEngine{
-		archCounter: 0,
-		reg: make(map[string]*ArchStorage),
-		archLookup: make(map[ArchMask]ArchId),
+		// archCounter: 0,
+		reg: make(map[string]Storage),
+		lookup: make(map[ArchId]*LookupList),
+		dcr: NewDCR(),
 	}
 }
 
-func (e *ArchEngine) NewArchId() ArchId {
-	archId := e.archCounter
-	e.archCounter++
-	return archId
-}
+// func (e *ArchEngine) NewArchId() ArchId {
+// 	archId := e.archCounter
+// 	e.archCounter++
+// 	return archId
+// }
 
 func (e *ArchEngine) Print() {
-	for k,v := range e.reg {
-		fmt.Println(k, *v)
-	}
+	// for k,v := range e.reg {
+	// 	fmt.Println(k, *v)
+	// }
 }
 
-func (e *ArchEngine) GetArchMask(comp ...interface{}) ArchMask {
-	ret := ArchMask(0)
-	for i := range comp {
-		ret += componentRegistry.GetComponentMask(comp[i])
+func (e *ArchEngine) Read(archId ArchId, t any, val any) bool {
+	n := name(t)
+	iStorage, ok := e.reg[n]
+	if !ok {
+		panic("Attempting to read unregistered component")
+		return false
 	}
-	return ret
+
+	iStorage.Get(archId, val)
+	return true
 }
 
-// Uses component mask to generate an archetype ID or creates that archetype
-func (e *ArchEngine) GetArchId(comp ...interface{}) ArchId {
-	mask := e.GetArchMask(comp...)
-	archId, ok := e.archLookup[mask]
+func (e *ArchEngine) Read2(archId ArchId, t any) (Storage, bool) {
+	n := name(t)
+	iStorage, ok := e.reg[n]
+	if !ok {
+		panic("Attempting to read unregistered component")
+		return nil, false
+	}
+
+	if iStorage.Has(archId) {
+		return iStorage, true
+	}
+		return nil, false
+}
+
+func (e *ArchEngine) Write(archId ArchId, t any, val any) {
+	n := name(t)
+	iStorage, ok := e.reg[n]
+	if !ok {
+		panic("Attempting to read unregistered component")
+	}
+
+	iStorage.Set(archId, val)
+}
+
+// TODO - should this read all archetype's storage arrays?
+func (e *ArchEngine) ReadAll(archId ArchId, id Id) Entity {
+	// Lookup the id and it's index
+	lookup, ok := e.lookup[archId]
+	if !ok { panic("LookupList is missing!") }
+	index, ok := lookup.Lookup[id]
+	if !ok { panic("Entity ID doesn't exist in archetype ID!") }
+
+	ent := NewEntity()
+	for _, storage := range e.reg {
+		comp, ok := storage.InternalGet(archId, index)
+		if ok {
+			ent.Add(comp)
+		}
+	}
+
+	return ent
+}
+
+func (e *ArchEngine) DeleteAll(archId ArchId, id Id) {
+	// Lookup the id and it's index
+	lookup, ok := e.lookup[archId]
+	if !ok { panic("LookupList is missing!") }
+	index, ok := lookup.Lookup[id]
+	if !ok { panic("Entity ID doesn't exist in archetype ID!") }
+
+	for _, storage := range e.reg {
+		storage.InternalDelete(archId, index)
+	}
+
+	// TODO - put this in its own function?
+	// Delete id from LookupList
+	delete(lookup.Lookup, id)
+	lastVal := lookup.Ids[len(lookup.Ids)-1]
+	lookup.Ids[index] = lastVal
+	lookup.Ids = lookup.Ids[:len(lookup.Ids)-1]
+}
+
+// func ArchWrite[T any](engine *ArchEngine, archId ArchId, val []T) {
+// 	var t T
+// 	n := name(t)
+// 	iStorage, ok := engine.reg[n]
+// 	if !ok {
+// 		engine.reg[n] = NewArchStorage[[]T, T]()
+// 		iStorage = engine.reg[n]
+// 	}
+
+// 	storage := iStorage.(*ArchStorage[[]T, T])
+
+// 	storage.list[archId] = val
+// }
+
+// func ArchRead[T any](engine *ArchEngine, archId ArchId) ([]T, bool) {
+// 	var t T
+// 	n := name(t)
+// 	iStorage, ok := engine.reg[n]
+// 	if !ok {
+// 		var ret []T
+// 		return ret, false
+// 	}
+
+// 	storage := iStorage.(*ArchStorage[[]T, T])
+
+// 	ret, ok := storage.list[archId]
+// 	return ret, ok
+// }
+
+// func ArchReadAll(engine *ArchEngine, archId ArchId) []any {
+// 	ret := make([]ArchComponent, 0)
+// 	for _, storage := range e.reg {
+// 		comp, ok := storage.list[archId]
+// 		if !ok { continue }
+
+// 		ret = append(ret, comp.(ArchComponent))
+// 	}
+// 	return ret
+// }
+
+func (e *ArchEngine) GetArchId(comp ...any) ArchId {
+	archId := e.dcr.GetArchId(comp...)
+
+	_, ok := e.lookup[archId]
 	if !ok {
 		// Need to build this archetype because it doesn't exist
-		archId = e.NewArchId()
-		e.archLookup[mask] = archId
 
 		// All archetypes get the LookupList component
 		lookup := &LookupList{
 			Lookup: make(map[Id]int),
 			Ids: make([]Id, 0),
 		}
-		ArchWrite(e, archId, lookup)
+		// ArchWrite(e, archId, lookup)
+		e.lookup[archId] = lookup
+
 
 		// Add all component Lists to this archetype
 		for i := range comp {
-			list := componentRegistry.GetArchStorageType(comp[i])
-			ArchWrite(e, archId, list)
+			n := name(comp[i])
+			fmt.Println(n)
+			storage, ok := e.reg[n]
+			if !ok { panic("Bug: Archetype doesn't have its component storage setup!") }
+			storage.New(archId)
 		}
 	}
 
 	return archId
 }
 
-func ArchGetStorage(e *ArchEngine, t interface{}) *ArchStorage {
-	name := name(t)
-	storage, ok := e.reg[name]
+// Uses component mask to generate an archetype ID or creates that archetype
+// func (e *ArchEngine) GetArchId(comp ...interface{}) ArchId {
+// 	// mask := e.GetArchMask(comp...)
+// 	mask := ArchMask(0)
+// 	for i := range comp {
+// 		mask += e.componentRegistry[name(comp[i])]
+// 	}
+
+// 	archId, ok := e.archLookup[mask]
+// 	if !ok {
+// 		// Need to build this archetype because it doesn't exist
+// 		archId = e.NewArchId()
+// 		e.archLookup[mask] = archId
+
+// 		// All archetypes get the LookupList component
+// 		lookup := &LookupList{
+// 			Lookup: make(map[Id]int),
+// 			Ids: make([]Id, 0),
+// 		}
+// 		ArchWrite(e, archId, lookup)
+
+// 		// Add all component Lists to this archetype
+// 		for i := range comp {
+// 			list := e.componentRegistry[name(comp[i])]
+// 			ArchWrite(e, archId, list)
+// 		}
+// 	}
+
+// 	return archId
+// }
+
+// Storage for ArchId's, Typically T will be a list (indexed by Id) of some component type
+type ArchStorage[S Slice[T], T any] struct {
+	list map[ArchId]S
+}
+func NewArchStorage[S Slice[T], T any]() *ArchStorage[S, T] {
+	return &ArchStorage[S, T]{
+		list: make(map[ArchId]S),
+	}
+}
+
+func (s *ArchStorage[S, T]) New(archId ArchId) {
+	_, ok := s.list[archId]
 	if !ok {
-		e.reg[name] = NewArchStorage()
-		storage, _ = e.reg[name]
+		s.list[archId] = make(S, 0)
 	}
-	return storage
 }
 
-func ArchPrint(e *ArchEngine, id ArchId, val interface{}) {
-	storage := ArchGetStorage(e, val)
-	fmt.Println(storage)
+// TODO - use this to replace new?
+func (s *ArchStorage[S, T]) Get(archId ArchId, val any) bool {
+	_, ok := s.list[archId]
+	if !ok {
+		return false
+		// s.list[archId] = make(S, 0)
+	}
+	*(val.(*[]T)) = s.list[archId]
+	return true
 }
 
-func ArchRead(e *ArchEngine, id ArchId, val ArchComponent) bool {
-	storage := ArchGetStorage(e, val)
-	newVal, ok := storage.Read(id)
-	if ok {
-		val.ComponentSet(newVal)
+func (s *ArchStorage[S, T]) Set(archId ArchId, val any) {
+	s.list[archId] = val.([]T)
+	// *(val.(*[]T)) = s.list[archId]
+}
+
+// TODO - rename
+// TODO - this is operating on the archetype's component slice. Should I just make a new interface for that to implement and put that there?
+// TODO - handle index oob
+func (s *ArchStorage[S, T]) InternalGet(archId ArchId, index int) (any, bool) {
+	var ret T
+	sl, ok := s.list[archId]
+	if !ok {
+		return nil, false
 	}
+
+	ret = sl[index]
+	return ret, true
+}
+
+// TODO - rename
+func (s *ArchStorage[S, T]) InternalSet(archId ArchId, index int, val any) {
+	sl, ok := s.list[archId]
+	if !ok { panic("Archetype doesn't have this component!") }
+
+	sl[index] = val.(T)
+}
+
+func (s *ArchStorage[S, T]) InternalAppend(archId ArchId, comp any) {
+	sl, ok := s.list[archId]
+	if !ok { panic("Archetype doesn't have this component!") }
+
+	s.list[archId] = append(sl, comp.(T))
+}
+
+func (s *ArchStorage[S, T]) InternalDelete(archId ArchId, index int) {
+	sl, ok := s.list[archId]
+	if !ok { return }
+
+	// Move val at last position into hole
+	lastVal := sl[len(sl)-1]
+	sl[index] = lastVal
+	sl = sl[:len(sl)-1]
+}
+
+func (s *ArchStorage[S, T]) Has(archId ArchId) bool {
+	_, ok := s.list[archId]
 	return ok
 }
 
-func ArchWrite(e *ArchEngine, id ArchId, val interface{}) {
-	storage := ArchGetStorage(e, val)
-	storage.Write(id, val)
+type CompId uint16
+
+// Dynamic Component Registry
+type DCR struct {
+	archCounter ArchId
+	compCounter CompId
+	mapping map[string]CompId
+	// componentStorageType map[string]any
+	trie *node
 }
 
-func ArchReadAll(e *ArchEngine, archId ArchId) []ArchComponent {
-	ret := make([]ArchComponent, 0)
-	for _, storage := range e.reg {
-		comp, ok := storage.list[archId]
-		if !ok { continue }
-
-		ret = append(ret, comp.(ArchComponent))
+func NewDCR() *DCR {
+	r := &DCR{
+		archCounter: 0,
+		compCounter: 0,
+		mapping: make(map[string]CompId),
 	}
-	return ret
+	r.trie = NewNode(r)
+	return r
 }
 
-func ArchEach(engine *ArchEngine, t interface{}, f func(id ArchId, a interface{})) {
-	storage := ArchGetStorage(engine, t)
-	for id, a := range storage.list {
-		f(id, a)
+func (r *DCR) NewArchId() ArchId {
+	archId := r.archCounter
+	r.archCounter++
+	return archId
+}
+
+// 1. Map all components to their component Id(TODO - Do I want a specific type for this?)
+// 2. Sort all component ids so that we can index the prefix tree
+// 3. Walk the prefix tree to find the ArchId
+func (r *DCR) GetArchId(comp ...any) ArchId {
+	list := make([]CompId, len(comp))
+	for i := range comp {
+		list[i] = r.Register(comp[i])
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i] < list[j]
+	})
+
+	cur := r.trie
+	for _, idx := range list {
+		cur = cur.Get(r, idx)
+	}
+
+	return cur.archId
+}
+
+// Registers a component to a component Id and returns the Id
+// If already registered, just return the Id and don't make a new one
+func (r *DCR) Register(comp any) CompId {
+	n := name(comp)
+	id, ok := r.mapping[n]
+	if !ok {
+		r.compCounter++
+		r.mapping[n] = r.compCounter
+		return r.compCounter
+	}
+
+	return id
+}
+
+type node struct {
+	archId ArchId
+//	parent *node
+	child []*node
+}
+
+func NewNode(r *DCR) *node {
+	return &node{
+		archId: r.NewArchId(),
+		child: make([]*node, 0),
 	}
 }
 
-// func ArchFilterSingle(engine *ArchEngine, comp interface{}) []ArchId {
-// 	archIds := make([]ArchId, 0)
-
-// 	// Find all archetypes that have comp[0]
-// 	switch comp.(type) {
-// 	case d1:
-// 		ArchEach(engine, d1List{}, func(id ArchId, a interface{}) {
-// 			archIds = append(archIds, id)
-// 		})
-// 	case d2:
-// 		ArchEach(engine, d2List{}, func(id ArchId, a interface{}) {
-// 			archIds = append(archIds, id)
-// 		})
-// 	default:
-// 		panic("Unknown component type!")
-// 	}
-
-// 	return archIds
-// }
-
-// Get the ArchIds with all of these components
-func ArchFilter(engine *ArchEngine, comp ...interface{}) []ArchId {
-	if len(comp) <= 0 { panic("Must have at least one component!") }
-
-	archIds := make([]ArchId, 0)
-
-	// Find all archetypes that have comp[0]
-	{
-		storageType := componentRegistry.GetArchStorageType(comp[0])
-		storage := ArchGetStorage(engine, storageType)
-		for id := range storage.list {
-			archIds = append(archIds, id)
+func (n *node) Get(r *DCR, id CompId) *node {
+	if id < CompId(len(n.child)) {
+		if n.child[id] == nil {
+			n.child[id] = NewNode(r)
 		}
+		return n.child[id]
 	}
 
-	// log.Println("Initial:", archIds)
-
-	finalArchIds := make([]ArchId, 0)
-	// Loop over archetypes and remove ones that don't have all components
-	for _, archId := range archIds {
-		hasAllComps := true
-		for i := 1; i < len(comp); i++ {
-			storageType := componentRegistry.GetArchStorageType(comp[i])
-			hasAllComps = hasAllComps && ArchRead(engine, archId, storageType)
-
-			if !hasAllComps { break } // We can exit early if we are missing just one comp
-		}
-
-		// Only add archetypes which have all comps
-		if hasAllComps {
-			finalArchIds = append(finalArchIds, archId)
-		}
+	// Expand the slice to hold all required children
+	n.child = append(n.child, make([]*node, 1 + int(id) - len(n.child))...)
+	if n.child[id] == nil {
+		n.child[id] = NewNode(r)
 	}
-
-	return finalArchIds
+	return n.child[id]
 }
-
-// Get the ArchId with all of these components and only these components
-// TODO - use a bitmask to track these
-// func ArchFilterOnly(engine *ArchEngine, comp ...interface{}) {
-// 	if len(comp) <= 0 { panic("Must have at least one component!") }
-
-// 	final := make(map[ArchId]int)
-
-// 	// Loop over all of the current archetypes and ensure they have this new component too
-// 	for i := 1; i < len(comp); i++ {
-// 		ArchEach(engine, comp[0], func(id ArchId, a interface{}) {
-// 			final[id] = final[id] + 1
-// 		})
-// 	}
-
-// 	for k,v := range final {
-// 		if v == len(comp) {
-// 			return k
-// 		}
-// 	}
-// 	panic("Failed to find archetype!")
-// }
-
-// For storing archetype component group interfaces
-// TODO - use array backed map instead of map for arch storage? we never remove archIds
-type ArchStorage struct {
-	list map[ArchId]interface{}
-}
-func NewArchStorage() *ArchStorage {
-	return &ArchStorage{
-		list: make(map[ArchId]interface{}),
-	}
-}
-
-func (s *ArchStorage) Read(id ArchId) (interface{}, bool) {
-	val, ok := s.list[id]
-	return val, ok
-}
-func (s *ArchStorage) Write(id ArchId, val interface{}) {
-	s.list[id] = val
-}
-// func (s *ArchStorage) Delete(id ArchId) {
-// 	delete(s.list, id)
-// }

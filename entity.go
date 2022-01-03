@@ -1,5 +1,6 @@
 package ecs
 
+/*
 // TODO - revisit this abstraction
 type Copier interface {
 	Copy() interface{}
@@ -61,3 +62,4 @@ func WriteEntity(world *World, id Id, ent Entity) {
 
 	Write(world, id, comps...)
 }
+*/
