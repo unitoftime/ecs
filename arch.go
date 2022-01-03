@@ -45,9 +45,16 @@ func NewArchEngine() *ArchEngine {
 // }
 
 func (e *ArchEngine) Print() {
-	// for k,v := range e.reg {
-	// 	fmt.Println(k, *v)
-	// }
+	fmt.Println(e)
+}
+
+func (e ArchEngine) GetStorage(t any) Storage {
+	n := name(t)
+	iStorage, ok := e.reg[n]
+	if !ok {
+		panic("Attempting to read unregistered component")
+	}
+	return iStorage
 }
 
 func (e *ArchEngine) Read(archId ArchId, t any, val any) bool {
@@ -183,7 +190,6 @@ func (e *ArchEngine) GetArchId(comp ...any) ArchId {
 		// Add all component Lists to this archetype
 		for i := range comp {
 			n := name(comp[i])
-			fmt.Println(n)
 			storage, ok := e.reg[n]
 			if !ok { panic("Bug: Archetype doesn't have its component storage setup!") }
 			storage.New(archId)
@@ -191,6 +197,39 @@ func (e *ArchEngine) GetArchId(comp ...any) ArchId {
 	}
 
 	return archId
+}
+
+// Returns the list of ArchIds that contain all components
+// TODO - this can be optimized
+func (e *ArchEngine) Filter(comp ...any) []ArchId {
+	lists := make([][]ArchId, 0)
+	for i := range comp {
+		n := name(comp[i])
+		lists = append(lists, e.dcr.archList[n])
+	}
+
+	archIds := make([]ArchId, len(lists[0]))
+	copy(archIds, lists[0]) // There's always at least 1 in the variadic
+	for i := 1; i < len(lists); i++ {
+		archIds = Intersect(archIds, lists[i])
+	}
+	return archIds
+}
+
+func Intersect(a, b []ArchId) []ArchId {
+	set := make(map[ArchId]bool)
+	for _, id := range a {
+		set[id] = true
+	}
+
+	ret := make([]ArchId, 0)
+	for _, id := range b {
+		_, ok := set[id]
+		if ok {
+			ret = append(ret, id)
+		}
+	}
+	return ret
 }
 
 // Uses component mask to generate an archetype ID or creates that archetype
@@ -307,7 +346,8 @@ type CompId uint16
 type DCR struct {
 	archCounter ArchId
 	compCounter CompId
-	mapping map[string]CompId
+	mapping map[string]CompId // Contains the CompId for the component name
+	archList map[string][]ArchId // Contains the list of ArchIds that have this component
 	// componentStorageType map[string]any
 	trie *node
 }
@@ -317,6 +357,7 @@ func NewDCR() *DCR {
 		archCounter: 0,
 		compCounter: 0,
 		mapping: make(map[string]CompId),
+		archList: make(map[string][]ArchId), // Contains the list of ArchIds that have this component
 	}
 	r.trie = NewNode(r)
 	return r
@@ -328,7 +369,7 @@ func (r *DCR) NewArchId() ArchId {
 	return archId
 }
 
-// 1. Map all components to their component Id(TODO - Do I want a specific type for this?)
+// 1. Map all components to their component Id
 // 2. Sort all component ids so that we can index the prefix tree
 // 3. Walk the prefix tree to find the ArchId
 func (r *DCR) GetArchId(comp ...any) ArchId {
@@ -345,6 +386,15 @@ func (r *DCR) GetArchId(comp ...any) ArchId {
 		cur = cur.Get(r, idx)
 	}
 
+	// Add this ArchId to every component's archList
+	for _, c := range comp {
+		n := name(c)
+		r.archList[n] = append(r.archList[n], cur.archId)
+		// TODO - sort these to improve my filter speed?
+		// sort.Slice(r.archList[n], func(i, j int) bool {
+		// 	return r.archList[n][i] < r.archList[n][j]
+		// })
+	}
 	return cur.archId
 }
 
@@ -352,8 +402,12 @@ func (r *DCR) GetArchId(comp ...any) ArchId {
 // If already registered, just return the Id and don't make a new one
 func (r *DCR) Register(comp any) CompId {
 	n := name(comp)
+
 	id, ok := r.mapping[n]
 	if !ok {
+		// add empty ArchList
+		r.archList[n] = make([]ArchId, 0)
+
 		r.compCounter++
 		r.mapping[n] = r.compCounter
 		return r.compCounter

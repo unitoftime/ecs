@@ -38,6 +38,14 @@ func TestWorld(t *testing.T) {
 		t.Log(ent)
 	}
 
+	Map[d1](world, func(id Id, a d1) {
+		t.Log("Map:", id, a)
+	})
+
+	Map2[d1, d2](world, func(id Id, a d1, b d2) {
+		t.Log("Map2:", id, a, b)
+	})
+
 	// archEngine := NewArchEngine()
 	// aId := archEngine.NewArchId()
 
