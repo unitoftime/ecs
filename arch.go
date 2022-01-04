@@ -29,6 +29,29 @@ type Storage interface {
 	Has(ArchId) bool // Checks if the Storage has the ArchId in it
 }
 
+type Iterator[T any] interface {
+	Get (idx int) T
+}
+
+type ValueIterator[T any] struct {
+	ptr bool
+	list []T
+}
+func (i ValueIterator[T]) Get(idx int) T {
+	return i.list[idx]
+}
+
+// type PointerIterator[T] struct {
+// 	list []&T
+// }
+// func (i *PointerIterator[T]) Get(idx int) T {
+// 	return &i.list[idx]
+// }
+
+func GetStorageList[T any](s Storage, archId ArchId) []T {
+	return s.(*ArchStorage[[]T, T]).list[archId]
+}
+
 func NewArchEngine() *ArchEngine {
 	return &ArchEngine{
 		// archCounter: 0,

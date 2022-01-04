@@ -1,8 +1,9 @@
 package ecs
 
-// import (
-// 	"fmt"
-// )
+import (
+	// "fmt"
+	// "reflect"
+)
 
 type View struct {
 	world *World
@@ -31,35 +32,50 @@ func Map[A any](world *World, lambda func(id Id, a A)) {
 	archIds := world.archEngine.Filter(a)
 	storages := getAllStorages(world, a)
 
-	// fmt.Println("Map", archIds)
 	for _, archId := range archIds {
-		// fmt.Println("ArchId", archId)
-		aList := storages[0].(*ArchStorage[[]A, A]).list[archId]
+		aList := GetStorageList[A](storages[0], archId)
 
 		lookup, ok := world.archEngine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 		for i := range lookup.Ids {
-			// fmt.Println("Index", i)
 			lambda(lookup.Ids[i], aList[i])
 		}
 	}
 }
 
-func Map2[A, B any](world *World, lambda func(id Id, a A, b B)) {
+func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
 	var a A
 	var b B
 	archIds := world.archEngine.Filter(a, b)
-	// archIds := []ArchId{ArchId(2)}
 	storages := getAllStorages(world, a, b)
 
+	// aPtr := (reflect.ValueOf(a).Kind() == reflect.Ptr)
+	// bPtr := (reflect.ValueOf(b).Kind() == reflect.Ptr)
+
 	for _, archId := range archIds {
-		aList := storages[0].(*ArchStorage[[]A, A]).list[archId]
-		bList := storages[1].(*ArchStorage[[]B, B]).list[archId]
+		aList := GetStorageList[A](storages[0], archId)
+		bList := GetStorageList[B](storages[1], archId)
+
+		// var aIter Iterator[A] = ValueIterator[A]{aList}
+		// var bIter Iterator[B] = ValueIterator[B]{bList}
+
 
 		lookup, ok := world.archEngine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 		for i := range lookup.Ids {
-			lambda(lookup.Ids[i], aList[i], bList[i])
+			lambda(lookup.Ids[i], &aList[i], &bList[i])
+
+			// lambda(lookup.Ids[i], aIter.Get(i), bIter.Get(i))
+
+			// if !aPtr && !bPtr {
+			// 	lambda(lookup.Ids[i], aList[i], bList[i])
+			// } else if aPtr && !bPtr {
+			// 	lambda(lookup.Ids[i], &aList[i], bList[i])
+			// } else if !aPtr && !bPtr {
+			// 	lambda(lookup.Ids[i], aList[i], &bList[i])
+			// } else if aPtr && bPtr {
+			// 	lambda(lookup.Ids[i], &aList[i], &bList[i])
+			// }
 		}
 	}
 }

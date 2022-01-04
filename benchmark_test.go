@@ -96,123 +96,124 @@ func BenchmarkLoopConstAdd(b *testing.B) {
 	}
 }
 
-func BenchmarkLoopAdd(b *testing.B) {
-	world := setup(1e6)
-	b.ResetTimer()
+// func BenchmarkLoopAdd(b *testing.B) {
+// 	world := setup(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		// view := ViewAll(world, &d1{}, &d2{})
-		Map2[d1, d2](world, func(id Id, data d1, data2 d2) {
-			data.value += data2.value
-		})
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		// view := ViewAll(world, &d1{}, &d2{})
+// 		Map2[d1, d2](world, func(id Id, data d1, data2 d2) {
+// 			data.value += data2.value
+// 		})
+// 	}
+// }
 
-func BenchmarkLoopCompare(b *testing.B) {
-	world := setup(1e6)
-	b.ResetTimer()
+// func BenchmarkLoopCompare(b *testing.B) {
+// 	world := setup(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		// view := ViewAll(world, &d1{}, &d2{})
-		Map2[d1, d2](world, func(id Id, data d1, data2 d2) {
-			if data.value != data2.value {
-				b.Errorf("values should always match!")
-			}
-		})
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		// view := ViewAll(world, &d1{}, &d2{})
+// 		Map2[d1, d2](world, func(id Id, data d1, data2 d2) {
+// 			if data.value != data2.value {
+// 				b.Errorf("values should always match!")
+// 			}
+// 		})
+// 	}
+// }
 
-// ---
-// - Baseline Arrays
-// ---
-func BenchmarkBaseline(b *testing.B) {
-	aa := make([]d1, 1e6)
-	bb := make([]d2, 1e6)
+// // ---
+// // - Baseline Arrays
+// // ---
+// func BenchmarkBaseline(b *testing.B) {
+// 	aa := make([]d1, 1e6)
+// 	bb := make([]d2, 1e6)
 
-	b.ResetTimer()
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		// for j := 0; j < 1e6; j++ {
-		for j := range aa {
-			if aa[j].value != bb[j].value {
-				b.Errorf("values should always match!")
-			}
-		}
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		// for j := 0; j < 1e6; j++ {
+// 		for j := range aa {
+// 			if aa[j].value != bb[j].value {
+// 				b.Errorf("values should always match!")
+// 			}
+// 		}
+// 	}
+// }
 
-func pointerMapFunc(aa []d1, bb []d2, f func(index int, x *d1, y *d2)) {
-	for j := 0; j < 1e6; j++ {
-		f(j, &aa[j], &bb[j])
-	}
-}
+// func pointerMapFunc(aa []d1, bb []d2, f func(index int, x *d1, y *d2)) {
+// 	for j := 0; j < 1e6; j++ {
+// 		f(j, &aa[j], &bb[j])
+// 	}
+// }
 
-func BenchmarkBaselinePointerMap(b *testing.B) {
-	aa := make([]d1, 1e6)
-	bb := make([]d2, 1e6)
-	b.ResetTimer()
+// func BenchmarkBaselinePointerMap(b *testing.B) {
+// 	aa := make([]d1, 1e6)
+// 	bb := make([]d2, 1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		pointerMapFunc(aa, bb, func(index int, x *d1, y *d2) {
-			if x.value != y.value {
-				b.Errorf("values should always match!")
-			}
-		})
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		pointerMapFunc(aa, bb, func(index int, x *d1, y *d2) {
+// 			if x.value != y.value {
+// 				b.Errorf("values should always match!")
+// 			}
+// 		})
+// 	}
+// }
 
-////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////////
 
-func BenchmarkMapCompareGeneric(b *testing.B) {
-	world := setup(1e6)
-	b.ResetTimer()
+// func BenchmarkMapCompareGeneric(b *testing.B) {
+// 	world := setup(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		Map2[d1, d2](world, func(id Id, data d1, data2 d2) {
-			if data.value != data2.value {
-				b.Errorf("values should always match!")
-			}
-		})
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		Map2[d1, d2](world, func(id Id, data d1, data2 d2) {
+// 			if data.value != data2.value {
+// 				panic("values should always match!")
+// 			}
+// 		})
+// 	}
+// }
 
 
-func mapFunc(aa []d1, bb []d2, f func(index int, x d1, y d2)) {
-	for j := range aa {
-		f(j, aa[j], bb[j])
-	}
-}
+// func mapFunc(aa []d1, bb []d2, f func(index int, x d1, y d2)) {
+// 	for j := range aa {
+// 		f(j, aa[j], bb[j])
+// 	}
+// }
 
-func mapFuncGen[A any, B any](aa []A, bb []B, f func(index int, x A, y B)) {
-	for j := range aa {
-		f(j, aa[j], bb[j])
-	}
-}
+// func mapFuncGen[A any, B any](aa []A, bb []B, f func(index int, x A, y B)) {
+// 	for j := range aa {
+// 		f(j, aa[j], bb[j])
+// 	}
+// }
 
-func BenchmarkMapCompareGen(b *testing.B) {
-	aa := make([]d1, 1e6)
-	bb := make([]d2, 1e6)
-	b.ResetTimer()
+// func BenchmarkMapCompareGen(b *testing.B) {
+// 	aa := make([]d1, 1e6)
+// 	bb := make([]d2, 1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		mapFuncGen[d1, d2](aa, bb, func(index int, x d1, y d2) {
-			if x.value != y.value {
-				panic("values should always match!")
-			}
-		})
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		mapFuncGen[d1, d2](aa, bb, func(index int, x d1, y d2) {
+// 			if x.value != y.value {
+// 				panic("values should always match!")
+// 			}
+// 		})
+// 	}
+// }
 
-func BenchmarkMapCompare(b *testing.B) {
-	aa := make([]d1, 1e6)
-	bb := make([]d2, 1e6)
-	b.ResetTimer()
+// func BenchmarkMapCompare(b *testing.B) {
+// 	aa := make([]d1, 1e6)
+// 	bb := make([]d2, 1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		mapFunc(aa, bb, func(index int, x d1, y d2) {
-			if x.value != y.value {
-				panic("values should always match!")
-			}
-		})
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		mapFunc(aa, bb, func(index int, x d1, y d2) {
+// 			if x.value != y.value {
+// 				panic("values should always match!")
+// 			}
+// 		})
+// 	}
+// }
+
