@@ -125,10 +125,14 @@ func (e *ArchEngine) DeleteAll(archId ArchId, id Id) {
 
 	// TODO - put this in its own function?
 	// Delete id from LookupList
+	// fmt.Println(len(lookup.Ids), len(lookup.Lookup), index, id)
 	delete(lookup.Lookup, id)
 	lastVal := lookup.Ids[len(lookup.Ids)-1]
 	lookup.Ids[index] = lastVal
 	lookup.Ids = lookup.Ids[:len(lookup.Ids)-1]
+
+	// Reassign the lastVal (ID) to the index we moved it to
+	lookup.Lookup[lastVal] = index
 }
 
 // func ArchWrite[T any](engine *ArchEngine, archId ArchId, val []T) {
@@ -202,35 +206,52 @@ func (e *ArchEngine) GetArchId(comp ...any) ArchId {
 // Returns the list of ArchIds that contain all components
 // TODO - this can be optimized
 func (e *ArchEngine) Filter(comp ...any) []ArchId {
-	lists := make([][]ArchId, 0)
+	lists := make([]map[ArchId]bool, 0)
 	for i := range comp {
 		n := name(comp[i])
-		lists = append(lists, e.dcr.archList[n])
+		lists = append(lists, e.dcr.archSet[n])
 	}
 
-	archIds := make([]ArchId, len(lists[0]))
-	copy(archIds, lists[0]) // There's always at least 1 in the variadic
-	for i := 1; i < len(lists); i++ {
-		archIds = Intersect(archIds, lists[i])
-	}
-	return archIds
-}
-
-func Intersect(a, b []ArchId) []ArchId {
-	set := make(map[ArchId]bool)
-	for _, id := range a {
-		set[id] = true
-	}
-
-	ret := make([]ArchId, 0)
-	for _, id := range b {
-		_, ok := set[id]
-		if ok {
-			ret = append(ret, id)
+	archIds := make([]ArchId, 0)
+	for archId := range lists[0] {
+		missing := false
+		for i := range lists {
+			_, exists := lists[i][archId]
+			if !exists {
+				missing = true
+				break // at least one set was missing
+			}
+		}
+		if !missing {
+			archIds = append(archIds, archId)
 		}
 	}
-	return ret
+
+	return archIds
+
+	// archIds := make([]ArchId, len(lists[0]))
+	// copy(archIds, lists[0]) // There's always at least 1 in the variadic
+	// for i := 1; i < len(lists); i++ {
+	// 	archIds = Intersect(archIds, lists[i])
+	// }
+	// return archIds
 }
+
+// func Intersect(a, b []ArchId) []ArchId {
+// 	set := make(map[ArchId]bool)
+// 	for _, id := range a {
+// 		set[id] = true
+// 	}
+
+// 	ret := make([]ArchId, 0)
+// 	for _, id := range b {
+// 		_, ok := set[id]
+// 		if ok {
+// 			ret = append(ret, id)
+// 		}
+// 	}
+// 	return ret
+// }
 
 // Uses component mask to generate an archetype ID or creates that archetype
 // func (e *ArchEngine) GetArchId(comp ...interface{}) ArchId {
@@ -347,7 +368,7 @@ type DCR struct {
 	archCounter ArchId
 	compCounter CompId
 	mapping map[string]CompId // Contains the CompId for the component name
-	archList map[string][]ArchId // Contains the list of ArchIds that have this component
+	archSet map[string]map[ArchId]bool // Contains the set of ArchIds that have this component
 	// componentStorageType map[string]any
 	trie *node
 }
@@ -357,7 +378,7 @@ func NewDCR() *DCR {
 		archCounter: 0,
 		compCounter: 0,
 		mapping: make(map[string]CompId),
-		archList: make(map[string][]ArchId), // Contains the list of ArchIds that have this component
+		archSet: make(map[string]map[ArchId]bool),
 	}
 	r.trie = NewNode(r)
 	return r
@@ -389,7 +410,9 @@ func (r *DCR) GetArchId(comp ...any) ArchId {
 	// Add this ArchId to every component's archList
 	for _, c := range comp {
 		n := name(c)
-		r.archList[n] = append(r.archList[n], cur.archId)
+		r.archSet[n][cur.archId] = true
+
+		// r.archList[n] = append(r.archList[n], cur.archId)
 		// TODO - sort these to improve my filter speed?
 		// sort.Slice(r.archList[n], func(i, j int) bool {
 		// 	return r.archList[n][i] < r.archList[n][j]
@@ -406,7 +429,7 @@ func (r *DCR) Register(comp any) CompId {
 	id, ok := r.mapping[n]
 	if !ok {
 		// add empty ArchList
-		r.archList[n] = make([]ArchId, 0)
+		r.archSet[n] = make(map[ArchId]bool)
 
 		r.compCounter++
 		r.mapping[n] = r.compCounter

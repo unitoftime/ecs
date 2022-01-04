@@ -1,9 +1,10 @@
 package ecs
 
-/*
 import (
 	"testing"
 )
+
+// Note: Generic Performance issues: https://github.com/golang/go/issues/50182
 
 // goos: linux
 // goarch: amd64
@@ -23,6 +24,9 @@ import (
 
 func setup(size int) *World {
 	world := NewWorld()
+	Register[d1](world)
+	Register[d2](world)
+	Register[d3](world)
 
 	for i := 0; i < size; i++ {
 		id := world.NewId()
@@ -45,9 +49,9 @@ func BenchmarkReads(b *testing.B) {
 	idStart := UniqueEntity + 1
 
 	for i := 0; i < b.N; i++ {
-		data := d1{}
 		for j := idStart; j < 1e6+idStart; j++ {
-			Read(world, Id(j), &data)
+			data, ok := Read[d1](world, Id(j))
+			if !ok { panic(data) }
 		}
 	}
 }
@@ -85,10 +89,9 @@ func BenchmarkLoopConstAdd(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		view := ViewAll(world, &d1{})
-		view.Map(func(id Id, comp ...interface{}) {
-			data := comp[0].(*d1)
-			data.value += 1
+		// view := ViewAll(world, &d1{})
+		Map[d1](world, func(id Id, a d1) {
+			a.value += 1
 		})
 	}
 }
@@ -98,10 +101,8 @@ func BenchmarkLoopAdd(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		view := ViewAll(world, &d1{}, &d2{})
-		view.Map(func(id Id, comp ...interface{}) {
-			data := comp[0].(*d1)
-			data2 := comp[1].(*d2)
+		// view := ViewAll(world, &d1{}, &d2{})
+		Map2[d1, d2](world, func(id Id, data d1, data2 d2) {
 			data.value += data2.value
 		})
 	}
@@ -112,26 +113,8 @@ func BenchmarkLoopCompare(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		view := ViewAll(world, &d1{}, &d2{})
-		view.Map(func(id Id, comp ...interface{}) {
-			data := comp[0].(*d1)
-			data2 := comp[1].(*d2)
-			if data.value != data2.value {
-				b.Errorf("values should always match!")
-			}
-		})
-	}
-}
-
-func BenchmarkLoopCompareReadOnly(b *testing.B) {
-	world := setup(1e6)
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		view := ViewAll(world, d1{}, d2{})
-		view.Map(func(id Id, comp ...interface{}) {
-			data := comp[0].(d1)
-			data2 := comp[1].(d2)
+		// view := ViewAll(world, &d1{}, &d2{})
+		Map2[d1, d2](world, func(id Id, data d1, data2 d2) {
 			if data.value != data2.value {
 				b.Errorf("values should always match!")
 			}
@@ -145,10 +128,12 @@ func BenchmarkLoopCompareReadOnly(b *testing.B) {
 func BenchmarkBaseline(b *testing.B) {
 	aa := make([]d1, 1e6)
 	bb := make([]d2, 1e6)
+
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < 1e6; j++ {
+		// for j := 0; j < 1e6; j++ {
+		for j := range aa {
 			if aa[j].value != bb[j].value {
 				b.Errorf("values should always match!")
 			}
@@ -176,13 +161,49 @@ func BenchmarkBaselinePointerMap(b *testing.B) {
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+func BenchmarkMapCompareGeneric(b *testing.B) {
+	world := setup(1e6)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		Map2[d1, d2](world, func(id Id, data d1, data2 d2) {
+			if data.value != data2.value {
+				b.Errorf("values should always match!")
+			}
+		})
+	}
+}
+
+
 func mapFunc(aa []d1, bb []d2, f func(index int, x d1, y d2)) {
-	for j := 0; j < 1e6; j++ {
+	for j := range aa {
 		f(j, aa[j], bb[j])
 	}
 }
 
-func BenchmarkBaselineMap(b *testing.B) {
+func mapFuncGen[A any, B any](aa []A, bb []B, f func(index int, x A, y B)) {
+	for j := range aa {
+		f(j, aa[j], bb[j])
+	}
+}
+
+func BenchmarkMapCompareGen(b *testing.B) {
+	aa := make([]d1, 1e6)
+	bb := make([]d2, 1e6)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		mapFuncGen[d1, d2](aa, bb, func(index int, x d1, y d2) {
+			if x.value != y.value {
+				panic("values should always match!")
+			}
+		})
+	}
+}
+
+func BenchmarkMapCompare(b *testing.B) {
 	aa := make([]d1, 1e6)
 	bb := make([]d2, 1e6)
 	b.ResetTimer()
@@ -190,9 +211,8 @@ func BenchmarkBaselineMap(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		mapFunc(aa, bb, func(index int, x d1, y d2) {
 			if x.value != y.value {
-				b.Errorf("values should always match!")
+				panic("values should always match!")
 			}
 		})
 	}
 }
-*/
