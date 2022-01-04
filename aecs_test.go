@@ -1,50 +1,104 @@
 package ecs
 
 import (
+	"fmt"
 	"testing"
 )
+
+type Pos struct {
+	X,Y,Z float64
+}
+
+type Vel struct {
+	X,Y,Z float64
+}
+
+func TestArchEngine(t *testing.T) {
+	engine := NewArchEngine()
+	WriteArch(engine, ArchId(1), Id(1), Pos{1,1,1})
+	pos, ok := ReadArch[Pos](engine, ArchId(1), Id(1))
+	fmt.Println(pos, ok)
+	fmt.Println(engine)
+}
 
 func TestWorld(t *testing.T) {
 	world := NewWorld()
 	id := world.NewId()
 
-	Register[d1](world)
-	Register[d2](world)
+	Write(world, id, C(Pos{1,1,1}), C(Vel{2,2,2}))
+	fmt.Println(Read[Pos](world, id))
+	fmt.Println(Read[Vel](world, id))
 
-	a, ok := Read[d1](world, id)
-	t.Log(a, ok)
+	world.Print()
 
-	Write(world, id, d1{111})
-	{
-		a, ok = Read[d1](world, id)
-		t.Log(a, ok)
-		ent := ReadEntity(world, id)
-		t.Log(ent)
-	}
+	// id2 := world.NewId()
+	// Write(world, id2, C(Pos{3,3,3}))
+	// fmt.Println(Read[Pos](world, id2))
+	// fmt.Println(Read[Vel](world, id2))
 
-	Write(world, id, d1{222})
-	{
-		a, ok = Read[d1](world, id)
-		t.Log(a, ok)
-		ent := ReadEntity(world, id)
-		t.Log(ent)
-	}
+	// Write(world, id2, C(Pos{4, 4, 4}))
+	// fmt.Println(Read[Pos](world, id2))
+	// fmt.Println(Read[Vel](world, id2))
 
-	Write(world, id, d2{333})
-	{
-		b, ok := Read[d2](world, id)
-		t.Log(b, ok)
-		ent := ReadEntity(world, id)
-		t.Log(ent)
-	}
+	// Write(world, id2, C(Vel{5, 5, 5}))
+	// fmt.Println(Read[Pos](world, id2))
+	// fmt.Println(Read[Vel](world, id2))
 
-	Map[d1](world, func(id Id, a d1) {
-		t.Log("Map:", id, a)
+	// view := ViewAll(world, C(Pos{}), C(Vel{}))
+	// view.Map(func(id Id, pos any) {
+	// 	pos := a.(Position)
+	// })
+
+	// view := ViewAll[Pos](world)
+	// view.Map(func(id Id, pos Pos) {
+		
+	// })
+
+	Map[Pos](world, func(id Id, pos Pos) {
+		fmt.Println("Map:", id, pos)
 	})
 
-	Map2[d1, d2](world, func(id Id, a *d1, b *d2) {
-		t.Log("Map2:", id, a, b)
-	})
+	// Map2[d1, d2](world, func(id Id, a *d1, b *d2) {
+	// 	t.Log("Map2:", id, a, b)
+	// })
+
+	// Register[d1](world)
+	// Register[d2](world)
+
+	// a, ok := Read[d1](world, id)
+	// t.Log(a, ok)
+
+	// Write(world, id, d1{111})
+	// {
+	// 	a, ok = Read[d1](world, id)
+	// 	t.Log(a, ok)
+	// 	ent := ReadEntity(world, id)
+	// 	t.Log(ent)
+	// }
+
+	// Write(world, id, d1{222})
+	// {
+	// 	a, ok = Read[d1](world, id)
+	// 	t.Log(a, ok)
+	// 	ent := ReadEntity(world, id)
+	// 	t.Log(ent)
+	// }
+
+	// Write(world, id, d2{333})
+	// {
+	// 	b, ok := Read[d2](world, id)
+	// 	t.Log(b, ok)
+	// 	ent := ReadEntity(world, id)
+	// 	t.Log(ent)
+	// }
+
+	// Map[d1](world, func(id Id, a d1) {
+	// 	t.Log("Map:", id, a)
+	// })
+
+	// Map2[d1, d2](world, func(id Id, a *d1, b *d2) {
+	// 	t.Log("Map2:", id, a, b)
+	// })
 
 	// archEngine := NewArchEngine()
 	// aId := archEngine.NewArchId()
