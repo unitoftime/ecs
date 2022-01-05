@@ -1,6 +1,10 @@
 package ecs
 
-func Map[A any](world *World, lambda func(id Id, a A)) {
+import (
+	// "reflect"
+)
+
+func Map[A any](world *World, lambda func(id Id, a *A)) {
 	var a A
 	archIds := world.engine.Filter(a)
 
@@ -15,12 +19,12 @@ func Map[A any](world *World, lambda func(id Id, a A)) {
 		if !ok { panic("LookupList is missing!") }
 
 		for i := range lookup.id {
-			lambda(lookup.id[i], aSlice.comp[i])
+			lambda(lookup.id[i], &aSlice.comp[i])
 		}
 	}
 }
 
-func Map2[A, B any](world *World, lambda func(id Id, a A, b B)) {
+func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
 	var a A
 	var b B
 	archIds := world.engine.Filter(a, b)
@@ -39,7 +43,101 @@ func Map2[A, B any](world *World, lambda func(id Id, a A, b B)) {
 		if !ok { panic("LookupList is missing!") }
 
 		for i := range lookup.id {
-			lambda(lookup.id[i], aSlice.comp[i], bSlice.comp[i])
+			lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i])
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// type SliceReader[T any] interface {
+// 	Read(int) T
+// }
+
+// type CompSliceStorageReader[T any] interface {
+// 	GetSliceReader(ArchId) SliceReader[T]
+// }
+
+// func GetStorage2[T any](e *ArchEngine) ComponentSliceStorage[T] {
+// 	var val T
+// 	n := name(val)
+// 	ss, ok := e.compSliceStorage[n]
+// 	if !ok {
+// 		panic("Arch engine doesn't have this storage (I should probably just instantiate it and replace this code with write")
+// 	}
+// 	return storage
+// }
+
+// func (ss ComponentStorageSlice[T]) GetSliceReader(archId ArchId) (SliceReader, bool) {
+// 	return ss.slice[archId]
+// }
+
+type ptr[T any] interface {
+	*T
+}
+
+type get[T, U any] interface {
+	get([]T, int) U
+}
+
+type RO[T any] struct {
+}
+func (r RO[T]) get(slice []T, index int) T {
+	return slice[index]
+}
+
+type RW[T any] struct {
+}
+func (r RW[T]) get(slice []T, index int) *T {
+	return &slice[index]
+}
+
+func RwMap2[GA get[A, AO], GB get[B, BO], A any, B any, AO, BO any](world *World, lambda func(id Id, a AO, b BO)) {
+	var a A
+	var b B
+	archIds := world.engine.Filter(a, b)
+
+	var getA GA
+	var getB GB
+
+	// aPtr := (reflect.ValueOf(a).Kind() == reflect.Ptr)
+	// bPtr := (reflect.ValueOf(b).Kind() == reflect.Ptr)
+
+	// storages := getAllStorages(world, a)
+	aStorage := GetStorage[A](world.engine)
+	bStorage := GetStorage[B](world.engine)
+
+	for _, archId := range archIds {
+		aSlice, ok := aStorage.slice[archId]
+		if !ok { continue }
+		bSlice, ok := bStorage.slice[archId]
+		if !ok { continue }
+
+		lookup, ok := world.engine.lookup[archId]
+		if !ok { panic("LookupList is missing!") }
+
+		for i := range lookup.id {
+			lambda(lookup.id[i], getA.get(aSlice.comp, i), getB.get(bSlice.comp, i))
+		}
+	}
+}
+
+func RwMap[GA get[A, AO], A any, AO any](world *World, lambda func(id Id, a AO)) {
+	var a A
+	archIds := world.engine.Filter(a)
+
+	var getA GA
+
+	aStorage := GetStorage[A](world.engine)
+
+	for _, archId := range archIds {
+		aSlice, ok := aStorage.slice[archId]
+		if !ok { continue }
+
+		lookup, ok := world.engine.lookup[archId]
+		if !ok { panic("LookupList is missing!") }
+
+		for i := range lookup.id {
+			lambda(lookup.id[i], getA.get(aSlice.comp, i))
 		}
 	}
 }
@@ -97,13 +195,13 @@ func ViewAll2[A, B any](world *World) *View2[A, B] {
 // 	}
 // }
 
-func (v *View2[A, B]) Map(lambda func(id Id, a A, b B)) {
+func (v *View2[A, B]) Map(lambda func(id Id, a *A, b *B)) {
 	for i := range v.id {
 		id := v.id[i]
 		aSlice := v.aSlice[i]
 		bSlice := v.bSlice[i]
 		for j := range id {
-			lambda(id[j], aSlice[j], bSlice[j])
+			lambda(id[j], &aSlice[j], &bSlice[j])
 		}
 	}
 }

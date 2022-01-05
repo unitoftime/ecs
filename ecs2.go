@@ -41,6 +41,7 @@ type Lookup struct {
 type Storage interface {
 	ReadToEntity(*Entity, ArchId, int) bool
 	Delete(ArchId, int)
+	// GetComponentSlice(archId ArchId) SliceReader
 }
 
 type ComponentSliceStorage[T any] struct {
@@ -64,6 +65,14 @@ func (ss ComponentSliceStorage[T]) Delete(archId ArchId, index int) {
 	cSlice.comp[index] = lastVal
 	cSlice.comp = cSlice.comp[:len(cSlice.comp)-1]
 }
+
+// func (ss ComponentStorageSlice[T]) GetComponentSlice(archId ArchId) (SliceReader, bool) {
+// 	return ss.slice[archId]
+// }
+
+// type SliceReader interface {
+// 	Get(index int)
+// }
 
 // Provides generic storage for all archetypes
 type ArchEngine struct {
@@ -231,7 +240,7 @@ func (e *ArchEngine) RewriteArch(archId ArchId, id Id, comp ...Component) {
 			c.Write(e, newArchId, id)
 		}
 
-		// 4: Write the new lookupList???
+		// 4: TODO - Write the new lookupList???
 	}
 }
 
@@ -288,4 +297,20 @@ func (e *Entity) Comps() []Component {
 		ret = append(ret, v)
 	}
 	return ret
+}
+
+func ReadFromEntity[T any](ent *Entity) (T, bool) {
+	var t T
+	n := name(t)
+
+	icomp, ok := ent.comp[n]
+	if !ok {
+		return t, false
+	}
+	return icomp.(CompBox[T]).comp, true
+}
+
+func WriteEntity(world *World, id Id, ent *Entity) {
+	comps := ent.Comps()
+	Write(world, id, comps...)
 }

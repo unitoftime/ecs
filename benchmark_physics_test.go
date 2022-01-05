@@ -39,7 +39,7 @@ func setupPhysics(size int) *World {
 	return world
 }
 
-func physicsTick(id Id, pos Position, vel Velocity) {
+func physicsTick(id Id, pos *Position, vel *Velocity) {
 	dt := float32(0.001)
 	pos.X += vel.X * dt
 	pos.Y += vel.Y * dt
@@ -47,7 +47,7 @@ func physicsTick(id Id, pos Position, vel Velocity) {
 	// TODO - writeback?
 }
 
-func physicsTick2(id Id, pos *Position, vel Velocity) {
+func physicsTick2(id Id, pos *Position, vel *Velocity) {
 	dt := float32(0.001)
 	pos.X += vel.X * dt
 	pos.Y += vel.Y * dt
@@ -96,7 +96,7 @@ func BenchmarkPhysicsEcsViewIter(b *testing.B) {
 		for {
 			id, pos, vel, ok := view.Iter()
 			if !ok { break }
-			physicsTick(id, pos, vel)
+			physicsTick(id, &pos, &vel)
 		}
 	}
 }
@@ -113,7 +113,7 @@ func BenchmarkPhysicsEcsViewIter2(b *testing.B) {
 		for {
 			ok := view.Iter2(&id, &pos, &vel)
 			if !ok { break }
-			physicsTick(id, pos, vel)
+			physicsTick(id, &pos, &vel)
 		}
 	}
 }
@@ -136,25 +136,58 @@ func BenchmarkPhysicsEcsViewIterChunk(b *testing.B) {
 	}
 }
 
-// func BenchmarkPhysicsEcsViewMapPtr(b *testing.B) {
+func simpleMap(world *World, lambda func(id Id, pos Position, vel Velocity)) {
+	view := ViewAll2[Position, Velocity](world)
+	for {
+		id, pos, vel, ok := view.IterChunk()
+		if !ok { break }
+		// fmt.Println(len(id))
+		// mapFuncPhy(pos, vel, physicsTick)
+		for i := range id {
+			// physicsTick(id[i], pos[i], vel[i])
+			lambda(id[i], pos[i], vel[i])
+		}
+	}
+}
+
+func BenchmarkPhysicsEcsViewIterChunk2(b *testing.B) {
+	world := setupPhysics(1e6)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		simpleMap(world, func(id Id, pos Position, vel Velocity) {
+			physicsTick(id, &pos, &vel)
+		})
+	}
+}
+
+func BenchmarkPhysicsEcsViewMapPtr(b *testing.B) {
+	world := setupPhysics(1e6)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		RwMap2[RW[Position], RW[Velocity], Position, Velocity](world, physicsTick2)
+	}
+}
+
+// func BenchmarkPhysicsEcsViewMapPtr2(b *testing.B) {
 // 	world := setupPhysics(1e6)
 // 	b.ResetTimer()
 
 // 	for i := 0; i < b.N; i++ {
-// 		view := ViewAll2[*Position, Velocity](world)
-// 		view.Map(physicsTick2)
+// 		RwMap2[RO[Position], RO[Velocity], Position, Velocity](world, physicsTick)
 // 	}
 // }
 
-func mapFuncPhy(pos []Position, vel []Velocity, f func(id Id, pos Position, vel Velocity)) {
+func mapFuncPhy(pos []Position, vel []Velocity, f func(id Id, pos *Position, vel *Velocity)) {
 	for j := range pos {
-		f(Id(j), pos[j], vel[j])
+		f(Id(j), &pos[j], &vel[j])
 	}
 }
 
-func mapFuncPhyGen[A any, B any](id []Id, aa []A, bb []B, f func(id Id, x A, y B)) {
+func mapFuncPhyGen[A any, B any](id []Id, aa []A, bb []B, f func(id Id, x *A, y *B)) {
 	for j := range aa {
-		f(id[j], aa[j], bb[j])
+		f(id[j], &aa[j], &bb[j])
 	}
 }
 

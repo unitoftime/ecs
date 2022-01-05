@@ -54,7 +54,7 @@ func TestWorld(t *testing.T) {
 		
 	// })
 
-	Map[Pos](world, func(id Id, pos Pos) {
+	Map[Pos](world, func(id Id, pos *Pos) {
 		fmt.Println("Map:", id, pos)
 	})
 
