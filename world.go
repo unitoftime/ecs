@@ -22,6 +22,10 @@ func (c CompBox[T]) Name() string {
 	return name(c.comp)
 }
 
+func (c CompBox[T]) Get() T {
+	return c.comp
+}
+
 const (
 	InvalidEntity Id = 0
 	UniqueEntity Id = 1
@@ -59,7 +63,8 @@ func (w *World) Print() {
 func Write(world *World, id Id, comp ...Component) {
 	archId, ok := world.arch[id]
 	if ok {
-		world.engine.RewriteArch(archId, id, comp...)
+		newArchId := world.engine.RewriteArch(archId, id, comp...)
+		world.arch[id] = newArchId
 	} else {
 		// Id does not yet exist, we need to add it for the first time
 		archId = world.engine.GetArchId(comp...)

@@ -161,14 +161,14 @@ func BenchmarkPhysicsEcsViewIterChunk2(b *testing.B) {
 	}
 }
 
-func BenchmarkPhysicsEcsViewMapPtr(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsEcsViewMapPtr(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		RwMap2[RW[Position], RW[Velocity], Position, Velocity](world, physicsTick2)
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		RwMap2[RW[Position], RW[Velocity], Position, Velocity](world, physicsTick2)
+// 	}
+// }
 
 // func BenchmarkPhysicsEcsViewMapPtr2(b *testing.B) {
 // 	world := setupPhysics(1e6)

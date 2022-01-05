@@ -135,10 +135,21 @@ func GetStorage[T any](e *ArchEngine) ComponentSliceStorage[T] {
 	n := name(val)
 	ss, ok := e.compSliceStorage[n]
 	if !ok {
-		panic("Arch engine doesn't have this storage (I should probably just instantiate it and replace this code with write")
+		// TODO - have write call this spot
+		ss = ComponentSliceStorage[T]{
+			slice: make(map[ArchId]*ComponentSlice[T]),
+		}
+		e.compSliceStorage[n] = ss
+		fmt.Printf("GetStorage Creating %T\n", ss)
 	}
-	storage, ok := ss.(ComponentSliceStorage[T])
-	if !ok { panic("Wrong ComponentSliceStorage[T] type!") }
+	storage := ss.(ComponentSliceStorage[T])
+	// if !ok {
+	// 	fmt.Println("GetStorage name:", n)
+	// 	fmt.Printf("GetStorage: %T\n", storage)
+	// 	fmt.Printf("T: %T\n", val)
+	// 	fmt.Printf("%v\n", storage)
+	// 	panic("Wrong ComponentSliceStorage[T] type!")
+	// }
 	return storage
 }
 
@@ -168,9 +179,13 @@ func WriteArch[T any](e *ArchEngine, archId ArchId, id Id, val T) {
 			slice: make(map[ArchId]*ComponentSlice[T]),
 		}
 		e.compSliceStorage[n] = ss
+		fmt.Printf("Write Create: %T\n", ss)
 	}
 	storage, ok := ss.(ComponentSliceStorage[T])
 	if !ok { panic("Wrong ComponentSliceStorage[T] type!") }
+	fmt.Println("Write name:", n)
+	fmt.Printf("Write: %T\n", storage)
+	fmt.Printf("T: %T\n", val)
 
 	// Get the underlying Archetype's componentSlice
 	cSlice, ok := storage.slice[archId]
@@ -215,7 +230,8 @@ func ReadArch[T any](e *ArchEngine, archId ArchId, id Id) (T, bool) {
 }
 
 // TODO - Think: Is it better to read everything then push it into the new ArchId? Or better to migrate everything in place?
-func (e *ArchEngine) RewriteArch(archId ArchId, id Id, comp ...Component) {
+// Returns the ArchId of where the entity ends up
+func (e *ArchEngine) RewriteArch(archId ArchId, id Id, comp ...Component) ArchId {
 	ent := e.ReadEntity(archId, id)
 
 	currentComps := ent.Comps()
@@ -242,6 +258,7 @@ func (e *ArchEngine) RewriteArch(archId ArchId, id Id, comp ...Component) {
 
 		// 4: TODO - Write the new lookupList???
 	}
+	return newArchId
 }
 
 func (e *ArchEngine) ReadEntity(archId ArchId, id Id) *Entity {

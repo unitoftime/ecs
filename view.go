@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"fmt"
 	// "reflect"
 )
 
@@ -27,6 +28,9 @@ func Map[A any](world *World, lambda func(id Id, a *A)) {
 func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
 	var a A
 	var b B
+	fmt.Printf("Map2 A: %T\n", a)
+	fmt.Printf("Map2 B: %T\n", b)
+
 	archIds := world.engine.Filter(a, b)
 
 	// storages := getAllStorages(world, a)
@@ -44,6 +48,34 @@ func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
 
 		for i := range lookup.id {
 			lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i])
+		}
+	}
+}
+
+func Map3[A, B, C any](world *World, lambda func(id Id, a *A, b *B, c *C)) {
+	var a A
+	var b B
+	var c C
+	archIds := world.engine.Filter(a, b, c)
+
+	// storages := getAllStorages(world, a)
+	aStorage := GetStorage[A](world.engine)
+	bStorage := GetStorage[B](world.engine)
+	cStorage := GetStorage[C](world.engine)
+
+	for _, archId := range archIds {
+		aSlice, ok := aStorage.slice[archId]
+		if !ok { continue }
+		bSlice, ok := bStorage.slice[archId]
+		if !ok { continue }
+		cSlice, ok := cStorage.slice[archId]
+		if !ok { continue }
+
+		lookup, ok := world.engine.lookup[archId]
+		if !ok { panic("LookupList is missing!") }
+
+		for i := range lookup.id {
+			lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i])
 		}
 	}
 }
@@ -70,7 +102,7 @@ func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
 // func (ss ComponentStorageSlice[T]) GetSliceReader(archId ArchId) (SliceReader, bool) {
 // 	return ss.slice[archId]
 // }
-
+/*
 type ptr[T any] interface {
 	*T
 }
@@ -141,7 +173,7 @@ func RwMap[GA get[A, AO], A any, AO any](world *World, lambda func(id Id, a AO))
 		}
 	}
 }
-
+*/
 func getInternalSlice[A any](world *World, archId ArchId) []A {
 	aStorage := GetStorage[A](world.engine)
 	aSlice, ok := aStorage.slice[archId]
