@@ -14,7 +14,8 @@ func Map[A any](world *World, lambda func(id Id, a *A)) {
 		lookup, ok := world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
-		for i := range lookup.id {
+		for i, id := range lookup.id {
+			if id == InvalidEntity { continue }
 			lambda(lookup.id[i], &aSlice.comp[i])
 		}
 	}
@@ -39,8 +40,9 @@ func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
 		lookup, ok := world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
-		for i := range lookup.id {
-			lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i])
+		for i, id := range lookup.id {
+			if id == InvalidEntity { continue }
+			lambda(id, &aSlice.comp[i], &bSlice.comp[i])
 		}
 	}
 }
@@ -67,7 +69,8 @@ func Map3[A, B, C any](world *World, lambda func(id Id, a *A, b *B, c *C)) {
 		lookup, ok := world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
-		for i := range lookup.id {
+		for i, id := range lookup.id {
+			if id == InvalidEntity { continue }
 			lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i])
 		}
 	}

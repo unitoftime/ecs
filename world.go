@@ -59,7 +59,16 @@ func (w *World) Print() {
 	w.engine.Print()
 }
 
-// TODO - Variadic
+// TODO - Note: This function is not safe inside Maps or view iteraions
+// TODO - make this loop-safe by:
+// 1. Read the entire entity into an entity object
+// 2. Call loop-safe delete method on that ID (which tags it somehow to indicate it needs to be cleaned up)
+// 3. Modify the entity object by removing the requested components
+// 4. Write the entity object to the destination archetype
+// 4.a If the destination archetype is currently locked/flagged to indicate we are looping over it then wait for the lock release before writing the entity
+// 4.b When creating Maps and Views we need to lock each archId that needs to be processed. Notably this guarantees that all "Writes" to this ArchId will be done AFTER the lambda has processed - Meaning that we won't execute the same entity twice.
+// 4.b.i When creating a view I may need like a "Close" method or "end" or something otherwise I'm not sure how to unlock the archId for modification
+// Question: Why not write directly to holes if possible?
 func Write(world *World, id Id, comp ...Component) {
 	archId, ok := world.arch[id]
 	if ok {
@@ -86,4 +95,18 @@ func Read[T any](world *World, id Id) (T, bool) {
 	}
 
 	return ReadArch[T](world.engine, archId, id)
+}
+
+// This is safe for maps and loops
+// 1. This deletes the high level id -> archId lookup
+// 2. This creates a "hole" in the archetype list
+func Delete(world *World, id Id) {
+	archId, ok := world.arch[id]
+	if !ok { return }
+
+	delete(world.arch, id)
+
+	world.engine.TagForDeletion(archId, id)
+	// Note: This was the old, more direct way, but isn't loop safe
+	// - world.engine.DeleteAll(archId, id)
 }

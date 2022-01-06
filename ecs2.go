@@ -36,6 +36,7 @@ func (s *ComponentSlice[T]) Write(index int, val T) {
 type Lookup struct {
 	index map[Id]int
 	id []Id
+	holes []int
 }
 
 type Storage interface {
@@ -152,8 +153,14 @@ func WriteArch[T any](e *ArchEngine, archId ArchId, id Id, val T) {
 		lookup = &Lookup{
 			index: make(map[Id]int),
 			id: make([]Id, 0),
+			holes: make([]int, 0),
 		}
 		e.lookup[archId] = lookup
+	}
+
+	// Check if we want to cleanup holes
+	if len(lookup.holes) >= 1024 { // TODO - Hardcoded number, maybe make it percentage based on holes per total entities
+		e.CleanupHoles(archId)
 	}
 
 	index, ok := lookup.index[id]
@@ -225,7 +232,8 @@ func (e *ArchEngine) RewriteArch(archId ArchId, id Id, comp ...Component) ArchId
 	} else {
 		// Case 2: Archetype changes
 		// 1: Delete all components in old archetype
-		e.DeleteAll(archId, id)
+		// e.DeleteAll(archId, id)
+		e.TagForDeletion(archId, id)
 
 		// 2: Write current entity to world
 		for _, c := range ent.comp {
@@ -255,20 +263,123 @@ func (e *ArchEngine) ReadEntity(archId ArchId, id Id) *Entity {
 	return ent
 }
 
-func (e *ArchEngine) DeleteAll(archId ArchId, id Id) {
+// func (e *ArchEngine) DeleteAll(archId ArchId, id Id) {
+// 	// Trim all holes off the end of the lookup list
+// 	e.trimHoles(archId)
+
+// 	lookup, ok := e.lookup[archId]
+// 	if !ok { panic("Archetype doesn't have lookup list") }
+
+// 	index, ok := lookup.index[id]
+// 	if !ok { panic("Archetype doesn't contain ID") }
+
+// 	if index == (len(lookup.id) - 1) {
+// 		// Edge Case: If index is already the last element, just slice the end
+// 		lookup.id = lookup.id[:len(lookup.id)-1]
+// 		// delete(lookup.index, id)
+// 		for n := range e.compSliceStorage {
+// 			e.compSliceStorage[n].Delete(archId, index)
+// 		}
+
+// 		return
+// 	}
+
+// 	// Swap last element with hole
+// 	lastId := lookup.id[len(lookup.id)-1]
+// 	fmt.Println("DeleteAll:", archId, id, index, lastId)
+// 	lookup.id[index] = lastId
+// 	lookup.id = lookup.id[:len(lookup.id)-1]
+
+// 	lookup.index[lastId] = index
+// 	// delete(lookup.index, id)
+
+// 	for n := range e.compSliceStorage {
+// 		e.compSliceStorage[n].Delete(archId, index)
+// 	}
+// }
+
+// func (e *ArchEngine) trimHoles(archId ArchId) {
+// 	lookup, ok := e.lookup[archId]
+// 	if !ok { panic("Archetype doesn't have lookup list") }
+
+// 	// Trim the end until there are no holes there
+// 	for {
+// 		lastId := lookup.id[len(lookup.id)-1]
+// 		if lastId == InvalidEntity {
+// 			// If it's a hole, then slice it off and try again
+// 			lookup.id = lookup.id[:len(lookup.id)-1]
+// 			// delete(lookup.index, lastId) // No need to do this because lastId has already been deleted
+// 			for n := range e.compSliceStorage {
+// 				e.compSliceStorage[n].Delete(archId, len(lookup.id)-1)
+// 			}
+// 			continue
+// 		}
+
+// 		// If it wasn't a hole then proceed
+// 		break
+// 	}
+// }
+
+// This creates a "hole" in the archetype at the specified Id
+// Once we get enough holes, we can re-pack the entire slice
+// TODO - How many holes before we repack? How many holes to pack at a time?
+func (e *ArchEngine) TagForDeletion(archId ArchId, id Id) {
 	lookup, ok := e.lookup[archId]
 	if !ok { panic("Archetype doesn't have lookup list") }
 
 	index, ok := lookup.index[id]
 	if !ok { panic("Archetype doesn't contain ID") }
 
-	lastVal := lookup.id[len(lookup.id)-1]
-	lookup.id[index] = lastVal
-	lookup.id = lookup.id[:len(lookup.id)-1]
+	// This indicates that the index needs to be cleaned up and should be skipped in any list processing
+	lookup.id[index] = InvalidEntity
+	delete(lookup.index, id)
 
-	for n := range e.compSliceStorage {
-		e.compSliceStorage[n].Delete(archId, index)
+	// This is used to track the current list of indices that need to be cleaned
+	lookup.holes = append(lookup.holes, index)
+}
+
+func (e *ArchEngine) CleanupHoles(archId ArchId) {
+	lookup, ok := e.lookup[archId]
+	if !ok { panic("Archetype doesn't have lookup list") }
+	fmt.Println("Cleaning Holes: ", len(lookup.holes))
+	for _, index := range lookup.holes {
+		// e.DeleteAll(archId, id)
+
+		// Pop all holes off the end of the archetype
+		for {
+			lastIndex := len(lookup.id) - 1
+			lastId := lookup.id[lastIndex]
+			if lastId == InvalidEntity {
+				// If the last id is a hole, then slice it off
+				lookup.id = lookup.id[:lastIndex]
+				for n := range e.compSliceStorage {
+					e.compSliceStorage[n].Delete(archId, lastIndex)
+				}
+
+				continue // Try again
+			}
+
+			break
+		}
+
+		// Check bounds because we may have popped past our original index
+		if index >= len(lookup.id) { continue }
+
+		// Swap lastIndex (which is not a hole) with index (which is a hole)
+		lastIndex := len(lookup.id) - 1
+		lastId := lookup.id[lastIndex]
+		if lastId == InvalidEntity { panic("Bug: This shouldn't happen")}
+
+		lookup.id[index] = lastId
+		lookup.id = lookup.id[:lastIndex]
+		lookup.index[lastId] = index
+		for n := range e.compSliceStorage {
+			e.compSliceStorage[n].Delete(archId, index)
+		}
 	}
+
+	// Clear holes slice
+	lookup.holes = lookup.holes[:0]
 }
 
 type Entity struct {
