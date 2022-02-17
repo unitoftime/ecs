@@ -1,5 +1,60 @@
 package ecs
 
+type Entity struct {
+	comp map[string]Component
+}
+
+func NewEntity(components ...Component) *Entity {
+	c := make(map[string]Component)
+	for i := range components {
+		c[components[i].Name()] = components[i]
+	}
+	return &Entity{
+		comp: c,
+	}
+}
+
+func (e *Entity) Add(comp Component) {
+	// n := name(comp) // TODO - name is wrong here because we pass in a boxed component
+	n := comp.Name()
+	e.comp[n] = comp
+}
+
+// TODO - Hacky and probs slow
+func (e *Entity) Comps() []Component {
+	ret := make([]Component, 0, len(e.comp))
+	for _, v := range e.comp {
+		ret = append(ret, v)
+	}
+	return ret
+}
+
+func ReadFromEntity[T any](ent *Entity) (T, bool) {
+	var t T
+	n := name(t)
+
+	icomp, ok := ent.comp[n]
+	if !ok {
+		return t, false
+	}
+	return icomp.(CompBox[T]).comp, true
+}
+
+func WriteEntity(world *World, id Id, ent *Entity) {
+	comps := ent.Comps()
+	Write(world, id, comps...)
+}
+
+
+// type Entity map[string]Component
+
+// func NewEntityy(components ...Component) *Entity {
+// 	e := Entity(make(map[string]Component))
+// 	for i := range components {
+// 		e[comp[i].Name()] = comp[i]
+// 	}
+// }
+
 /*
 // TODO - revisit this abstraction
 type Copier interface {
