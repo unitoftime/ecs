@@ -14,11 +14,17 @@ func NewEntity(components ...Component) *Entity {
 	}
 }
 
-func (e *Entity) Add(comp Component) {
-	// n := name(comp) // TODO - name is wrong here because we pass in a boxed component
-	n := comp.Name()
-	e.comp[n] = comp
+func (e *Entity) Add(components ...Component) {
+	for i := range components {
+		e.comp[components[i].Name()] = components[i]
+	}
 }
+
+// func (e *Entity) Add(comp Component) {
+// 	// n := name(comp) // TODO - name is wrong here because we pass in a boxed component
+// 	n := comp.Name()
+// 	e.comp[n] = comp
+// }
 
 // TODO - Hacky and probs slow
 func (e *Entity) Comps() []Component {

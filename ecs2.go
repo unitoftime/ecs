@@ -205,7 +205,7 @@ func ReadArch[T any](e *ArchEngine, archId ArchId, id Id) (T, bool) {
 		return ret, false
 	}
 	storage, ok := ss.(ComponentSliceStorage[T])
-	if !ok { panic("Wrong ComponentSliceStorage[T] type!") }
+	if !ok { panic(fmt.Sprintf("Wrong ComponentSliceStorage[T] type: %s != %s", name(ss), name(ret))) }
 
 	// Get the underlying Archetype's componentSlice
 	cSlice, ok := storage.slice[archId]
