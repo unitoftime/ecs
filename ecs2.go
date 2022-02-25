@@ -9,10 +9,13 @@ type Id uint32
 type ArchId uint32
 
 func name(t any) string {
-	n := reflect.TypeOf(t).String()
+	// n := reflect.TypeOf(t).String()
 	// if n[0] == '*' {
 	// 	return n[1:]
 	// }
+
+	n := reflect.TypeOf(t).Name()
+	// fmt.Printf("\n%s", n)
 
 	return n
 }
@@ -204,6 +207,8 @@ func ReadArch[T any](e *ArchEngine, archId ArchId, id Id) (T, bool) {
 	if !ok {
 		return ret, false
 	}
+
+	// fmt.Printf("ComponentSliceStorage[T] type: %s != %s", name(ss), name(ret))
 	storage, ok := ss.(ComponentSliceStorage[T])
 	if !ok { panic(fmt.Sprintf("Wrong ComponentSliceStorage[T] type: %s != %s", name(ss), name(ret))) }
 

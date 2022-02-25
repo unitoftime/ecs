@@ -76,6 +76,39 @@ func Map3[A, B, C any](world *World, lambda func(id Id, a *A, b *B, c *C)) {
 	}
 }
 
+func Map4[A, B, C, D any](world *World, lambda func(id Id, a *A, b *B, c *C, d *D)) {
+	var a A
+	var b B
+	var c C
+	var d D
+	archIds := world.engine.Filter(a, b, c, d)
+
+	// storages := getAllStorages(world, a)
+	aStorage := GetStorage[A](world.engine)
+	bStorage := GetStorage[B](world.engine)
+	cStorage := GetStorage[C](world.engine)
+	dStorage := GetStorage[D](world.engine)
+
+	for _, archId := range archIds {
+		aSlice, ok := aStorage.slice[archId]
+		if !ok { continue }
+		bSlice, ok := bStorage.slice[archId]
+		if !ok { continue }
+		cSlice, ok := cStorage.slice[archId]
+		if !ok { continue }
+		dSlice, ok := dStorage.slice[archId]
+		if !ok { continue }
+
+		lookup, ok := world.engine.lookup[archId]
+		if !ok { panic("LookupList is missing!") }
+
+		for i, id := range lookup.id {
+			if id == InvalidEntity { continue }
+			lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i], &dSlice.comp[i])
+		}
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // type SliceReader[T any] interface {
 // 	Read(int) T
