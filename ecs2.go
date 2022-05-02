@@ -37,9 +37,9 @@ func (s *ComponentSlice[T]) Write(index int, val T) {
 }
 
 type Lookup struct {
-	index map[Id]int
-	id []Id
-	holes []int
+	index map[Id]int // A mapping from entity ids to array indices
+	id []Id // An array of every id in the arch list (essentially a reverse mapping from index to Id)
+	holes []int // List of indexes that have ben deleted
 }
 
 type Storage interface {
@@ -101,6 +101,21 @@ func (e *ArchEngine) Print() {
 	for k, v := range e.lookup {
 		fmt.Println(k, "-", v)
 	}
+}
+
+func (e *ArchEngine) Count(anything ...any) int {
+	archIds := e.Filter(anything...)
+
+	total := 0
+	for _, archId := range archIds {
+		lookup, ok := e.lookup[archId]
+		if !ok { panic(fmt.Sprintf("Couldnt find archId in ArchEngine lookup table: %d", archId)) }
+
+		// Each id represents an entity that holds the requested component(s)
+		// Each hole represents a deleted entity that used to hold the requested component(s)
+		total = total + len(lookup.id) - len(lookup.holes)
+	}
+	return total
 }
 
 func (e *ArchEngine) GetArchId(comp ...Component) ArchId {

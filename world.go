@@ -54,6 +54,10 @@ func (w *World) NewId() Id {
 	return id
 }
 
+func (w *World) Count(anything ...any) int {
+	return w.engine.Count(anything...)
+}
+
 func (w *World) Print() {
 	fmt.Printf("%v\n", w)
 	w.engine.Print()
