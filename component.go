@@ -4,9 +4,31 @@ import (
 	"sort"
 )
 
+// TODO I think a lot of things can be cleaned up/optimized in this file
+
 type CompId uint16
 
-// TODO - Cleanup
+type Component interface {
+	Write(*ArchEngine, ArchId, Id)
+	Name() string
+}
+// TODO -I could get rid of reflect if there ends up being some way to compile-time reflect on generics
+type CompBox[T any] struct {
+	comp T
+}
+func C[T any](comp T) CompBox[T] {
+	return CompBox[T]{comp}
+}
+func (c CompBox[T]) Write(engine *ArchEngine, archId ArchId, id Id) {
+	WriteArch[T](engine, archId, id, c.comp)
+}
+func (c CompBox[T]) Name() string {
+	return name(c.comp)
+}
+
+func (c CompBox[T]) Get() T {
+	return c.comp
+}
 
 // Dynamic Component Registry
 type DCR struct {
