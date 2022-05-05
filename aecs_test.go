@@ -21,21 +21,6 @@ func TestArchEngine(t *testing.T) {
 	fmt.Println(engine)
 }
 
-func TestWorld(t *testing.T) {
-	world := NewWorld()
-	id := world.NewId()
-
-	Write(world, id, C(Pos{1,1,1}), C(Vel{2,2,2}))
-	fmt.Println(Read[Pos](world, id))
-	fmt.Println(Read[Vel](world, id))
-
-	world.Print()
-
-	Map[Pos](world, func(id Id, pos *Pos) {
-		fmt.Println("Map:", id, pos)
-	})
-}
-
 type d1 struct {
 	value int
 }
