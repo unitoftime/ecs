@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"fmt"
 	"sort"
 )
 
@@ -49,6 +50,24 @@ func NewDCR() *DCR {
 	}
 	r.trie = NewNode(r)
 	return r
+}
+
+func (r *DCR) print() {
+	fmt.Println("--- DCR ---")
+	fmt.Println("archCounter", r.archCounter)
+	fmt.Println("compCounter", r.compCounter)
+	fmt.Println("-- mapping --")
+	for name, compId := range r.mapping {
+		fmt.Printf("name(%s) - compId(%d)\n", name, compId)
+	}
+	fmt.Println("-- archSet --")
+	for name, set := range r.archSet {
+		fmt.Printf("name(%s): archId: [ ", name)
+		for archId := range set {
+			fmt.Printf("%d ", archId)
+		}
+		fmt.Printf("]\n")
+	}
 }
 
 func (r *DCR) NewArchId() ArchId {

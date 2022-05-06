@@ -45,6 +45,7 @@ type Lookup struct {
 type Storage interface {
 	ReadToEntity(*Entity, ArchId, int) bool
 	Delete(ArchId, int)
+	print(int)
 	// GetComponentSlice(archId ArchId) SliceReader
 }
 
@@ -68,6 +69,12 @@ func (ss ComponentSliceStorage[T]) Delete(archId ArchId, index int) {
 	lastVal := cSlice.comp[len(cSlice.comp)-1]
 	cSlice.comp[index] = lastVal
 	cSlice.comp = cSlice.comp[:len(cSlice.comp)-1]
+}
+
+func (s ComponentSliceStorage[T]) print(amount int) {
+	for archId, compSlice := range s.slice {
+		fmt.Printf("archId(%d) - %v\n", archId, *compSlice)
+	}
 }
 
 // func (ss ComponentStorageSlice[T]) GetComponentSlice(archId ArchId) (SliceReader, bool) {
@@ -97,10 +104,19 @@ func NewArchEngine() *ArchEngine {
 	}
 }
 
-func (e *ArchEngine) Print() {
-	for k, v := range e.lookup {
-		fmt.Println(k, "-", v)
+func (e *ArchEngine) Print(amount int) {
+	fmt.Println("--- ArchEngine ---")
+	max := amount
+	for archId, lookup := range e.lookup {
+		fmt.Printf("archId(%d) - lookup(%v)\n", archId, lookup)
+		max--; if max <= 0 { break }
 	}
+	for name, storage := range e.compSliceStorage {
+		fmt.Printf("name(%s) -\n", name)
+		storage.print(amount)
+		max--; if max <= 0 { break }
+	}
+	e.dcr.print()
 }
 
 func (e *ArchEngine) Count(anything ...any) int {
@@ -239,11 +255,17 @@ func ReadArch[T any](e *ArchEngine, archId ArchId, id Id) (T, bool) {
 // TODO - Think: Is it better to read everything then push it into the new ArchId? Or better to migrate everything in place?
 // Returns the ArchId of where the entity ends up
 func (e *ArchEngine) RewriteArch(archId ArchId, id Id, comp ...Component) ArchId {
+	// fmt.Println("RewriteArch")
 	ent := e.ReadEntity(archId, id)
 
-	currentComps := ent.Comps()
-	newArchId := e.GetArchId(currentComps...)
+	// currentComps := ent.Comps()
+	// fmt.Println("Current", currentComps)
 
+	ent.Add(comp...)
+	combinedComps := ent.Comps()
+	newArchId := e.GetArchId(combinedComps...)
+
+	// fmt.Println("archId == newArchId", archId, newArchId)
 	if archId == newArchId {
 		// Case 1: Archetype stays the same
 		for i := range comp {
