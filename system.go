@@ -32,13 +32,13 @@ func (s *Signal) Get() bool {
 	return ret
 }
 
-const fixedTimeStep = 16 * time.Millisecond
+const FixedTimeStep = 16 * time.Millisecond
 
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 func RunGame(inputSystems, physicsSystems, renderSystems []System, quit *Signal) {
 	frameStart := time.Now()
-	dt := fixedTimeStep
+	dt := FixedTimeStep
 	var accumulator time.Duration
 
 	for !quit.Get() {
@@ -48,11 +48,11 @@ func RunGame(inputSystems, physicsSystems, renderSystems []System, quit *Signal)
 		}
 
 		// Physics Systems
-		if accumulator >= fixedTimeStep {
+		if accumulator >= FixedTimeStep {
 			for _,sys := range physicsSystems {
-				sys.Run(fixedTimeStep)
+				sys.Run(FixedTimeStep)
 			}
-			accumulator -= fixedTimeStep
+			accumulator -= FixedTimeStep
 		}
 
 		// Render Systems
@@ -70,16 +70,16 @@ func RunGame(inputSystems, physicsSystems, renderSystems []System, quit *Signal)
 
 func RunGameFixed(physicsSystems []System, quit *Signal) {
 	frameStart := time.Now()
-	dt := fixedTimeStep
+	dt := FixedTimeStep
 
 	for !quit.Get() {
 
 		for _,sys := range physicsSystems {
-			sys.Run(fixedTimeStep)
+			sys.Run(FixedTimeStep)
 		}
 
 		dt = time.Since(frameStart)
-		time.Sleep(fixedTimeStep - dt)
+		time.Sleep(FixedTimeStep - dt)
 
 		frameStart = time.Now()
 	}
