@@ -40,13 +40,13 @@ func (w *World) Print(amount int) {
 	fmt.Println("--- World ---")
 	fmt.Printf("idCounter: %d\n", w.idCounter)
 
-	max := amount
-	for id, archId := range w.arch {
-		fmt.Printf("id(%d) -> archId(%d)\n", id, archId)
-		max--; if max <= 0 { break }
-	}
+	// max := amount
+	// for id, archId := range w.arch {
+	// 	fmt.Printf("id(%d) -> archId(%d)\n", id, archId)
+	// 	max--; if max <= 0 { break }
+	// }
 
-	w.engine.Print(amount)
+	// w.engine.Print(amount)
 }
 
 // TODO - Note: This function is not safe inside Maps or view iteraions
