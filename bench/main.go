@@ -25,7 +25,9 @@ func main() {
 
 	switch program {
 	case "physics":
-		benchPhysics(size)
+		benchPhysics(size, 0)
+	case "physicsDelete":
+		benchPhysics(size, 100)
 	default:
 		fmt.Printf("Invalid Program name %s\n", program)
 		fmt.Println("Available Options")
@@ -33,12 +35,12 @@ func main() {
 	}
 }
 
-func benchPhysics(size int) {
+func benchPhysics(size int, collisionLimit int) {
 	iterations := 1000
 
 	world := ecs.NewWorld()
 	maxSpeed := 10.0
-	maxPosition := 100.0
+	maxPosition := 1000.0
 	maxCollider := 1.0
 	for i := 0; i < size; i++ {
 		id := world.NewId()
@@ -64,7 +66,7 @@ func benchPhysics(size int) {
 			position.X += velocity.X * fixedTime
 			position.Y += velocity.Y * fixedTime
 
-			// Bump into the bounding cube
+			// Bump into the bounding rect
 			if position.X <= 0 || position.X >= maxPosition {
 				velocity.X = -velocity.X
 			}
@@ -74,6 +76,7 @@ func benchPhysics(size int) {
 		})
 
 		// Check collisions, increment the count if a collision happens
+		deathCount := 0
 		ecs.Map2(world, func(id ecs.Id, position *Position, collider *Collider) {
 			ecs.Map2(world, func(targId ecs.Id, targPos *Position, targCollider *Collider) {
 				if id == targId { return } // Skip if entity is the same
@@ -87,8 +90,30 @@ func benchPhysics(size int) {
 				if drSq > distSq {
 					collider.Count++
 				}
+
+				// Kill and spawn one
+				if collisionLimit > 0 && collider.Count > collisionLimit {
+					ecs.Delete(world, id)
+					deathCount++
+				}
 			})
 		})
+
+		// Spawn new entities, one per each entity we deleted
+		for i := 0; i < deathCount; i++ {
+			id := world.NewId()
+			ent := ecs.NewEntity(
+				ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
+				ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
+				ecs.C(Collider{
+					Radius: maxCollider * rand.Float64(),
+					Count: 0,
+				}),
+			)
+			ecs.WriteEntity(world, id, ent)
+		}
+
+		world.Print(0)
 
 		dt = time.Since(start)
 		fmt.Println(dt)
