@@ -1,13 +1,21 @@
 package main
 
 import (
-	"os"
 	"fmt"
+	"log"
 	"time"
 	"math/rand"
 
+	"runtime"
+	"runtime/pprof"
+	"flag"
+	"os"
+
 	"github.com/unitoftime/ecs"
 )
+
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 
 type Vec2 struct {
 	X, Y float64
@@ -20,8 +28,24 @@ type Collider struct {
 }
 
 func main() {
-	program := os.Args[1]
-	size := 1000
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close() // error handling omitted for example
+		go func() {
+			if err := pprof.StartCPUProfile(f); err != nil {
+				log.Fatal("could not start CPU profile: ", err)
+			}
+		}()
+		defer pprof.StopCPUProfile()
+	}
+
+	// program := os.Args[1]
+	program := "physics"
+	size := 10000
 
 	switch program {
 	case "physics":
@@ -32,6 +56,18 @@ func main() {
 		fmt.Printf("Invalid Program name %s\n", program)
 		fmt.Println("Available Options")
 		fmt.Println("physics - Runs a physics simulation")
+	}
+
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close() // error handling omitted for example
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
 	}
 }
 
