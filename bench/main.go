@@ -42,6 +42,7 @@ func benchPhysics(size int, collisionLimit int32) {
 	maxSpeed := 10.0
 	maxPosition := 100.0
 	maxCollider := 1.0
+
 	for i := 0; i < size; i++ {
 		id := world.NewId()
 		ent := ecs.NewEntity(
@@ -62,7 +63,7 @@ func benchPhysics(size int, collisionLimit int32) {
 		start = time.Now()
 
 		// Update positions
-		ecs.Map3(world, func(id ecs.Id, position *Position, velocity *Velocity, collider *Collider) {
+		ecs.Map2(world, func(id ecs.Id, position *Position, velocity *Velocity) {
 			position.X += velocity.X * fixedTime
 			position.Y += velocity.Y * fixedTime
 
@@ -70,7 +71,7 @@ func benchPhysics(size int, collisionLimit int32) {
 			if position.X <= 0 || position.X >= maxPosition {
 				velocity.X = -velocity.X
 			}
-			if position.Y <= 0 || position.X >= maxPosition {
+			if position.Y <= 0 || position.Y >= maxPosition {
 				velocity.Y = -velocity.Y
 			}
 		})
@@ -78,8 +79,8 @@ func benchPhysics(size int, collisionLimit int32) {
 		// Check collisions, increment the count if a collision happens
 		deathCount := 0
 		ecs.Map2(world, func(id ecs.Id, position *Position, collider *Collider) {
-			ecs.Map2(world, func(targId ecs.Id, targPos *Position, targCollider *Collider) {
-				if id == targId { return } // Skip if entity is the same
+			ecs.SmartMap2(world, func(targId ecs.Id, targPos *Position, targCollider *Collider) bool {
+				if id == targId { return true } // Skip if entity is the same
 				dx := position.X - targPos.X
 				dy := position.Y - targPos.Y
 				distSq := (dx * dx) + (dy * dy)
@@ -92,10 +93,15 @@ func benchPhysics(size int, collisionLimit int32) {
 				}
 
 				// Kill and spawn one
+				// TODO move to outer loop?
 				if collisionLimit > 0 && collider.Count > collisionLimit {
-					ecs.Delete(world, id)
-					deathCount++
+					success := ecs.Delete(world, id)
+					if success {
+						deathCount++
+						return false
+					}
 				}
+				return true
 			})
 		})
 
@@ -113,13 +119,13 @@ func benchPhysics(size int, collisionLimit int32) {
 			ecs.WriteEntity(world, id, ent)
 		}
 
-		world.Print(0)
+		// world.Print(0)
 
 		dt = time.Since(start)
 		fmt.Println(dt)
 	}
 
-	ecs.Map(world, func(id ecs.Id, collider *Collider) {
-		fmt.Println(id, collider.Count)
-	})
+	// ecs.Map(world, func(id ecs.Id, collider *Collider) {
+	// 	fmt.Println(id, collider.Count)
+	// })
 }

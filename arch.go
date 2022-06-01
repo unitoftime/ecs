@@ -383,7 +383,7 @@ func (e *ArchEngine) TagForDeletion(archId ArchId, id Id) {
 func (e *ArchEngine) CleanupHoles(archId ArchId) {
 	lookup, ok := e.lookup[archId]
 	if !ok { panic("Archetype doesn't have lookup list") }
-	fmt.Println("Cleaning Holes: ", len(lookup.holes))
+	// fmt.Println("Cleaning Holes: ", len(lookup.holes))
 	for _, index := range lookup.holes {
 		// e.DeleteAll(archId, id)
 
