@@ -47,6 +47,35 @@ func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
 	}
 }
 
+// This ia a Map2, but if the lambda returns false, we stop looping
+func SmartMap2[A, B any](world *World, lambda func(id Id, a *A, b *B) bool) {
+	var a A
+	var b B
+
+	archIds := world.engine.Filter(a, b)
+
+	// storages := getAllStorages(world, a)
+	aStorage := GetStorage[A](world.engine)
+	bStorage := GetStorage[B](world.engine)
+
+	for _, archId := range archIds {
+		aSlice, ok := aStorage.slice[archId]
+		if !ok { continue }
+		bSlice, ok := bStorage.slice[archId]
+		if !ok { continue }
+
+		lookup, ok := world.engine.lookup[archId]
+		if !ok { panic("LookupList is missing!") }
+
+		for i, id := range lookup.id {
+			if id == InvalidEntity { continue }
+
+			success := lambda(id, &aSlice.comp[i], &bSlice.comp[i])
+			if !success { return }
+		}
+	}
+}
+
 func Map3[A, B, C any](world *World, lambda func(id Id, a *A, b *B, c *C)) {
 	var a A
 	var b B

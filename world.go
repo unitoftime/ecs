@@ -10,25 +10,25 @@ const (
 )
 
 type World struct {
-	idCounter Id
+	nextId Id
 	arch map[Id]ArchId
 	engine *ArchEngine
 }
 
 func NewWorld() *World {
 	return &World{
-		idCounter: UniqueEntity + 1,
+		nextId: UniqueEntity + 1,
 		arch: make(map[Id]ArchId),
 		engine: NewArchEngine(),
 	}
 }
 
 func (w *World) NewId() Id {
-	if w.idCounter <= UniqueEntity {
-		w.idCounter = UniqueEntity + 1
+	if w.nextId <= UniqueEntity {
+		w.nextId = UniqueEntity + 1
 	}
-	id := w.idCounter
-	w.idCounter++
+	id := w.nextId
+	w.nextId++
 	return id
 }
 
@@ -38,7 +38,7 @@ func (w *World) Count(anything ...any) int {
 
 func (w *World) Print(amount int) {
 	fmt.Println("--- World ---")
-	fmt.Printf("idCounter: %d\n", w.idCounter)
+	fmt.Printf("nextId: %d\n", w.nextId)
 
 	// max := amount
 	// for id, archId := range w.arch {
@@ -47,6 +47,17 @@ func (w *World) Print(amount int) {
 	// }
 
 	// w.engine.Print(amount)
+}
+
+// A debug function for describing the current state of memory allocations in the ECS
+func (w *World) DescribeMemory() {
+	fmt.Println("--- World ---")
+	fmt.Printf("nextId: %d\n", w.nextId)
+	fmt.Printf("Active Ent Count: %d\n", len(w.arch))
+	for archId, lookup := range w.engine.lookup {
+		efficiency := 100 * (1.0 - float64(len(lookup.holes))/float64(len(lookup.id)))
+		fmt.Printf("Lookup[%d] = {len(index)=%d, len(id)=%d, len(holes)=%d} | Efficiency=%.2f%%\n", archId, len(lookup.index), len(lookup.id), len(lookup.holes), efficiency)
+	}
 }
 
 // TODO - Note: This function is not safe inside Maps or view iteraions
@@ -90,13 +101,14 @@ func Read[T any](world *World, id Id) (T, bool) {
 // This is safe for maps and loops
 // 1. This deletes the high level id -> archId lookup
 // 2. This creates a "hole" in the archetype list
-func Delete(world *World, id Id) {
+func Delete(world *World, id Id) bool {
 	archId, ok := world.arch[id]
-	if !ok { return }
+	if !ok { return false }
 
 	delete(world.arch, id)
 
 	world.engine.TagForDeletion(archId, id)
 	// Note: This was the old, more direct way, but isn't loop safe
 	// - world.engine.DeleteAll(archId, id)
+	return true
 }

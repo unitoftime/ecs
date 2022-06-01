@@ -16,7 +16,7 @@ type Position Vec2
 type Velocity Vec2
 type Collider struct {
 	Radius float64
-	Count int
+	Count int32
 }
 
 func main() {
@@ -35,12 +35,12 @@ func main() {
 	}
 }
 
-func benchPhysics(size int, collisionLimit int) {
+func benchPhysics(size int, collisionLimit int32) {
 	iterations := 1000
 
 	world := ecs.NewWorld()
 	maxSpeed := 10.0
-	maxPosition := 1000.0
+	maxPosition := 100.0
 	maxCollider := 1.0
 	for i := 0; i < size; i++ {
 		id := world.NewId()
