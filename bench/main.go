@@ -49,9 +49,9 @@ func main() {
 
 	switch program {
 	case "physics":
-		benchPhysics(size, 0)
+		benchPhysicsOptimized(size, 0)
 	case "physicsDelete":
-		benchPhysics(size, 100)
+		benchPhysicsOptimized(size, 100)
 	default:
 		fmt.Printf("Invalid Program name %s\n", program)
 		fmt.Println("Available Options")
@@ -140,6 +140,125 @@ func benchPhysics(size int, collisionLimit int32) {
 				return true
 			})
 		})
+
+		// Spawn new entities, one per each entity we deleted
+		for i := 0; i < deathCount; i++ {
+			id := world.NewId()
+			ent := ecs.NewEntity(
+				ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
+				ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
+				ecs.C(Collider{
+					Radius: maxCollider * rand.Float64(),
+					Count: 0,
+				}),
+			)
+			ecs.WriteEntity(world, id, ent)
+		}
+
+		// world.Print(0)
+
+		dt = time.Since(start)
+		fmt.Println(dt)
+	}
+
+	// ecs.Map(world, func(id ecs.Id, collider *Collider) {
+	// 	fmt.Println(id, collider.Count)
+	// })
+}
+
+func benchPhysicsOptimized(size int, collisionLimit int32) {
+	iterations := 1000
+
+	world := ecs.NewWorld()
+	maxSpeed := 10.0
+	maxPosition := 100.0
+	maxCollider := 1.0
+
+	for i := 0; i < size; i++ {
+		id := world.NewId()
+		ent := ecs.NewEntity(
+			ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
+			ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
+			ecs.C(Collider{
+				Radius: maxCollider * rand.Float64(),
+				Count: 0,
+			}),
+		)
+		ecs.WriteEntity(world, id, ent)
+	}
+
+	start := time.Now()
+	dt := time.Since(start)
+	fixedTime := (15 * time.Millisecond).Seconds()
+	for i := 0; i < iterations; i++ {
+		start = time.Now()
+
+		{
+			// Update positions
+			view := ecs.ViewAll2[Position, Velocity](world)
+			for view.Ok() {
+				_, pos, vel := view.IterChunkClean()
+				for j := range pos {
+					pos[j].X += vel[j].X * fixedTime
+					pos[j].Y += vel[j].Y * fixedTime
+
+					// Bump into the bounding rect
+					if pos[j].X <= 0 || pos[j].X >= maxPosition {
+						vel[j].X = -vel[j].X
+					}
+					if pos[j].Y <= 0 || pos[j].Y >= maxPosition {
+						vel[j].Y = -vel[j].Y
+					}
+				}
+			}
+		}
+
+		// Check collisions, increment the count if a collision happens
+		deathCount := 0
+		view := ecs.ViewAll2[Position, Collider](world)
+		for view.Ok() {
+			ids, pos, col := view.IterChunkClean()
+
+			for j := range pos {
+				id := ids[j]
+				position := &pos[j]
+				collider := &col[j]
+
+				view2 := ecs.ViewAll2[Position, Collider](world)
+				for view2.Ok() {
+					targIdList, targPosList, targCol := view2.IterChunkClean()
+					for jj := range targPosList {
+						targId := targIdList[jj]
+						targPos := &targPosList[jj]
+						targCollider := &targCol[jj]
+						// ecs.Map2(world, func(id ecs.Id, position *Position, collider *Collider) {
+						// ecs.SmartMap2(world, func(targId ecs.Id, targPos *Position, targCollider *Collider) bool {
+						if id == targId { break }
+						dx := position.X - targPos.X
+						dy := position.Y - targPos.Y
+						distSq := (dx * dx) + (dy * dy)
+
+						dr := collider.Radius + targCollider.Radius
+						drSq := dr * dr
+
+						if drSq > distSq {
+							collider.Count++
+						}
+
+						// Kill and spawn one
+						// TODO move to outer loop?
+						if collisionLimit > 0 && collider.Count > collisionLimit {
+							success := ecs.Delete(world, id)
+							if success {
+								deathCount++
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+
 
 		// Spawn new entities, one per each entity we deleted
 		for i := 0; i < deathCount; i++ {

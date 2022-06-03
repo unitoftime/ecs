@@ -1,6 +1,7 @@
 package ecs
 
-func Map[A any](world *World, lambda func(id Id, a *A)) {
+// func Map[A any](world *World, lambda func(id Id, a *A)) {
+func Map[A any, F func(Id, *A)](world *World, lambda F) {
 	var a A
 	archIds := world.engine.Filter(a)
 
@@ -21,7 +22,8 @@ func Map[A any](world *World, lambda func(id Id, a *A)) {
 	}
 }
 
-func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
+// func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
+func Map2[A, B any, F func(Id,*A,*B)](world *World, lambda F) {
 	var a A
 	var b B
 
@@ -232,13 +234,13 @@ func RwMap[GA get[A, AO], A any, AO any](world *World, lambda func(id Id, a AO))
 	}
 }
 */
-func getInternalSlice[A any](world *World, archId ArchId) []A {
-	aStorage := GetStorage[A](world.engine)
-	aSlice, ok := aStorage.slice[archId]
-	if !ok { return nil }
+// func getInternalSlice[A any](world *World, archId ArchId) []A {
+// 	aStorage := GetStorage[A](world.engine)
+// 	aSlice, ok := aStorage.slice[archId]
+// 	if !ok { return nil }
 
-	return aSlice.comp
-}
+// 	return aSlice.comp
+// }
 
 type View2[A, B any] struct {
 	world *World
@@ -254,6 +256,7 @@ func ViewAll2[A, B any](world *World) *View2[A, B] {
 		id: make([][]Id, 0),
 		aSlice: make([][]A, 0),
 		bSlice: make([][]B, 0),
+		innerIter: -1, // When we iterate the first thing we do is increment
 	}
 	var a A
 	var b B
@@ -330,6 +333,10 @@ func (v *View2[A, B]) Iter2(id *Id, a *A, b *B) bool {
 	return true
 }
 
+func (v *View2[A, B]) Ok() bool {
+	return v.outerIter < len(v.id)
+}
+
 // Iterates on archetype chunks, returns underlying arrays so modifications are automatically written back
 func (v *View2[A, B]) IterChunk() ([]Id, []A, []B, bool) {
 	if v.outerIter >= len(v.id) {
@@ -339,6 +346,26 @@ func (v *View2[A, B]) IterChunk() ([]Id, []A, []B, bool) {
 	v.outerIter++
 
 	return v.id[idx], v.aSlice[idx], v.bSlice[idx], true
+}
+
+func (v *View2[A, B]) IterChunkClean() ([]Id, []A, []B) {
+	if v.outerIter >= len(v.id) {
+		return nil, nil, nil
+	}
+	idx := v.outerIter
+	v.outerIter++
+
+	return v.id[idx], v.aSlice[idx], v.bSlice[idx]
+}
+
+func CleanMap2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
+	view := ViewAll2[A, B](world)
+	for view.Ok() {
+		id, pos, vel := view.IterChunkClean()
+		for i := range id {
+			lambda(id[i], &pos[i], &vel[i])
+		}
+	}
 }
 
 
