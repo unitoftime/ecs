@@ -27,9 +27,6 @@ type Collider struct {
 	Count int32
 }
 
-var fixedTime float64 = (15 * time.Millisecond).Seconds()
-var maxPosition float64 = 100.0
-
 func main() {
 	flag.Parse()
 	if *cpuprofile != "" {
@@ -47,7 +44,7 @@ func main() {
 	}
 
 	program := os.Args[1]
-	// program := "physics"
+	// program := "physicsOpt2"
 	size := 1000
 
 	switch program {
@@ -199,10 +196,10 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 	}
 
 	loopCounter := 0
+	fixedTime := (15 * time.Millisecond).Seconds()
 
 	start := time.Now()
 	dt := time.Since(start)
-	fixedTime := (15 * time.Millisecond).Seconds()
 	for iterCount := 0; iterCount < iterations; iterCount++ {
 		start = time.Now()
 
@@ -228,6 +225,7 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 			view := ecs.ViewAll2[Position, Velocity](world)
 			for view.Ok() {
 				_, pos, vel := view.IterChunkClean()
+				if len(pos) != len(vel) { panic("ERR") }
 				for j := range pos {
 					pos[j].X += vel[j].X * fixedTime
 					pos[j].Y += vel[j].Y * fixedTime
@@ -290,55 +288,17 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 		// 	}
 		// }
 
-		// deathCount := 0
-		// view := ecs.ViewAll2[Position, Collider](world)
-		// ids, pos, col := view.GetAllSlices()
-		// for i := range ids {
-		// 	aId := ids[i]
-		// 	aPos := &pos[i]
-		// 	aCol := &col[i]
-		// 	for j := range ids {
-		// 		bId := ids[j]
-		// 		bPos := &pos[j]
-		// 		bCol := &col[j]
 
-		// 		if aId == bId { continue } // Skip if entity is the same
-
-		// 		dx := aPos.X - bPos.X
-		// 		dy := aPos.Y - bPos.Y
-		// 		distSq := (dx * dx) + (dy * dy)
-
-		// 		dr := aCol.Radius + bCol.Radius
-		// 		drSq := dr * dr
-
-		// 		if drSq > distSq {
-		// 			aCol.Count++
-		// 		}
-
-		// 		// Kill and spawn one
-		// 		// TODO move to outer loop?
-		// 		if collisionLimit > 0 && aCol.Count > collisionLimit {
-		// 			success := ecs.Delete(world, aId)
-		// 			if success {
-		// 				deathCount++
-		// 				break
-		// 			}
-		// 		}
-
-		// 		loopCounter++
-		// 	}
-		// }
-
-
-		// // !!!Fastest!!!!
-		// // Check collisions, increment the count if a collision happens
+		// !!!Fastest!!!!
+		// Check collisions, increment the count if a collision happens
 		deathCount := 0
 		view := ecs.ViewAll2[Position, Collider](world)
 		view2 := ecs.ViewAll2[Position, Collider](world)
 		for view.Ok() {
 			ids, pos, col := view.IterChunkClean()
 
-			for j := range pos {
+			if len(ids) != len(pos) || len(ids) != len(col) { panic ("ERROR") }
+			for j := range ids {
 				aId := ids[j]
 				aPos := &pos[j]
 				aCol := &col[j]
@@ -346,7 +306,9 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 				view2.Reset()
 				for view2.Ok() {
 					targIdList, targPosList, targCol := view2.IterChunkClean()
-					for jj := range targPosList {
+
+					if len(targIdList) != len(targPosList) || len(targIdList) != len(targCol) { panic ("ERROR") }
+					for jj := range targIdList {
 						bId := targIdList[jj]
 						bPos := &targPosList[jj]
 						bCol := &targCol[jj]
@@ -443,6 +405,28 @@ func (a *Archetypes[A, B]) Map2D(f func([]ecs.Id, []A, []B, []ecs.Id, []A, []B))
 			f(a.ids[i], a.a[i], a.b[i], a.ids[j], a.a[j], a.b[j])
 		}
 	}
+
+	// ids := a.ids
+	// aa := a.a
+	// bb := a.b
+	// if len(ids) != len(aa) || len(ids) != len(bb) { panic("ERR") }
+	// for i := range ids {
+	// 	iii1 := ids[i]
+	// 	aaa1 := aa[i]
+	// 	bbb1 := bb[i]
+
+	// 	if len(iii1) != len(aaa1) || len(iii1) != len(aaa1) { panic("ERR") }
+	// 	for j := range ids {
+	// 		// f(a.ids[i], a.a[i], a.b[i], a.ids[j], a.a[j], a.b[j])
+
+	// 		iii2 := ids[j]
+	// 		aaa2 := aa[j]
+	// 		bbb2 := bb[j]
+	// 		if len(iii2) != len(aaa2) || len(iii2) != len(aaa2) { panic("ERR") }
+
+	// 		f(iii1, aaa1, bbb1, iii2, aaa2, bbb2)
+	// 	}
+	// }
 }
 
 
@@ -461,9 +445,10 @@ func (a *Archetypes[A, B]) Map2D(f func([]ecs.Id, []A, []B, []ecs.Id, []A, []B))
 // 		// loopCounter++
 // 	}
 // }
-var loopCounter int
-func moveCircles(archetypes Archetypes[Position, Velocity]) {
+
+func moveCircles(archetypes Archetypes[Position, Velocity], fixedTime float64, maxPosition float64, loopCounter *int) {
 	archetypes.Map(func(ids []ecs.Id, pos []Position, vel []Velocity) {
+		if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
 		for i := range ids {
 			pos[i].X += vel[i].X * fixedTime
 			pos[i].Y += vel[i].Y * fixedTime
@@ -475,19 +460,20 @@ func moveCircles(archetypes Archetypes[Position, Velocity]) {
 			if pos[i].Y <= 0 || pos[i].Y >= maxPosition {
 				vel[i].Y = -vel[i].Y
 			}
-			loopCounter++
+			*loopCounter++
 		}
 	})
 }
 
-var deathCount int
-var collisionLimit int32 = 0
-func checkCollisions(archetypes Archetypes[Position, Collider]) {
+func checkCollisions(archetypes Archetypes[Position, Collider], collisionLimit int32, deathCount *int, loopCounter *int) {
+
 	// archetypes.Map(func(aId []ecs.Id, aPos []Position, aCol []Collider) {
-	// 	archetypes.Map(func(aId []ecs.Id, aPos []Position, aCol []Collider) {
+	// 	archetypes.Map(func(bId []ecs.Id, bPos []Position, bCol []Collider) {
 	archetypes.Map2D(func(
 		aId []ecs.Id, aPos []Position, aCol []Collider,
 		bId []ecs.Id, bPos []Position, bCol []Collider) {
+			if len(aId) != len(aPos) || len(aId) != len(aCol) { panic("ERR") }
+			if len(bId) != len(bPos) || len(bId) != len(bCol) { panic("ERR") }
 			for i := range aId {
 				for j := range bId {
 					if aId[i] == bId[j] { continue } // Skip if entity is the same
@@ -506,6 +492,7 @@ func checkCollisions(archetypes Archetypes[Position, Collider]) {
 					// Kill and spawn one
 					// TODO move to outer loop?
 					if collisionLimit > 0 && aCol[i].Count > collisionLimit {
+						*deathCount++
 						// success := ecs.Delete(world, aId[i])
 						// if success {
 						// 	deathCount++
@@ -513,9 +500,10 @@ func checkCollisions(archetypes Archetypes[Position, Collider]) {
 						// }
 					}
 
-					loopCounter++
+					*loopCounter++
 				}
 			}
+		// })
 		})
 }
 
@@ -541,14 +529,22 @@ func benchPhysicsOptimized2(size int, collisionLimit int32) {
 		ecs.WriteEntity(world, id, ent)
 	}
 
+	loopCounter := 0
+	fixedTime := (15 * time.Millisecond).Seconds()
+
 	start := time.Now()
 	dt := time.Since(start)
 	for iterCount := 0; iterCount < iterations; iterCount++ {
 		start = time.Now()
 
-		ExecuteSystem2(world, moveCircles)
+		ExecuteSystem2(world, func(archetypes Archetypes[Position, Velocity]) {
+			moveCircles(archetypes, fixedTime, maxPosition, &loopCounter)
+		})
 
-		ExecuteSystem2(world, checkCollisions)
+		deathCount := 0
+		ExecuteSystem2(world, func(arch Archetypes[Position, Collider]) {
+			checkCollisions(arch, collisionLimit, &deathCount, &loopCounter)
+		})
 
 		// Spawn new entities, one per each entity we deleted
 		for i := 0; i < deathCount; i++ {

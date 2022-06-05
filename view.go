@@ -70,9 +70,20 @@ func Map2[A, B any, F func(Id,*A,*B)](world *World, lambda F) {
 		lookup, ok := world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
-		for i, id := range lookup.id {
+		ids := lookup.id
+		aComp := aSlice.comp
+		bComp := bSlice.comp
+		if len(ids) != len(aComp) || len(ids) != len(bComp) {
+			panic("ERROR - Bounds don't match")
+		}
+		for i := range ids {
+			id := ids[i]
 			if id == InvalidEntity { continue }
-			lambda(id, &aSlice.comp[i], &bSlice.comp[i])
+			aVal := &aComp[i]
+			bVal := &bComp[i]
+			lambda(id, aVal, bVal)
+			// if lookup.id[i] == InvalidEntity { continue }
+			// lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i])
 		}
 	}
 }
@@ -442,6 +453,7 @@ func (v *View2[A, B, F]) Iterate() *Iterator2[A, B, F] {
 	// return iterator.id, &iterator.a, &iterator.b, iterator
 }
 
+// TODO  You could probably make iterators fast if you removed all the bounds checking that happens, but you'd probably have to do pointer arithmetic on the slices (potentially unsafe)
 type Iterator2[A, B any, F func(Id, *A, *B)] struct {
 	view *View2[A, B, F]
 	innerIter, outerIter int
