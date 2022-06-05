@@ -48,6 +48,8 @@ func main() {
 
 	switch program {
 	case "physics":
+		benchPhysics(size, 0)
+	case "physicsOpt":
 		benchPhysicsOptimized2(size, 0)
 	case "physicsDelete":
 		benchPhysicsOptimized2(size, 100)
@@ -239,7 +241,7 @@ func benchPhysicsOptimized2(size int, collisionLimit int32) {
 1001 638
 */
 
-/*
+
 func benchPhysics(size int, collisionLimit int32) {
 	iterations := 1000
 
@@ -339,6 +341,7 @@ func benchPhysics(size int, collisionLimit int32) {
 	})
 }
 
+/*
 func benchPhysicsOptimized(size int, collisionLimit int32) {
 	iterations := 1000
 

@@ -52,40 +52,51 @@ func Map[A any, F func(Id, *A)](world *World, lambda F) {
 
 // func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
 func Map2[A, B any, F func(Id,*A,*B)](world *World, lambda F) {
-	var a A
-	var b B
+	// This one is faster 360 ms
+	ExecuteSystem2(world, func(query *Query2[A, B, ]) {
+		query.Map(func(ids []Id, a []A, b []B) {
+			if len(ids) != len(a) || len(ids) != len(b) { panic("ERR") }
+			for i := range ids {
+				lambda(ids[i], &a[i], &b[i])
+			}
+		})
+	})
 
-	archIds := world.engine.Filter(a, b)
+	// This one is slower 335 ms
+	// var a A
+	// var b B
 
-	// storages := getAllStorages(world, a)
-	aStorage := GetStorage[A](world.engine)
-	bStorage := GetStorage[B](world.engine)
+	// archIds := world.engine.Filter(a, b)
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
-		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
-		if !ok { continue }
+	// // storages := getAllStorages(world, a)
+	// aStorage := GetStorage[A](world.engine)
+	// bStorage := GetStorage[B](world.engine)
 
-		lookup, ok := world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+	// for _, archId := range archIds {
+	// 	aSlice, ok := aStorage.slice[archId]
+	// 	if !ok { continue }
+	// 	bSlice, ok := bStorage.slice[archId]
+	// 	if !ok { continue }
 
-		ids := lookup.id
-		aComp := aSlice.comp
-		bComp := bSlice.comp
-		if len(ids) != len(aComp) || len(ids) != len(bComp) {
-			panic("ERROR - Bounds don't match")
-		}
-		for i := range ids {
-			id := ids[i]
-			if id == InvalidEntity { continue }
-			aVal := &aComp[i]
-			bVal := &bComp[i]
-			lambda(id, aVal, bVal)
-			// if lookup.id[i] == InvalidEntity { continue }
-			// lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i])
-		}
-	}
+	// 	lookup, ok := world.engine.lookup[archId]
+	// 	if !ok { panic("LookupList is missing!") }
+
+	// 	ids := lookup.id
+	// 	aComp := aSlice.comp
+	// 	bComp := bSlice.comp
+	// 	if len(ids) != len(aComp) || len(ids) != len(bComp) {
+	// 		panic("ERROR - Bounds don't match")
+	// 	}
+	// 	for i := range ids {
+	// 		id := ids[i]
+	// 		if id == InvalidEntity { continue }
+	// 		aVal := &aComp[i]
+	// 		bVal := &bComp[i]
+	// 		lambda(id, aVal, bVal)
+	// 		// if lookup.id[i] == InvalidEntity { continue }
+	// 		// lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i])
+	// 	}
+	// }
 }
 
 // This ia a Map2, but if the lambda returns false, we stop looping

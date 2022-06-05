@@ -78,14 +78,14 @@ func TestWorldReadWrite(t *testing.T) {
 	})
 	compare(t, count, 1)
 
-	count = 0
-	view := ViewAll2[position, velocity](world)
-	for {
-		_, _, _, ok := view.Iter()
-		if !ok { break }
-		count++
-	}
-	compare(t, count, 1)
+	// count = 0
+	// view := ViewAll2[position, velocity](world)
+	// for {
+	// 	_, _, _, ok := view.Iter()
+	// 	if !ok { break }
+	// 	count++
+	// }
+	// compare(t, count, 1)
 }
 
 func TestWorldReadMultiWrite(t *testing.T) {
