@@ -44,15 +44,10 @@ func main() {
 	}
 
 	program := os.Args[1]
-	// program := "physicsOpt2"
-	size := 1000
+	size := 10000
 
 	switch program {
 	case "physics":
-		benchPhysics(size, 0)
-	case "physicsOpt":
-		benchPhysicsOptimized(size, 0)
-	case "physicsOpt2":
 		benchPhysicsOptimized2(size, 0)
 	case "physicsDelete":
 		benchPhysicsOptimized2(size, 100)
@@ -75,6 +70,176 @@ func main() {
 	}
 }
 
+func moveCircles(query *ecs.Query2[Position, Velocity], fixedTime float64, maxPosition float64, loopCounter *int) {
+	query.Map(func(ids []ecs.Id, pos []Position, vel []Velocity) {
+		if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
+		for i := range ids {
+			pos[i].X += vel[i].X * fixedTime
+			pos[i].Y += vel[i].Y * fixedTime
+
+			// Bump into the bounding rect
+			if pos[i].X <= 0 || pos[i].X >= maxPosition {
+				vel[i].X = -vel[i].X
+			}
+			if pos[i].Y <= 0 || pos[i].Y >= maxPosition {
+				vel[i].Y = -vel[i].Y
+			}
+			*loopCounter++
+		}
+	})
+}
+
+func checkCollisions(query *ecs.Query2[Position, Collider], collisionLimit int32, deathCount *int, loopCounter *int) {
+
+	// Alternative?
+	// archetypes.Map2D(func(
+	// 	aId []ecs.Id, aPos []Position, aCol []Collider,
+	// 	bId []ecs.Id, bPos []Position, bCol []Collider) {
+
+	query.Map(func(aId []ecs.Id, aPos []Position, aCol []Collider) {
+		query.Map(func(bId []ecs.Id, bPos []Position, bCol []Collider) {
+			if len(aId) != len(aPos) || len(aId) != len(aCol) { panic("ERR") }
+			if len(bId) != len(bPos) || len(bId) != len(bCol) { panic("ERR") }
+			for i := range aId {
+				for j := range bId {
+					if aId[i] == bId[j] { continue } // Skip if entity is the same
+
+					dx := aPos[i].X - bPos[j].X
+					dy := aPos[i].Y - bPos[j].Y
+					distSq := (dx * dx) + (dy * dy)
+
+					dr := aCol[i].Radius + bCol[j].Radius
+					drSq := dr * dr
+
+					if drSq > distSq {
+						aCol[i].Count++
+					}
+
+					// Kill and spawn one
+					// TODO move to outer loop?
+					if collisionLimit > 0 && aCol[i].Count > collisionLimit {
+						*deathCount++
+						// success := ecs.Delete(world, aId[i])
+						// if success {
+						// 	deathCount++
+						// 	break
+						// }
+					}
+
+					*loopCounter++
+				}
+			}
+		})
+	})
+}
+
+
+func benchPhysicsOptimized2(size int, collisionLimit int32) {
+	iterations := 1000
+
+	world := ecs.NewWorld()
+	maxSpeed := 10.0
+	maxPosition := 100.0
+	maxCollider := 1.0
+
+	for i := 0; i < size; i++ {
+		id := world.NewId()
+		ent := ecs.NewEntity(
+			ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
+			ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
+			ecs.C(Collider{
+				Radius: maxCollider * rand.Float64(),
+				Count: 0,
+			}),
+		)
+		ecs.WriteEntity(world, id, ent)
+	}
+
+	loopCounter := 0
+	fixedTime := (15 * time.Millisecond).Seconds()
+
+	start := time.Now()
+	dt := time.Since(start)
+	for iterCount := 0; iterCount < iterations; iterCount++ {
+		start = time.Now()
+
+		ecs.ExecuteSystem2(world, func(query *ecs.Query2[Position, Velocity]) {
+			moveCircles(query, fixedTime, maxPosition, &loopCounter)
+		})
+
+		deathCount := 0
+		ecs.ExecuteSystem2(world, func(query *ecs.Query2[Position, Collider]) {
+			checkCollisions(query, collisionLimit, &deathCount, &loopCounter)
+		})
+
+
+		// ExecuteSystem2(world, func(archetypes Archetypes[Position, Velocity]) {
+		// 	moveCircles(archetypes, fixedTime, maxPosition, &loopCounter)
+		// })
+
+		// deathCount := 0
+		// ExecuteSystem2(world, func(arch Archetypes[Position, Collider]) {
+		// 	checkCollisions(arch, collisionLimit, &deathCount, &loopCounter)
+		// })
+
+		// Spawn new entities, one per each entity we deleted
+		for i := 0; i < deathCount; i++ {
+			id := world.NewId()
+			ent := ecs.NewEntity(
+				ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
+				ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
+				ecs.C(Collider{
+					Radius: maxCollider * rand.Float64(),
+					Count: 0,
+				}),
+			)
+			ecs.WriteEntity(world, id, ent)
+		}
+
+		// world.Print(0)
+
+		dt = time.Since(start)
+		fmt.Println(iterCount, dt, loopCounter)
+		loopCounter = 0
+	}
+
+	ecs.Map(world, func(id ecs.Id, collider *Collider) {
+		fmt.Println(id, collider.Count)
+	})
+}
+
+	/*
+974 1031
+975 625
+976 787
+977 208
+978 1601
+979 1243
+980 167
+981 108
+982 1040
+983 500
+984 637
+985 1011
+986 830
+987 1247
+988 901
+989 1597
+990 418
+991 767
+992 951
+993 1252
+994 948
+995 194
+996 290
+997 181
+998 1276
+999 858
+1000 789
+1001 638
+*/
+
+/*
 func benchPhysics(size int, collisionLimit int32) {
 	iterations := 1000
 
@@ -367,238 +532,4 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 		fmt.Println(id, collider.Count)
 	})
 }
-
-// func ExecuteSystem[A, B any](world *ecs.World, f func(ids []ecs.Id, a []A, b []B)) {
-// 	view := ecs.ViewAll2[A, B](world)
-// 	ids, a, b := view.GetAllSlices()
-// 	for i := range ids {
-// 		f(ids[i], a[i], b[i])
-// 	}
-// }
-
-func ExecuteSystem2[A, B any](world *ecs.World, f func(archetypes Archetypes[A, B])) {
-	view := ecs.ViewAll2[A, B](world)
-	ids, a, b := view.GetAllSlices()
-	f(Archetypes[A, B]{
-		ids: ids,
-		a: a,
-		b: b,
-	})
-}
-
-
-type Archetypes[A, B any] struct {
-	ids [][]ecs.Id
-	a [][]A
-	b [][]B
-}
-
-func (a *Archetypes[A, B]) Map(f func(ids []ecs.Id, a []A, b []B)) {
-	for i := range a.ids {
-		f(a.ids[i], a.a[i], a.b[i])
-	}
-}
-
-func (a *Archetypes[A, B]) Map2D(f func([]ecs.Id, []A, []B, []ecs.Id, []A, []B)) {
-	for i := range a.ids {
-		for j := range a.ids {
-			f(a.ids[i], a.a[i], a.b[i], a.ids[j], a.a[j], a.b[j])
-		}
-	}
-
-	// ids := a.ids
-	// aa := a.a
-	// bb := a.b
-	// if len(ids) != len(aa) || len(ids) != len(bb) { panic("ERR") }
-	// for i := range ids {
-	// 	iii1 := ids[i]
-	// 	aaa1 := aa[i]
-	// 	bbb1 := bb[i]
-
-	// 	if len(iii1) != len(aaa1) || len(iii1) != len(aaa1) { panic("ERR") }
-	// 	for j := range ids {
-	// 		// f(a.ids[i], a.a[i], a.b[i], a.ids[j], a.a[j], a.b[j])
-
-	// 		iii2 := ids[j]
-	// 		aaa2 := aa[j]
-	// 		bbb2 := bb[j]
-	// 		if len(iii2) != len(aaa2) || len(iii2) != len(aaa2) { panic("ERR") }
-
-	// 		f(iii1, aaa1, bbb1, iii2, aaa2, bbb2)
-	// 	}
-	// }
-}
-
-
-// func moveCircles(ids []ecs.Id, pos []Position, vel []Velocity) {
-// 	for i := range ids {
-// 		pos[i].X += vel[i].X * fixedTime
-// 		pos[i].Y += vel[i].Y * fixedTime
-
-// 		// Bump into the bounding rect
-// 		if pos[i].X <= 0 || pos[i].X >= maxPosition {
-// 			vel[i].X = -vel[i].X
-// 		}
-// 		if pos[i].Y <= 0 || pos[i].Y >= maxPosition {
-// 			vel[i].Y = -vel[i].Y
-// 		}
-// 		// loopCounter++
-// 	}
-// }
-
-func moveCircles(archetypes Archetypes[Position, Velocity], fixedTime float64, maxPosition float64, loopCounter *int) {
-	archetypes.Map(func(ids []ecs.Id, pos []Position, vel []Velocity) {
-		if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
-		for i := range ids {
-			pos[i].X += vel[i].X * fixedTime
-			pos[i].Y += vel[i].Y * fixedTime
-
-			// Bump into the bounding rect
-			if pos[i].X <= 0 || pos[i].X >= maxPosition {
-				vel[i].X = -vel[i].X
-			}
-			if pos[i].Y <= 0 || pos[i].Y >= maxPosition {
-				vel[i].Y = -vel[i].Y
-			}
-			*loopCounter++
-		}
-	})
-}
-
-func checkCollisions(archetypes Archetypes[Position, Collider], collisionLimit int32, deathCount *int, loopCounter *int) {
-
-	// archetypes.Map(func(aId []ecs.Id, aPos []Position, aCol []Collider) {
-	// 	archetypes.Map(func(bId []ecs.Id, bPos []Position, bCol []Collider) {
-	archetypes.Map2D(func(
-		aId []ecs.Id, aPos []Position, aCol []Collider,
-		bId []ecs.Id, bPos []Position, bCol []Collider) {
-			if len(aId) != len(aPos) || len(aId) != len(aCol) { panic("ERR") }
-			if len(bId) != len(bPos) || len(bId) != len(bCol) { panic("ERR") }
-			for i := range aId {
-				for j := range bId {
-					if aId[i] == bId[j] { continue } // Skip if entity is the same
-
-					dx := aPos[i].X - bPos[j].X
-					dy := aPos[i].Y - bPos[j].Y
-					distSq := (dx * dx) + (dy * dy)
-
-					dr := aCol[i].Radius + bCol[j].Radius
-					drSq := dr * dr
-
-					if drSq > distSq {
-						aCol[i].Count++
-					}
-
-					// Kill and spawn one
-					// TODO move to outer loop?
-					if collisionLimit > 0 && aCol[i].Count > collisionLimit {
-						*deathCount++
-						// success := ecs.Delete(world, aId[i])
-						// if success {
-						// 	deathCount++
-						// 	break
-						// }
-					}
-
-					*loopCounter++
-				}
-			}
-		// })
-		})
-}
-
-
-func benchPhysicsOptimized2(size int, collisionLimit int32) {
-	iterations := 1000
-
-	world := ecs.NewWorld()
-	maxSpeed := 10.0
-	maxPosition := 100.0
-	maxCollider := 1.0
-
-	for i := 0; i < size; i++ {
-		id := world.NewId()
-		ent := ecs.NewEntity(
-			ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
-			ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
-			ecs.C(Collider{
-				Radius: maxCollider * rand.Float64(),
-				Count: 0,
-			}),
-		)
-		ecs.WriteEntity(world, id, ent)
-	}
-
-	loopCounter := 0
-	fixedTime := (15 * time.Millisecond).Seconds()
-
-	start := time.Now()
-	dt := time.Since(start)
-	for iterCount := 0; iterCount < iterations; iterCount++ {
-		start = time.Now()
-
-		ExecuteSystem2(world, func(archetypes Archetypes[Position, Velocity]) {
-			moveCircles(archetypes, fixedTime, maxPosition, &loopCounter)
-		})
-
-		deathCount := 0
-		ExecuteSystem2(world, func(arch Archetypes[Position, Collider]) {
-			checkCollisions(arch, collisionLimit, &deathCount, &loopCounter)
-		})
-
-		// Spawn new entities, one per each entity we deleted
-		for i := 0; i < deathCount; i++ {
-			id := world.NewId()
-			ent := ecs.NewEntity(
-				ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
-				ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
-				ecs.C(Collider{
-					Radius: maxCollider * rand.Float64(),
-					Count: 0,
-				}),
-			)
-			ecs.WriteEntity(world, id, ent)
-		}
-
-		// world.Print(0)
-
-		dt = time.Since(start)
-		fmt.Println(iterCount, dt, loopCounter)
-		loopCounter = 0
-	}
-
-	ecs.Map(world, func(id ecs.Id, collider *Collider) {
-		fmt.Println(id, collider.Count)
-	})
-}
-
-	/*
-974 1031
-975 625
-976 787
-977 208
-978 1601
-979 1243
-980 167
-981 108
-982 1040
-983 500
-984 637
-985 1011
-986 830
-987 1247
-988 901
-989 1597
-990 418
-991 767
-992 951
-993 1252
-994 948
-995 194
-996 290
-997 181
-998 1276
-999 858
-1000 789
-1001 638
 */
