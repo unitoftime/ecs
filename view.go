@@ -1,5 +1,33 @@
 package ecs
 
+// func SpecialMap2[A, B any, F func(Id, *A, *B)](world *World, lambda F) {
+// 	view := ViewAll2[A, B](world)
+// 	for view.Ok() {
+// 		id, pos, vel := view.IterChunkClean()
+
+// 		// mapFuncPhyGen(id, pos, vel, physicsTick)
+
+// 		genMap2(id, pos, vel, lambda)
+// 		// for j := range id {
+// 		// 	lambda(id[j], &pos[j], &vel[j])
+// 		// }
+// 	}
+// }
+
+// func SpecialMap2NonGen(world *World, lambda func(Id, *Position, *Velocity)) {
+// 	view := ViewAll2[Position, Velocity](world)
+// 	for view.Ok() {
+// 		id, pos, vel := view.IterChunkClean()
+
+// 		// mapFuncPhyGen(id, pos, vel, physicsTick)
+
+// 		for j := range id {
+// 			lambda(id[j], &pos[j], &vel[j])
+// 		}
+// 	}
+// }
+
+
 // func Map[A any](world *World, lambda func(id Id, a *A)) {
 func Map[A any, F func(Id, *A)](world *World, lambda F) {
 	var a A
@@ -242,7 +270,7 @@ func RwMap[GA get[A, AO], A any, AO any](world *World, lambda func(id Id, a AO))
 // 	return aSlice.comp
 // }
 
-type View2[A, B any] struct {
+type View2[A, B any, F func(Id, *A, *B)] struct {
 	world *World
 	id [][]Id
 	aSlice [][]A
@@ -250,13 +278,12 @@ type View2[A, B any] struct {
 
 	outerIter, innerIter int
 }
-func ViewAll2[A, B any](world *World) *View2[A, B] {
-	v := View2[A, B]{
+func ViewAll2[A, B any, F func(Id, *A, *B)](world *World) *View2[A, B, F] {
+	v := View2[A, B, F]{
 		world: world,
 		id: make([][]Id, 0),
 		aSlice: make([][]A, 0),
 		bSlice: make([][]B, 0),
-		innerIter: -1, // When we iterate the first thing we do is increment
 	}
 	var a A
 	var b B
@@ -282,73 +309,180 @@ func ViewAll2[A, B any](world *World) *View2[A, B] {
 	return &v
 }
 
-// func mapFunc2[A any, B any](id []Id, aa []A, bb []B, f func(id Id, a A, b B)){
-// 	for j := range aa {
-// 		f(id[j], aa[j], bb[j])
-// 	}
-// }
-
-func (v *View2[A, B]) Map(lambda func(id Id, a *A, b *B)) {
-	for i := range v.id {
-		id := v.id[i]
-		aSlice := v.aSlice[i]
-		bSlice := v.bSlice[i]
-		for j := range id {
-			lambda(id[j], &aSlice[j], &bSlice[j])
-		}
-	}
+func (v *View2[A, B, F]) Reset() {
+	v.outerIter = 0
+	v.innerIter = 0
 }
 
-func (v *View2[A, B]) Iter() (Id, A, B, bool) {
-	v.innerIter++
-	if v.innerIter >= len(v.id[v.outerIter]) {
-		v.innerIter = 0
-		v.outerIter++
-	}
-
-	if v.outerIter >= len(v.id) {
-		var id Id
-		var a A
-		var b B
-		return id, a, b, false
-	}
-
-	return v.id[v.outerIter][v.innerIter], v.aSlice[v.outerIter][v.innerIter], v.bSlice[v.outerIter][v.innerIter], true
-}
-
-func (v *View2[A, B]) Iter2(id *Id, a *A, b *B) bool {
-	v.innerIter++
-	if v.innerIter >= len(v.id[v.outerIter]) {
-		v.innerIter = 0
-		v.outerIter++
-	}
-
-	if v.outerIter >= len(v.id) {
-		return false
-	}
-
-	*id = v.id[v.outerIter][v.innerIter]
-	*a = v.aSlice[v.outerIter][v.innerIter]
-	*b = v.bSlice[v.outerIter][v.innerIter]
-	return true
-}
-
-func (v *View2[A, B]) Ok() bool {
+func (v *View2[A, B, F]) Ok() bool {
 	return v.outerIter < len(v.id)
 }
 
-// Iterates on archetype chunks, returns underlying arrays so modifications are automatically written back
-func (v *View2[A, B]) IterChunk() ([]Id, []A, []B, bool) {
-	if v.outerIter >= len(v.id) {
-		return nil, nil, nil, false
-	}
-	idx := v.outerIter
-	v.outerIter++
+func (v *View2[A, B, F]) Map(lambda F) {
+	for i := range v.id {
+		// id := v.id[i]
+		// aSlice := v.aSlice[i]
+		// bSlice := v.bSlice[i]
+		// for j := range id {
+		// 	lambda(id[j], &aSlice[j], &bSlice[j])
+		// }
 
-	return v.id[idx], v.aSlice[idx], v.bSlice[idx], true
+		genMap2(v.id[i], v.aSlice[i], v.bSlice[i], lambda)
+		// for j := range v.id[i] {
+		// 	lambda(v.id[i][j], &v.aSlice[i][j], &v.bSlice[i][j])
+		// }
+	}
 }
 
-func (v *View2[A, B]) IterChunkClean() ([]Id, []A, []B) {
+func genMap2[A any, B any, F func(Id, *A, *B)](id []Id, aa []A, bb []B, f F) {
+	for j := range id {
+		f(id[j], &aa[j], &bb[j])
+	}
+}
+
+// func (v *View2[A, B, F]) Iter() (Id, A, B, bool) {
+// 	v.innerIter++
+// 	if v.innerIter >= len(v.id[v.outerIter]) {
+// 		v.innerIter = 0
+// 		v.outerIter++
+// 	}
+
+// 	if v.outerIter >= len(v.id) {
+// 		var id Id
+// 		var a A
+// 		var b B
+// 		return id, a, b, false
+// 	}
+
+// 	return v.id[v.outerIter][v.innerIter], v.aSlice[v.outerIter][v.innerIter], v.bSlice[v.outerIter][v.innerIter], true
+// }
+
+// func (v *View2[A, B, F]) Iter2(id *Id, a *A, b *B) bool {
+// 	inner := v.innerIter
+// 	outer := v.outerIter
+
+// 	v.innerIter++
+// 	if v.innerIter >= len(v.id[v.outerIter]) {
+// 		v.innerIter = 0
+// 		v.outerIter++
+// 	}
+
+// 	if outer >= len(v.id) {
+// 		return false
+// 	}
+
+// 	*id = v.id[outer][inner]
+// 	*a = v.aSlice[outer][inner]
+// 	*b = v.bSlice[outer][inner]
+// 	return true
+// }
+
+// func (v *View2[A, B, F]) IterPointer(id **Id, a **A, b **B) bool {
+// 	inner := v.innerIter
+// 	outer := v.outerIter
+
+// 	v.innerIter++
+// 	if v.innerIter >= len(v.id[v.outerIter]) {
+// 		v.innerIter = 0
+// 		v.outerIter++
+// 	}
+
+// 	if outer >= len(v.id) {
+// 		return false
+// 	}
+
+// 	*id = &v.id[outer][inner]
+// 	*a = &v.aSlice[outer][inner]
+// 	*b = &v.bSlice[outer][inner]
+// 	return true
+// }
+
+// func (v *View2[A, B, F]) Iter3() (Id, *A, *B, bool) {
+// 	v.innerIter++
+// 	if v.innerIter >= len(v.id[v.outerIter]) {
+// 		v.innerIter = 0
+// 		v.outerIter++
+// 	}
+
+// 	if v.outerIter >= len(v.id) {
+// 		return InvalidEntity, nil, nil, false
+// 	}
+
+// 	return v.id[v.outerIter][v.innerIter], &v.aSlice[v.outerIter][v.innerIter], &v.bSlice[v.outerIter][v.innerIter], true
+// }
+
+// func (v *View2[A, B, F]) Next() {
+// 	return v.Iter4()
+// }
+
+// func (v *View2[A, B, F]) Iter4() (Id, *A, *B) {
+// 	inner := v.innerIter
+// 	outer := v.outerIter
+
+// 	v.innerIter++
+// 	if v.innerIter >= len(v.id[v.outerIter]) {
+// 		v.innerIter = 0
+// 		v.outerIter++
+// 	}
+
+// 	if outer >= len(v.id) {
+// 		return InvalidEntity, nil, nil
+// 	}
+
+// 	return v.id[outer][inner], &v.aSlice[outer][inner], &v.bSlice[outer][inner]
+// }
+
+// func (v *View2[A, B, F]) Iterate() (*Id, **A, **B, *Iterator2[A, B, F]) {
+func (v *View2[A, B, F]) Iterate() *Iterator2[A, B, F] {
+	newView := *v
+	iterator := &Iterator2[A, B, F]{
+		view: &newView,
+	}
+	return iterator
+	// return iterator.id, &iterator.a, &iterator.b, iterator
+}
+
+type Iterator2[A, B any, F func(Id, *A, *B)] struct {
+	view *View2[A, B, F]
+	innerIter, outerIter int
+}
+
+func (i *Iterator2[A, B, F]) Ok() bool {
+	return i.outerIter < len(i.view.id)
+}
+
+func (i *Iterator2[A, B, F]) Next() (Id, *A, *B) {
+	inner := i.innerIter
+	outer := i.outerIter
+
+	i.innerIter++
+	if i.innerIter >= len(i.view.id[i.outerIter]) {
+		i.innerIter = 0
+		i.outerIter++
+	}
+
+	if outer >= len(i.view.id) {
+		return InvalidEntity, nil, nil
+	}
+
+	return i.view.id[outer][inner], &i.view.aSlice[outer][inner], &i.view.bSlice[outer][inner]
+
+	// return i.view.Iter4()
+	// i.view.IterPointer(&i.id, &i.a, &i.b)
+}
+
+// Iterates on archetype chunks, returns underlying arrays so modifications are automatically written back
+// func (v *View2[A, B, F]) IterChunk() ([]Id, []A, []B, bool) {
+// 	if v.outerIter >= len(v.id) {
+// 		return nil, nil, nil, false
+// 	}
+// 	idx := v.outerIter
+// 	v.outerIter++
+
+// 	return v.id[idx], v.aSlice[idx], v.bSlice[idx], true
+// }
+
+func (v *View2[A, B, F]) IterChunkClean() ([]Id, []A, []B) {
 	if v.outerIter >= len(v.id) {
 		return nil, nil, nil
 	}
@@ -358,15 +492,33 @@ func (v *View2[A, B]) IterChunkClean() ([]Id, []A, []B) {
 	return v.id[idx], v.aSlice[idx], v.bSlice[idx]
 }
 
-func CleanMap2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
-	view := ViewAll2[A, B](world)
-	for view.Ok() {
-		id, pos, vel := view.IterChunkClean()
-		for i := range id {
-			lambda(id[i], &pos[i], &vel[i])
+func (v *View2[A, B, F]) GetAllSlices() ([][]Id, [][]A, [][]B) {
+	return v.id, v.aSlice, v.bSlice
+}
+
+func ArchetypeMap[A any, B any, F func(Id, *A, *B)](id [][]Id, aa [][]A, bb [][]B, f F) {
+	for i := range id {
+		for j := range id[i] {
+			f(id[i][j], &aa[i][j], &bb[i][j])
 		}
 	}
 }
+
+func SliceMap2[A any, B any, F func(Id, *A, *B)](id []Id, aa []A, bb []B, f F) {
+	for i := range id {
+		f(id[i], &aa[i], &bb[i])
+	}
+}
+
+// func CleanMap2[A, B any, F func(Id, *A, *B)](world *World, lambda F) {
+// 	view := ViewAll2[A, B](world)
+// 	for view.Ok() {
+// 		id, pos, vel := view.IterChunkClean()
+// 		for i := range id {
+// 			lambda(id[i], &pos[i], &vel[i])
+// 		}
+// 	}
+// }
 
 
 // type View struct {
@@ -488,3 +640,53 @@ func CleanMap2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
 // 		}
 // 	}
 // }
+
+type View2F[A, B any, F func(Id, *A, *B)] struct {
+	world *World
+	lambda F
+
+	id [][]Id
+	aSlice [][]A
+	bSlice [][]B
+
+	outerIter, innerIter int
+}
+func ViewAll2F[A, B any, F func(Id, *A, *B)](world *World, lambda F) *View2F[A, B, F] {
+	v := View2F[A, B, F]{
+		world: world,
+		lambda: lambda,
+
+		id: make([][]Id, 0),
+		aSlice: make([][]A, 0),
+		bSlice: make([][]B, 0),
+		innerIter: -1, // When we iterate the first thing we do is increment
+	}
+	var a A
+	var b B
+	archIds := v.world.engine.Filter(a, b)
+
+	// storages := getAllStorages(world, a)
+	aStorage := GetStorage[A](v.world.engine)
+	bStorage := GetStorage[B](v.world.engine)
+
+	for _, archId := range archIds {
+		aSlice, ok := aStorage.slice[archId]
+		if !ok { continue }
+		bSlice, ok := bStorage.slice[archId]
+		if !ok { continue }
+
+		lookup, ok := v.world.engine.lookup[archId]
+		if !ok { panic("LookupList is missing!") }
+
+		v.id = append(v.id, lookup.id)
+		v.aSlice = append(v.aSlice, aSlice.comp)
+		v.bSlice = append(v.bSlice, bSlice.comp)
+	}
+	return &v
+}
+
+func (v *View2F[A, B, F]) Map() {
+	for i := range v.id {
+		genMap2(v.id[i], v.aSlice[i], v.bSlice[i], v.lambda)
+	}
+}
