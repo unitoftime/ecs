@@ -213,16 +213,38 @@ func BenchmarkPhysicsQueryAAA(b *testing.B) {
 	world := setupPhysics(1e6)
 	b.ResetTimer()
 
+	query := NewQuery2[Position, Velocity](world)
+
 	for i := 0; i < b.N; i++ {
-
-		query := NewQuery2[Position, Velocity](world)
-
 		query.Map(func(ids []Id, pos []Position, vel []Velocity) {
 			if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
 			for i := range ids {
 				physicsTick(ids[i], &pos[i], &vel[i])
 			}
 		})
+	}
+}
+
+func BenchmarkPhysicsQueryIteratorAAA(b *testing.B) {
+	world := setupPhysics(1e6)
+	b.ResetTimer()
+
+	query := NewQuery2[Position, Velocity](world)
+	for i := 0; i < b.N; i++ {
+		for iter := query.Iterate(); iter.Ok(); {
+			id, pos, vel := iter.Next()
+			physicsTick(id, pos, vel)
+		}
+
+	}
+}
+
+func BenchmarkPhysicsQueryMapAAA(b *testing.B) {
+	world := setupPhysics(1e6)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		Map2(world, physicsTick)
 	}
 }
 

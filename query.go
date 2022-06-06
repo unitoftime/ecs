@@ -11,8 +11,6 @@ type Query2[A, B any] struct {
 	id [][]Id
 	aSlice [][]A
 	bSlice [][]B
-
-	outerIter, innerIter int
 }
 func NewQuery2[A, B any](world *World) *Query2[A, B] {
 	v := Query2[A, B]{
@@ -87,4 +85,76 @@ func (q *Query2[A, B]) Map2D(f func([]Id, []A, []B, []Id, []A, []B)) {
 			f(iii1, aaa1, bbb1, iii2, aaa2, bbb2)
 		}
 	}
+}
+
+func (q *Query2[A, B]) Iterate() *UnsafeIterator2[A, B] {
+	iterator := &UnsafeIterator2[A, B]{
+		query: q,
+		outerLen: len(q.id),
+		id: q.id[0],
+		a: q.aSlice[0],
+		b: q.bSlice[0],
+	}
+	return iterator
+}
+
+type UnsafeIterator2[A, B any] struct {
+	query *Query2[A, B]
+	outerLen int
+	innerIter, outerIter int
+
+	id []Id
+	a []A
+	b []B
+}
+
+func (i *UnsafeIterator2[A, B]) Ok() bool {
+	return i.outerIter < len(i.query.id)
+}
+
+
+func (i *UnsafeIterator2[A, B]) Next() (Id, *A, *B) {
+	// // Note this is broken
+	// func (i *UnsafeIterator2[A, B]) outerTransition() (Id, *A, *B) {
+	// 	i.innerIter = 0
+	// 	i.outerIter++
+
+	// 	if i.outerIter < i.outerLen {
+	// 		i.id = i.query.id[i.outerIter]
+	// 		i.a = i.query.aSlice[i.outerIter]
+	// 		i.b = i.query.bSlice[i.outerIter]
+	// 	}
+	// }
+	// if i.outerIter >= i.outerLen {
+	// 	// Case where our outer iterator has finished (no more to iterate)
+	// 	return InvalidEntity, nil, nil
+	// } else if i.innerIter >= len(i.id) {
+	// 	// Case where our inner iterator has finished (no more in this group, go to the next one)
+	// 	return i.outerTransition()
+	// }
+
+	// inner := i.innerIter
+	// i.innerIter++
+	// return i.id[inner], &i.a[inner], &i.b[inner]
+
+
+	if i.outerIter >= i.outerLen {
+		return InvalidEntity, nil, nil
+	}
+
+	inner := i.innerIter
+
+	i.innerIter++
+	if i.innerIter >= len(i.id) {
+		i.innerIter = 0
+		i.outerIter++
+
+		if i.outerIter < i.outerLen {
+			i.id = i.query.id[i.outerIter]
+			i.a = i.query.aSlice[i.outerIter]
+			i.b = i.query.bSlice[i.outerIter]
+		}
+	}
+
+	return i.id[inner], &i.a[inner], &i.b[inner]
 }

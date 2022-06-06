@@ -44,9 +44,12 @@ func main() {
 	}
 
 	program := os.Args[1]
+	// program := "physics"
 	size := 10000
 
 	switch program {
+	case "native":
+		benchNative(size, 0)
 	case "physics":
 		benchPhysics(size, 0)
 	case "physicsOpt":
@@ -536,3 +539,94 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 	})
 }
 */
+
+func benchNative(size int, collisionLimit int32) {
+	iterations := 1000
+
+	loopCounter := 0
+	maxSpeed := 10.0
+	maxPosition := 100.0
+	maxCollider := 1.0
+
+	ids := make([]ecs.Id, size, size)
+	pos := make([]Position, size, size)
+	vel := make([]Velocity, size, size)
+	col := make([]Collider, size, size)
+
+	for i := 0; i < size; i++ {
+		ids[i] = ecs.Id(i+2)
+		pos[i] = Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}
+		vel[i] = Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}
+		col[i] = Collider{
+			Radius: maxCollider * rand.Float64(),
+			Count: 0,
+		}
+	}
+
+	start := time.Now()
+	dt := time.Since(start)
+	fixedTime := (15 * time.Millisecond).Seconds()
+	for iterCount := 0; iterCount < iterations; iterCount++ {
+		start = time.Now()
+
+		// Update positions
+		// ecs.Map2(world, func(id ecs.Id, position *Position, velocity *Velocity) {
+		for i := range ids {
+			pos[i].X += vel[i].X * fixedTime
+			pos[i].Y += vel[i].Y * fixedTime
+
+			// Bump into the bounding rect
+			if pos[i].X <= 0 || pos[i].X >= maxPosition {
+				vel[i].X = -vel[i].X
+			}
+			if pos[i].Y <= 0 || pos[i].Y >= maxPosition {
+				vel[i].Y = -vel[i].Y
+			}
+			loopCounter++
+		}
+
+		// Check collisions, increment the count if a collision happens
+		deathCount := 0
+		// TODO - Do I need to do BCE?
+		// if len(ids) != len(pos) || len(ids) != len(col) { panic("ERR") }
+		// if len(ids) != len(pos) || len(ids) != len(col) { panic("ERR") }
+		for i := range ids {
+			aId := ids[i]
+			aPos := &pos[i]
+			aCol := &col[i]
+			for j := range ids {
+				bId := ids[j]
+				bPos := &pos[j]
+				bCol := &col[j]
+
+				if aId == bId { continue } // Skip if entity is the same
+
+				dx := aPos.X - bPos.X
+				dy := aPos.Y - bPos.Y
+				distSq := (dx * dx) + (dy * dy)
+
+				dr := aCol.Radius + bCol.Radius
+				drSq := dr * dr
+
+				if drSq > distSq {
+					aCol.Count++
+				}
+
+				// Kill and spawn one
+				// TODO move to outer loop?
+				if collisionLimit > 0 && aCol.Count > collisionLimit {
+					deathCount++
+				}
+				loopCounter++
+			}
+		}
+
+		dt = time.Since(start)
+		fmt.Println(iterCount, dt, deathCount, loopCounter)
+		loopCounter = 0
+	}
+
+	for i := range ids {
+		fmt.Println(ids[i], col[i].Count)
+	}
+}
