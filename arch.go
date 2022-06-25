@@ -390,6 +390,7 @@ func (e *ArchEngine) CleanupHoles(archId ArchId) {
 		// Pop all holes off the end of the archetype
 		for {
 			lastIndex := len(lookup.id) - 1
+			if lastIndex < 0 { break } // Break if the index we are trying to pop off is -1
 			lastId := lookup.id[lastIndex]
 			if lastId == InvalidEntity {
 				// If the last id is a hole, then slice it off
