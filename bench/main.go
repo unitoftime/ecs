@@ -1,5 +1,9 @@
 package main
 
+// TODO - Add ballast and investigate GC pressure?
+// TODO - Disable GC: GOCG=-1 go run .
+// TODO - manual runtime.GC()
+
 import (
 	"fmt"
 	"log"
@@ -28,6 +32,8 @@ type Collider struct {
 }
 
 func main() {
+	// Create a large heap allocation of 10 GiB
+
 	flag.Parse()
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -47,9 +53,13 @@ func main() {
 	// program := "physics"
 	size := 10000
 
+	// ballast := make([]byte, 10<<30)
+
 	switch program {
 	case "native":
 		benchNative(size, 0)
+	case "native2":
+		benchNativeMemoryLayout2(size, 0)
 	case "physics":
 		benchPhysics(size, 0)
 	case "physicsOpt":
@@ -61,6 +71,8 @@ func main() {
 		fmt.Println("Available Options")
 		fmt.Println("physics - Runs a physics simulation")
 	}
+
+	// fmt.Println(len(ballast))
 
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)
@@ -75,7 +87,7 @@ func main() {
 	}
 }
 
-func moveCircles(query *ecs.Query2[Position, Velocity], fixedTime float64, maxPosition float64, loopCounter *int) {
+func moveCircles(query *ecs.Query2[Position, Velocity], fixedTime float64, maxPosition float64) {
 	query.Map(func(ids []ecs.Id, pos []Position, vel []Velocity) {
 		if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
 		for i := range ids {
@@ -89,12 +101,11 @@ func moveCircles(query *ecs.Query2[Position, Velocity], fixedTime float64, maxPo
 			if pos[i].Y <= 0 || pos[i].Y >= maxPosition {
 				vel[i].Y = -vel[i].Y
 			}
-			*loopCounter++
 		}
 	})
 }
 
-func checkCollisions(query *ecs.Query2[Position, Collider], collisionLimit int32, deathCount *int, loopCounter *int) {
+func checkCollisions(query *ecs.Query2[Position, Collider], collisionLimit int32, deathCount *int) {
 
 	// Alternative?
 	// archetypes.Map2D(func(
@@ -131,7 +142,6 @@ func checkCollisions(query *ecs.Query2[Position, Collider], collisionLimit int32
 						// }
 					}
 
-					*loopCounter++
 				}
 			}
 		})
@@ -160,7 +170,6 @@ func benchPhysicsOptimized2(size int, collisionLimit int32) {
 		ecs.WriteEntity(world, id, ent)
 	}
 
-	loopCounter := 0
 	fixedTime := (15 * time.Millisecond).Seconds()
 
 	start := time.Now()
@@ -169,12 +178,12 @@ func benchPhysicsOptimized2(size int, collisionLimit int32) {
 		start = time.Now()
 
 		ecs.ExecuteSystem2(world, func(query *ecs.Query2[Position, Velocity]) {
-			moveCircles(query, fixedTime, maxPosition, &loopCounter)
+			moveCircles(query, fixedTime, maxPosition)
 		})
 
 		deathCount := 0
 		ecs.ExecuteSystem2(world, func(query *ecs.Query2[Position, Collider]) {
-			checkCollisions(query, collisionLimit, &deathCount, &loopCounter)
+			checkCollisions(query, collisionLimit, &deathCount)
 		})
 
 
@@ -204,8 +213,7 @@ func benchPhysicsOptimized2(size int, collisionLimit int32) {
 		// world.Print(0)
 
 		dt = time.Since(start)
-		fmt.Println(iterCount, dt, loopCounter)
-		loopCounter = 0
+		fmt.Println(iterCount, dt)
 	}
 
 	ecs.Map(world, func(id ecs.Id, collider *Collider) {
@@ -248,7 +256,6 @@ func benchPhysicsOptimized2(size int, collisionLimit int32) {
 func benchPhysics(size int, collisionLimit int32) {
 	iterations := 1000
 
-	loopCounter := 0
 	world := ecs.NewWorld()
 	maxSpeed := 10.0
 	maxPosition := 100.0
@@ -285,7 +292,6 @@ func benchPhysics(size int, collisionLimit int32) {
 			if position.Y <= 0 || position.Y >= maxPosition {
 				velocity.Y = -velocity.Y
 			}
-			loopCounter++
 		})
 
 		// Check collisions, increment the count if a collision happens
@@ -314,7 +320,6 @@ func benchPhysics(size int, collisionLimit int32) {
 						return
 					}
 				}
-				loopCounter++
 			})
 		})
 
@@ -335,8 +340,7 @@ func benchPhysics(size int, collisionLimit int32) {
 		// world.Print(0)
 
 		dt = time.Since(start)
-		fmt.Println(i, dt, deathCount, loopCounter)
-		loopCounter = 0
+		fmt.Println(i, dt, deathCount)
 	}
 
 	ecs.Map(world, func(id ecs.Id, collider *Collider) {
@@ -543,11 +547,29 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 func benchNative(size int, collisionLimit int32) {
 	iterations := 1000
 
-	loopCounter := 0
 	maxSpeed := 10.0
 	maxPosition := 100.0
 	maxCollider := 1.0
 
+	type Vec2 struct {
+		X, Y float64
+	}
+	type Position Vec2
+	type Velocity Vec2
+	type Collider struct {
+		Radius float64
+		Count int32
+	}
+
+	// [uint64]
+	// [{float64, float64}]
+	// [{float64, float64}]
+	// [{float64, int32}]
+
+	// [uint64, uint64]
+	// [{float64, float64}, {float64, float64}]
+	// [{float64, float64}, {float64, float64}]
+	// [{float64, int32}, {float64, int32}]
 	ids := make([]ecs.Id, size, size)
 	pos := make([]Position, size, size)
 	vel := make([]Velocity, size, size)
@@ -582,7 +604,6 @@ func benchNative(size int, collisionLimit int32) {
 			if pos[i].Y <= 0 || pos[i].Y >= maxPosition {
 				vel[i].Y = -vel[i].Y
 			}
-			loopCounter++
 		}
 
 		// Check collisions, increment the count if a collision happens
@@ -617,16 +638,142 @@ func benchNative(size int, collisionLimit int32) {
 				if collisionLimit > 0 && aCol.Count > collisionLimit {
 					deathCount++
 				}
-				loopCounter++
 			}
 		}
 
 		dt = time.Since(start)
-		fmt.Println(iterCount, dt, deathCount, loopCounter)
-		loopCounter = 0
+		fmt.Println(iterCount, dt, deathCount)
 	}
 
 	for i := range ids {
 		fmt.Println(ids[i], col[i].Count)
 	}
 }
+
+// struct myStruct {
+//        X float64
+//        Y float64
+// }
+
+// myarray []myStruct
+
+// myArrayX []float64
+// myArrayY []float64
+
+// [uint64]
+// [{float64, float64}]
+// [{float64, float64}]
+// [{float64, int32}]
+
+// Holes     [bool]    [true]    ...
+// Id        [uint64]  [uint64]  ...
+// PosX      [float64] [float64] ...
+// PosY      [float64] [float64] ...
+// VelX      [float64] [float64] ...
+// VelY      [float64] [float64] ...
+// ColRadius [float64] [float64] ...
+// ColCount  [int32]   [int32]   ...
+
+
+// Test with this new memory layout
+// [uint64]
+// PosX [float64]
+// PosY [float64]
+// VelX [float64]
+// VelY [float64]
+// ColRadius [float64]
+// ColCount [int32]
+func benchNativeMemoryLayout2(size int, collisionLimit int32) {
+	iterations := 1000
+
+	maxSpeed := 10.0
+	maxPosition := 100.0
+	maxCollider := 1.0
+
+	ids := make([]ecs.Id, size, size)
+	posX := make([]float64, size, size)
+	posY := make([]float64, size, size)
+	velX := make([]float64, size, size)
+	velY := make([]float64, size, size)
+	col := make([]float64, size, size)
+	cnt := make([]int32, size, size)
+
+	for i := 0; i < size; i++ {
+		ids[i] = ecs.Id(i+2)
+		posX[i] = maxPosition * rand.Float64()
+		posY[i] = maxPosition * rand.Float64()
+		velX[i] = maxSpeed * rand.Float64()
+		velY[i] = maxSpeed * rand.Float64()
+		col[i] = maxCollider * rand.Float64()
+		cnt[i] = 0
+	}
+
+	start := time.Now()
+	dt := time.Since(start)
+	fixedTime := (15 * time.Millisecond).Seconds()
+	for iterCount := 0; iterCount < iterations; iterCount++ {
+		start = time.Now()
+		// Update positions
+		// ecs.Map2(world, func(id ecs.Id, position *Position, velocity *Velocity) {
+		for i := range ids {
+			posX[i] += velX[i] * fixedTime
+			posY[i] += velY[i] * fixedTime
+
+			// Bump into the bounding rect
+			if posX[i] <= 0 || posX[i] >= maxPosition {
+				velX[i] = -velX[i]
+			}
+			if posY[i] <= 0 || posY[i] >= maxPosition {
+				velY[i] = -velY[i]
+			}
+		}
+
+		// Check collisions, increment the count if a collision happens
+		deathCount := 0
+		// TODO - Do I need to do BCE?
+		// if len(ids) != len(pos) || len(ids) != len(col) { panic("ERR") }
+		// if len(ids) != len(pos) || len(ids) != len(col) { panic("ERR") }
+		for i := range ids {
+			aId := ids[i]
+			aPosX := &posX[i]
+			aPosY := &posY[i]
+			aCol := &col[i]
+			for j := range ids {
+				bId := ids[j]
+				bPosX := &posX[j]
+				bPosY := &posY[j]
+				bCol := &col[j]
+
+				if aId == bId { continue } // Skip if entity is the same
+
+				dx := *aPosX - *bPosX
+				dy := *aPosY - *bPosY
+				distSq := (dx * dx) + (dy * dy)
+
+				dr := *aCol + *bCol
+				drSq := dr * dr
+
+				if drSq > distSq {
+					cnt[i]++
+				}
+
+				// Kill and spawn one
+				// TODO move to outer loop?
+				if collisionLimit > 0 && cnt[i] > collisionLimit {
+					deathCount++
+				}
+			}
+		}
+
+		dt = time.Since(start)
+		fmt.Println(iterCount, dt, deathCount)
+	}
+
+	for i := range ids {
+		fmt.Println(ids[i], col[i])
+	}
+}
+// [ id,  id ,  id ]
+// [ pos, pos, pos ]
+// [ vel, vel,     ]
+// [ col, col, col ]
