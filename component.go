@@ -15,20 +15,20 @@ type Component interface {
 }
 // TODO -I could get rid of reflect if there ends up being some way to compile-time reflect on generics
 type CompBox[T any] struct {
-	comp T
+	Comp T
 }
 func C[T any](comp T) CompBox[T] {
 	return CompBox[T]{comp}
 }
 func (c CompBox[T]) Write(engine *ArchEngine, archId ArchId, id Id) {
-	WriteArch[T](engine, archId, id, c.comp)
+	WriteArch[T](engine, archId, id, c.Comp)
 }
 func (c CompBox[T]) Name() string {
-	return name(c.comp)
+	return name(c.Comp)
 }
 
 func (c CompBox[T]) Get() T {
-	return c.comp
+	return c.Comp
 }
 
 // Dynamic Component Registry
