@@ -43,9 +43,14 @@ func Map[A any, F func(Id, *A)](world *World, lambda F) {
 		lookup, ok := world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
-		for i, id := range lookup.id {
-			if id == InvalidEntity { continue }
-			lambda(lookup.id[i], &aSlice.comp[i])
+		ids := lookup.id
+		aComp := aSlice.comp
+		// if len(ids) != len(aComp) {
+		// 	panic("ERROR - Bounds don't match")
+		// }
+		for i := range ids {
+			if ids[i] == InvalidEntity { continue }
+			lambda(ids[i], &aComp[i])
 		}
 	}
 }
@@ -88,45 +93,40 @@ func Map2[A, B any, F func(Id,*A,*B)](world *World, lambda F) {
 			panic("ERROR - Bounds don't match")
 		}
 		for i := range ids {
-			id := ids[i]
-			if id == InvalidEntity { continue }
-			aVal := &aComp[i]
-			bVal := &bComp[i]
-			lambda(id, aVal, bVal)
-			// if lookup.id[i] == InvalidEntity { continue }
-			// lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i])
+			if ids[i] == InvalidEntity { continue }
+			lambda(ids[i], &aComp[i], &bComp[i])
 		}
 	}
 }
 
-// This ia a Map2, but if the lambda returns false, we stop looping
-func SmartMap2[A, B any](world *World, lambda func(id Id, a *A, b *B) bool) {
-	var a A
-	var b B
+// // This ia a Map2, but if the lambda returns false, we stop looping
+// func SmartMap2[A, B any](world *World, lambda func(id Id, a *A, b *B) bool) {
+// 	var a A
+// 	var b B
 
-	archIds := world.engine.Filter(a, b)
+// 	archIds := world.engine.Filter(a, b)
 
-	// storages := getAllStorages(world, a)
-	aStorage := GetStorage[A](world.engine)
-	bStorage := GetStorage[B](world.engine)
+// 	// storages := getAllStorages(world, a)
+// 	aStorage := GetStorage[A](world.engine)
+// 	bStorage := GetStorage[B](world.engine)
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
-		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
-		if !ok { continue }
+// 	for _, archId := range archIds {
+// 		aSlice, ok := aStorage.slice[archId]
+// 		if !ok { continue }
+// 		bSlice, ok := bStorage.slice[archId]
+// 		if !ok { continue }
 
-		lookup, ok := world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+// 		lookup, ok := world.engine.lookup[archId]
+// 		if !ok { panic("LookupList is missing!") }
 
-		for i, id := range lookup.id {
-			if id == InvalidEntity { continue }
+// 		for i, id := range lookup.id {
+// 			if id == InvalidEntity { continue }
 
-			success := lambda(id, &aSlice.comp[i], &bSlice.comp[i])
-			if !success { return }
-		}
-	}
-}
+// 			success := lambda(id, &aSlice.comp[i], &bSlice.comp[i])
+// 			if !success { return }
+// 		}
+// 	}
+// }
 
 func Map3[A, B, C any](world *World, lambda func(id Id, a *A, b *B, c *C)) {
 	var a A
@@ -150,9 +150,16 @@ func Map3[A, B, C any](world *World, lambda func(id Id, a *A, b *B, c *C)) {
 		lookup, ok := world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
-		for i, id := range lookup.id {
-			if id == InvalidEntity { continue }
-			lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i])
+		ids := lookup.id
+		aComp := aSlice.comp
+		bComp := bSlice.comp
+		cComp := cSlice.comp
+		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp){
+			panic("ERROR - Bounds don't match")
+		}
+		for i := range ids {
+			if ids[i] == InvalidEntity { continue }
+			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i])
 		}
 	}
 }
@@ -183,10 +190,22 @@ func Map4[A, B, C, D any](world *World, lambda func(id Id, a *A, b *B, c *C, d *
 		lookup, ok := world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
-		for i, id := range lookup.id {
-			if id == InvalidEntity { continue }
-			lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i], &dSlice.comp[i])
+		ids := lookup.id
+		aComp := aSlice.comp
+		bComp := bSlice.comp
+		cComp := cSlice.comp
+		dComp := dSlice.comp
+		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp) || len(ids) != len(dComp){
+			panic("ERROR - Bounds don't match")
 		}
+		for i := range ids {
+			if ids[i] == InvalidEntity { continue }
+			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i], &dComp[i])
+		}
+		// for i, id := range lookup.id {
+		// 	if id == InvalidEntity { continue }
+		// 	lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i], &dSlice.comp[i])
+		// }
 	}
 }
 

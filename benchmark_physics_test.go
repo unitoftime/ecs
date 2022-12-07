@@ -508,3 +508,343 @@ func BenchmarkDataFastest(b *testing.B) {
 	}
 }
 
+// ---
+
+func BenchmarkRetryNative(b *testing.B) {
+	d := NewData()
+	b.ResetTimer()
+
+	ids := d.ids
+	pos := d.pos
+	vel := d.vel
+	if len(ids) != len(pos) || len(ids) != len(vel) {
+		panic("SHOULD EQUAL")
+	}
+	for i := 0; i < b.N; i++ {
+		for j := range ids {
+			pos[j].X += vel[j].X * dt
+			pos[j].Y += vel[j].Y * dt
+			pos[j].Z += vel[j].Z * dt
+		}
+	}
+}
+
+func (d *Data) Len() int {
+	return len(d.ids)
+}
+func (d *Data) BCE() {
+	if len(d.ids) != len(d.pos) || len(d.ids) != len(d.vel) {
+		panic("SHOULD EQUAL")
+	}
+}
+
+type Iter[A, B any] struct {
+	d *Data
+	a []A
+	b []B
+	idx int
+}
+func (i *Iter[A, B]) BCE() {
+	if len(i.a) != len(i.b) {
+		panic("SHOULD EQUAL")
+	}
+}
+func (i *Iter[A,B]) Next(a A, b B) (*A, *B, bool) {
+	i.idx++
+	// fmt.Println(i.idx + 1, len(i.a))
+	return &i.a[i.idx], &i.b[i.idx], (i.idx+1 < len(i.a))
+}
+
+func (i *Iter[A,B]) MapNext(lambda func(a A, b B)) (*A, *B, bool) {
+	i.idx++
+	// fmt.Println(i.idx + 1, len(i.a))
+	return &i.a[i.idx], &i.b[i.idx], (i.idx+1 < len(i.a))
+}
+
+func (i *Iter[A,B]) NextPtr(a *A, b *B) bool {
+	i.idx++
+	// fmt.Println(i.idx + 1, len(i.a))
+	*a = i.a[i.idx]
+	*b = i.b[i.idx]
+	return (i.idx+1 < len(i.a))
+}
+
+func (i *Iter[A,B]) Map(lambda func(a *A, b *B)) {
+	ids := i.d.ids
+	pos := i.a
+	vel := i.b
+	if len(ids) != len(pos) || len(ids) != len(vel) {
+		panic("SHOULD EQUAL")
+	}
+	for j := range ids {
+		lambda(&pos[j], &vel[j])
+	}
+}
+
+func BenchmarkRetryGenIter(b *testing.B) {
+	d := NewData()
+	b.ResetTimer()
+
+	iter := Iter[Position, Velocity]{
+		a: d.pos,
+		b: d.vel,
+		idx: -1,
+	}
+
+	for i := 0; i < b.N; i++ {
+		for {
+			pos, vel, ok := iter.Next(Position{}, Velocity{})
+			if !ok { break }
+
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		}
+		iter.idx = 0
+	}
+}
+
+func BenchmarkRetryGenIterWeirdGet(b *testing.B) {
+	d := NewData()
+	b.ResetTimer()
+
+	iter := Iter[Position, Velocity]{
+		a: d.pos,
+		b: d.vel,
+		idx: -1,
+	}
+	for i := 0; i < b.N; i++ {
+		for {
+			pos, vel, ok := iter.MapNext(func(p Position, v Velocity) {})
+			if !ok { break }
+
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		}
+		iter.idx = 0
+	}
+}
+
+func BenchmarkRetryGenIterPtr(b *testing.B) {
+	d := NewData()
+	b.ResetTimer()
+
+	iter := Iter[Position, Velocity]{
+		a: d.pos,
+		b: d.vel,
+		idx: -1,
+	}
+	var pos Position
+	var vel Velocity
+	for i := 0; i < b.N; i++ {
+		for {
+			ok := iter.NextPtr(&pos, &vel)
+			if !ok { break }
+
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		}
+		iter.idx = 0
+	}
+}
+
+func BenchmarkRetryGenMap(b *testing.B) {
+	d := NewData()
+	b.ResetTimer()
+
+	iter := Iter[Position, Velocity]{
+		d: d,
+		a: d.pos,
+		b: d.vel,
+		idx: -1,
+	}
+	for i := 0; i < b.N; i++ {
+		iter.Map(func(pos *Position, vel *Velocity) {
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		})
+	}
+}
+
+// Non generic copy
+type IterNo struct {
+	d *Data
+	a []Position
+	b []Velocity
+	idx int
+}
+
+func (i *IterNo) Next() (*Position, *Velocity, bool) {
+	i.idx++
+	// fmt.Println(i.idx + 1, len(i.a))
+	return &i.a[i.idx], &i.b[i.idx], (i.idx+1 < len(i.a))
+}
+
+func (i *IterNo) NextPtr(a *Position, b *Velocity) bool {
+	i.idx++
+	// fmt.Println(i.idx + 1, len(i.a))
+	*a = i.a[i.idx]
+	*b = i.b[i.idx]
+	return (i.idx+1 < len(i.a))
+}
+
+func (i *IterNo) NextVal(p Position, v Velocity) (*Position, *Velocity, bool) {
+	i.idx++
+	return &i.a[i.idx], &i.b[i.idx], (i.idx+1 < len(i.a))
+}
+
+func (i *IterNo) MapNext(lambda func(a *Position, b *Velocity)) (*Position, *Velocity, bool) {
+	i.idx++
+	// fmt.Println(i.idx + 1, len(i.a))
+	return &i.a[i.idx], &i.b[i.idx], (i.idx+1 < len(i.a))
+}
+
+
+func (i *IterNo) Map(lambda func(a *Position, b *Velocity)) {
+	ids := i.d.ids
+	pos := i.a
+	vel := i.b
+	if len(ids) != len(pos) || len(ids) != len(vel) {
+		panic("SHOULD EQUAL")
+	}
+	for j := range ids {
+		lambda(&pos[j], &vel[j])
+	}
+}
+
+func BenchmarkRetryNoGenIter(b *testing.B) {
+	d := NewData()
+	b.ResetTimer()
+
+	iter := IterNo{
+		a: d.pos,
+		b: d.vel,
+		idx: -1,
+	}
+	for i := 0; i < b.N; i++ {
+		for {
+			pos, vel, ok := iter.Next()
+			if !ok { break }
+
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		}
+		iter.idx = 0
+	}
+}
+
+func BenchmarkRetryNoGenIterVal(b *testing.B) {
+	d := NewData()
+	b.ResetTimer()
+
+	iter := IterNo{
+		a: d.pos,
+		b: d.vel,
+		idx: -1,
+	}
+	for i := 0; i < b.N; i++ {
+		for {
+			pos, vel, ok := iter.NextVal(Position{}, Velocity{})
+			if !ok { break }
+
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		}
+		iter.idx = 0
+	}
+}
+
+func BenchmarkRetryNoGenIterWeirdGet(b *testing.B) {
+	d := NewData()
+	b.ResetTimer()
+
+	iter := IterNo{
+		a: d.pos,
+		b: d.vel,
+		idx: -1,
+	}
+	for i := 0; i < b.N; i++ {
+		for {
+			pos, vel, ok := iter.MapNext(func(p *Position, v *Velocity) {})
+			if !ok { break }
+
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		}
+		iter.idx = 0
+	}
+}
+
+func BenchmarkRetryNoGenIterPtr(b *testing.B) {
+	d := NewData()
+	b.ResetTimer()
+
+	iter := IterNo{
+		a: d.pos,
+		b: d.vel,
+		idx: -1,
+	}
+	var pos Position
+	var vel Velocity
+	for i := 0; i < b.N; i++ {
+		for {
+			ok := iter.NextPtr(&pos, &vel)
+			if !ok { break }
+
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		}
+		iter.idx = 0
+	}
+}
+
+func BenchmarkRetryNoGenMap(b *testing.B) {
+	d := NewData()
+	b.ResetTimer()
+
+	iter := IterNo{
+		d: d,
+		a: d.pos,
+		b: d.vel,
+		idx: -1,
+	}
+	for i := 0; i < b.N; i++ {
+		iter.Map(func(pos *Position, vel *Velocity) {
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		})
+	}
+}
+
+// DoubleLoop tests
+
+// func BenchmarkPhysicsQueryAttempt(b *testing.B) {
+// 	world := setupPhysics(1e4)
+// 	b.ResetTimer()
+
+// 	query := NewQuery2[Position, Velocity](world)
+
+// 	for i := 0; i < b.N; i++ {
+// 		query.Map(func(ids []Id, pos []Position, vel []Velocity) {
+// 			query.Map(func(ids []Id, pos []Position, vel []Velocity) {
+// 				if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
+
+// 				for i := range ids {
+// 					physicsTick(ids[i], &pos[i], &vel[i])
+// 				}
+// 			})
+// 		})
+// 	}
+// }
+
+// func checkSize(ids []Id, pos []Position, vel []Velocity) {
+// 	if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
+// }

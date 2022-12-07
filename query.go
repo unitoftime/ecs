@@ -98,6 +98,68 @@ func (q *Query2[A, B]) Iterate() *UnsafeIterator2[A, B] {
 	return iterator
 }
 
+// --------------------------------------------------------------------------------
+
+type Query3[A, B, C any] struct {
+	world *World
+	id [][]Id
+	aSlice [][]A
+	bSlice [][]B
+	cSlice [][]C
+}
+func NewQuery3[A, B, C any](world *World) *Query3[A, B, C] {
+	v := Query3[A, B, C]{
+		world: world,
+		id: make([][]Id, 0),
+		aSlice: make([][]A, 0),
+		bSlice: make([][]B, 0),
+		cSlice: make([][]C, 0),
+	}
+	var a A
+	var b B
+	var c C
+	archIds := v.world.engine.Filter(a, b, c)
+
+	// storages := getAllStorages(world, a)
+	aStorage := GetStorage[A](v.world.engine)
+	bStorage := GetStorage[B](v.world.engine)
+	cStorage := GetStorage[C](v.world.engine)
+
+	for _, archId := range archIds {
+		aSlice, ok := aStorage.slice[archId]
+		if !ok { continue }
+		bSlice, ok := bStorage.slice[archId]
+		if !ok { continue }
+		cSlice, ok := cStorage.slice[archId]
+		if !ok { continue }
+
+		lookup, ok := v.world.engine.lookup[archId]
+		if !ok { panic("LookupList is missing!") }
+
+		v.id = append(v.id, lookup.id)
+		v.aSlice = append(v.aSlice, aSlice.comp)
+		v.bSlice = append(v.bSlice, bSlice.comp)
+		v.cSlice = append(v.cSlice, cSlice.comp)
+	}
+	return &v
+}
+
+
+func (q *Query3[A, B, C]) Map(f func(ids []Id, a []A, b []B, c []C)) {
+	// Panics are for bounds check eliminations
+	ids := q.id
+	aa := q.aSlice
+	bb := q.bSlice
+	cc := q.cSlice
+	if len(ids) != len(aa) || len(ids) != len(bb) || len(ids) != len(cc){ panic("ERR") }
+	for i := range q.id {
+		f(ids[i], aa[i], bb[i], cc[i])
+	}
+}
+
+// --------------------------------------------------------------------------------
+
+
 type UnsafeIterator2[A, B any] struct {
 	query *Query2[A, B]
 	outerLen int
