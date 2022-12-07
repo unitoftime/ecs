@@ -1,7 +1,7 @@
 package ecs
 
 import (
-	// "fmt"
+	"fmt"
 	"time"
 	"sync"
 )
@@ -22,9 +22,9 @@ type SystemLog struct {
 	Time time.Duration
 }
 
-// func (s *SystemLog) String() string {
-// 	fmt.Sprintf("", s.Name, s.Time)
-// }
+func (s *SystemLog) String() string {
+	return fmt.Sprintf("%s: %s", s.Name, s.Time)
+}
 
 // TODO - Just use an atomic here?
 type Signal struct {
@@ -48,6 +48,7 @@ func (s *Signal) Get() bool {
 type Scheduler struct {
 	input, physics, render []System
 	sysLogBack, sysLogFront []SystemLog
+	sysLogBackFixed, sysLogFrontFixed []SystemLog
 	fixedTimeStep time.Duration
 	gameSpeed int64
 }
@@ -58,6 +59,8 @@ func NewScheduler() *Scheduler {
 		render: make([]System, 0),
 		sysLogFront: make([]SystemLog, 0),
 		sysLogBack: make([]SystemLog, 0),
+		sysLogFrontFixed: make([]SystemLog, 0),
+		sysLogBackFixed: make([]SystemLog, 0),
 		fixedTimeStep: 16 * time.Millisecond,
 		gameSpeed: 1,
 	}
@@ -89,6 +92,11 @@ func (s *Scheduler) Syslog() []SystemLog {
 	return s.sysLogFront
 }
 
+// Returns the front syslog for fixed-dt systems only. Note: This is only valid for the current frame, you should call this every frame if you use it!
+func (s *Scheduler) SyslogFixed() []SystemLog {
+	return s.sysLogFrontFixed
+}
+
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 // TODO this doesn't work with vsync because the pause blocks the physics from decrementing the accumulator
@@ -98,11 +106,12 @@ func (s *Scheduler) Run(quit *Signal) {
 	var accumulator time.Duration
 
 	for !quit.Get() {
-		tmpSysLog := s.sysLogFront
-		s.sysLogFront = s.sysLogBack
-		s.sysLogBack = tmpSysLog
-
-		s.sysLogBack = s.sysLogBack[:0]
+		{
+			tmpSysLog := s.sysLogFront
+			s.sysLogFront = s.sysLogBack
+			s.sysLogBack = tmpSysLog
+			s.sysLogBack = s.sysLogBack[:0]
+		}
 
 		// Input Systems
 		for _,sys := range s.input {
@@ -114,12 +123,19 @@ func (s *Scheduler) Run(quit *Signal) {
 			})
 		}
 
+		// TODO - If we get a double run, then all are accumulated
+		if accumulator >= s.fixedTimeStep {
+			tmpSysLog := s.sysLogFrontFixed
+			s.sysLogFrontFixed = s.sysLogBackFixed
+			s.sysLogBackFixed = tmpSysLog
+			s.sysLogBackFixed = s.sysLogBackFixed[:0]
+		}
 		// Physics Systems
 		for accumulator >= s.fixedTimeStep {
 			for _,sys := range s.physics {
 				sysTime := sys.Run(s.fixedTimeStep)
 
-				s.sysLogBack = append(s.sysLogBack, SystemLog{
+				s.sysLogBackFixed = append(s.sysLogBackFixed, SystemLog{
 					Name: sys.Name,
 					Time: sysTime,
 				})
@@ -151,77 +167,3 @@ func (s *Scheduler) Run(quit *Signal) {
 		// fmt.Println(dt, accumulator)
 	}
 }
-
-
-// const FixedTimeStep = 16 * time.Millisecond
-// const GameSpeed int64 = 1
-// // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
-// // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
-// func RunGame(inputSystems, physicsSystems, renderSystems []System, quit *Signal) {
-// 	frameStart := time.Now()
-// 	dt := FixedTimeStep
-// 	var accumulator time.Duration
-
-// 	sysLog := make([]SystemLog, 0)
-
-// 	for !quit.Get() {
-// 		sysLog = sysLog[:0]
-
-// 		// Input Systems
-// 		for _,sys := range inputSystems {
-// 			sysTime := sys.Run(dt)
-
-// 			sysLog = append(sysLog, SystemLog{
-// 				Name: sys.Name,
-// 				Time: sysTime,
-// 			})
-// 		}
-
-// 		// Physics Systems
-// 		if accumulator >= FixedTimeStep {
-// 			for _,sys := range physicsSystems {
-// 				sysTime := sys.Run(FixedTimeStep)
-
-// 				sysLog = append(sysLog, SystemLog{
-// 					Name: sys.Name,
-// 					Time: sysTime,
-// 				})
-// 			}
-// 			accumulator -= FixedTimeStep
-// 		}
-
-// 		// Render Systems
-// 		for _,sys := range renderSystems {
-// 			sysTime := sys.Run(dt)
-
-// 			sysLog = append(sysLog, SystemLog{
-// 				Name: sys.Name,
-// 				Time: sysTime,
-// 			})
-// 		}
-
-// 		// Capture Frame time
-// 		dt = time.Since(frameStart)
-// 		frameStart = time.Now()
-
-// 		scaledDt := dt.Nanoseconds() * GameSpeed
-// 		accumulator += time.Duration(scaledDt)
-// 	}
-// }
-
-// func RunGameFixed(physicsSystems []System, quit *Signal) {
-// 	frameStart := time.Now()
-// 	dt := FixedTimeStep
-
-// 	for !quit.Get() {
-
-// 		for _,sys := range physicsSystems {
-// 			sys.Run(FixedTimeStep)
-// 		}
-
-// 		dt = time.Since(frameStart)
-// 		time.Sleep(FixedTimeStep - dt)
-
-// 		frameStart = time.Now()
-// 	}
-// }
