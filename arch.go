@@ -252,6 +252,38 @@ func ReadArch[T any](e *ArchEngine, archId ArchId, id Id) (T, bool) {
 	return cSlice.comp[index], true
 }
 
+func ReadPtrArch[T any](e *ArchEngine, archId ArchId, id Id) *T {
+	var ret T
+	lookup, ok := e.lookup[archId]
+	if !ok {
+		return nil
+	}
+
+	index, ok := lookup.index[id]
+	if !ok {
+		return nil
+	}
+
+	// Get the dynamic componentSliceStorage
+	n := name(ret)
+	ss, ok := e.compSliceStorage[n]
+	if !ok {
+		return nil
+	}
+
+	// fmt.Printf("ComponentSliceStorage[T] type: %s != %s", name(ss), name(ret))
+	storage, ok := ss.(ComponentSliceStorage[T])
+	if !ok { panic(fmt.Sprintf("Wrong ComponentSliceStorage[T] type: %s != %s", name(ss), name(ret))) }
+
+	// Get the underlying Archetype's componentSlice
+	cSlice, ok := storage.slice[archId]
+	if !ok {
+		return nil
+	}
+
+	return &cSlice.comp[index]
+}
+
 // TODO - Think: Is it better to read everything then push it into the new ArchId? Or better to migrate everything in place?
 // Returns the ArchId of where the entity ends up
 func (e *ArchEngine) RewriteArch(archId ArchId, id Id, comp ...Component) ArchId {

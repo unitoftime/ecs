@@ -2,15 +2,18 @@ package ecs
 
 import (
 	"fmt"
+	"math"
 )
 
 const (
 	InvalidEntity Id = 0
 	UniqueEntity Id = 1
+	MaxEntity Id = math.MaxUint32
 )
 
 type World struct {
 	nextId Id
+	minId, maxId Id // This is the range of Ids returned by NewId
 	arch map[Id]ArchId
 	engine *ArchEngine
 }
@@ -18,17 +21,40 @@ type World struct {
 func NewWorld() *World {
 	return &World{
 		nextId: UniqueEntity + 1,
+		minId: UniqueEntity + 1,
+		maxId: MaxEntity,
 		arch: make(map[Id]ArchId),
 		engine: NewArchEngine(),
 	}
 }
 
-func (w *World) NewId() Id {
-	if w.nextId <= UniqueEntity {
-		w.nextId = UniqueEntity + 1
+func (w *World) SetIdRange(min, max Id) {
+	if min <= UniqueEntity {
+		panic("max must be greater than 1")
 	}
+	if max <= UniqueEntity {
+		panic("max must be greater than 1")
+	}
+	if min > max {
+		panic("min must be less than max!")
+	}
+
+	w.minId = min
+	w.maxId = max
+}
+
+func (w *World) NewId() Id {
+	if w.nextId < w.minId {
+		w.nextId = w.minId
+	}
+
 	id := w.nextId
-	w.nextId++
+
+	if w.nextId == w.maxId {
+		w.nextId = w.minId
+	} else {
+		w.nextId++
+	}
 	return id
 }
 
@@ -98,6 +124,15 @@ func Read[T any](world *World, id Id) (T, bool) {
 	return ReadArch[T](world.engine, archId, id)
 }
 
+func ReadPtr[T any](world *World, id Id) *T {
+	archId, ok := world.arch[id]
+	if !ok {
+		return nil
+	}
+
+	return ReadPtrArch[T](world.engine, archId, id)
+}
+
 // This is safe for maps and loops
 // 1. This deletes the high level id -> archId lookup
 // 2. This creates a "hole" in the archetype list
@@ -111,4 +146,11 @@ func Delete(world *World, id Id) bool {
 	// Note: This was the old, more direct way, but isn't loop safe
 	// - world.engine.DeleteAll(archId, id)
 	return true
+}
+
+func ReadEntity(world *World, id Id) *Entity {
+	archId, ok := world.arch[id]
+	if !ok { return nil }
+
+	return world.engine.ReadEntity(archId, id)
 }
