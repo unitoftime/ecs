@@ -14,7 +14,9 @@ func name(t any) string {
 	// 	return n[1:]
 	// }
 
-	n := reflect.TypeOf(t).Name()
+	// TODO - https://pkg.go.dev/reflect#Type - To test for type identity, compare the Types directly.
+	typeof := reflect.TypeOf(t)
+	n := typeof.PkgPath()+"."+typeof.Name()
 	// fmt.Printf("\n%s", n)
 
 	return n
