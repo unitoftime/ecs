@@ -50,6 +50,7 @@ type Scheduler struct {
 	sysLogBack, sysLogFront []SystemLog
 	sysLogBackFixed, sysLogFrontFixed []SystemLog
 	fixedTimeStep time.Duration
+	accumulator time.Duration
 	gameSpeed int64
 }
 func NewScheduler() *Scheduler {
@@ -62,6 +63,7 @@ func NewScheduler() *Scheduler {
 		sysLogFrontFixed: make([]SystemLog, 0),
 		sysLogBackFixed: make([]SystemLog, 0),
 		fixedTimeStep: 16 * time.Millisecond,
+		accumulator: 0,
 		gameSpeed: 1,
 	}
 }
@@ -97,13 +99,18 @@ func (s *Scheduler) SyslogFixed() []SystemLog {
 	return s.sysLogFrontFixed
 }
 
+func (s *Scheduler) GetRenderInterp() float64 {
+	return s.accumulator.Seconds() / s.fixedTimeStep.Seconds()
+}
+
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 // TODO this doesn't work with vsync because the pause blocks the physics from decrementing the accumulator
 func (s *Scheduler) Run(quit *Signal) {
 	frameStart := time.Now()
 	dt := s.fixedTimeStep
-	var accumulator time.Duration
+	// var accumulator time.Duration
+	s.accumulator = 0
 
 	for !quit.Get() {
 		{
@@ -124,14 +131,14 @@ func (s *Scheduler) Run(quit *Signal) {
 		}
 
 		// TODO - If we get a double run, then all are accumulated
-		if accumulator >= s.fixedTimeStep {
+		if s.accumulator >= s.fixedTimeStep {
 			tmpSysLog := s.sysLogFrontFixed
 			s.sysLogFrontFixed = s.sysLogBackFixed
 			s.sysLogBackFixed = tmpSysLog
 			s.sysLogBackFixed = s.sysLogBackFixed[:0]
 		}
 		// Physics Systems
-		for accumulator >= s.fixedTimeStep {
+		for s.accumulator >= s.fixedTimeStep {
 			for _,sys := range s.physics {
 				sysTime := sys.Run(s.fixedTimeStep)
 
@@ -140,7 +147,7 @@ func (s *Scheduler) Run(quit *Signal) {
 					Time: sysTime,
 				})
 			}
-			accumulator -= s.fixedTimeStep
+			s.accumulator -= s.fixedTimeStep
 		}
 
 		// Render Systems
@@ -155,7 +162,7 @@ func (s *Scheduler) Run(quit *Signal) {
 
 		// Edge case for schedules only fixed time steps
 		if len(s.input) == 0 && len(s.render) == 0 {
-			time.Sleep(s.fixedTimeStep - accumulator)
+			time.Sleep(s.fixedTimeStep - s.accumulator)
 		}
 
 		// Capture Frame time
@@ -163,7 +170,7 @@ func (s *Scheduler) Run(quit *Signal) {
 		frameStart = time.Now()
 
 		scaledDt := dt.Nanoseconds() * s.gameSpeed
-		accumulator += time.Duration(scaledDt)
-		// fmt.Println(dt, accumulator)
+		s.accumulator += time.Duration(scaledDt)
+		// fmt.Println(dt, s.accumulator)
 	}
 }
