@@ -45,13 +45,9 @@ func WriteEntity(world *World, id Id, ent *Entity) {
 	Write(world, id, comps...)
 }
 
-func DeleteOnEntity[T any](world *World, id Id, ent *Entity) {
-	var t T
-	n := name(t)
-
-	delete(ent.comp, n)
+func (e *Entity) Delete(c Component) {
+	delete(e.comp, c.Name())
 }
-
 
 // TODO revisit this abstraction
 // type Copier interface {
