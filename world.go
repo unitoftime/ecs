@@ -148,9 +148,16 @@ func Delete(world *World, id Id) bool {
 	return true
 }
 
+// Returns true if the entity exists in the world else it returns false
+func (world *World) Exists(id Id) bool {
+	_, ok := world.arch[id]
+	return ok
+}
+
 func ReadEntity(world *World, id Id) *Entity {
 	archId, ok := world.arch[id]
 	if !ok { return nil }
 
 	return world.engine.ReadEntity(archId, id)
 }
+
