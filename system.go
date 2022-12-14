@@ -4,11 +4,28 @@ import (
 	"fmt"
 	"time"
 	"sync"
+
+	"runtime"
 )
 
 type System struct {
 	Name string
 	Func func(dt time.Duration)
+}
+
+func NewSystem(lambda func (dt time.Duration)) System {
+	systemName := "UnknownSystemName"
+
+	pc, _, _, ok := runtime.Caller(1)
+	if ok {
+		details := runtime.FuncForPC(pc)
+		systemName = details.Name()
+	}
+
+	return System{
+		Name: systemName,
+		Func: lambda,
+	}
 }
 
 func (s *System) Run(dt time.Duration) time.Duration {
