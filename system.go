@@ -69,6 +69,7 @@ type Scheduler struct {
 	fixedTimeStep time.Duration
 	accumulator time.Duration
 	gameSpeed int64
+	quit Signal
 }
 func NewScheduler() *Scheduler {
 	return &Scheduler{
@@ -88,6 +89,10 @@ func NewScheduler() *Scheduler {
 // TODO make SetGameSpeed and SetFixedTimeStep thread safe. Also, you want them to only change at the end of a frame, else you might get some inconsistencies. Just use a mutex and a single temporary variable
 func (s *Scheduler) SetGameSpeed(speed int64) {
 	s.gameSpeed = speed
+}
+
+func (s *Scheduler) SetQuit(value bool) {
+	s.quit.Set(true)
 }
 
 func (s *Scheduler) SetFixedTimeStep(t time.Duration) {
@@ -123,13 +128,13 @@ func (s *Scheduler) GetRenderInterp() float64 {
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 // TODO this doesn't work with vsync because the pause blocks the physics from decrementing the accumulator
-func (s *Scheduler) Run(quit *Signal) {
+func (s *Scheduler) Run() {
 	frameStart := time.Now()
 	dt := s.fixedTimeStep
 	// var accumulator time.Duration
 	s.accumulator = 0
 
-	for !quit.Get() {
+	for !s.quit.Get() {
 		{
 			tmpSysLog := s.sysLogFront
 			s.sysLogFront = s.sysLogBack
@@ -191,3 +196,42 @@ func (s *Scheduler) Run(quit *Signal) {
 		// fmt.Println(dt, s.accumulator)
 	}
 }
+
+// // TODO! - Helpful starting point of commands? Maybe pass a commandlist to systems with dt as they execute. Maybe wrap dt and commandlist inside some general thing that gets passed to systems
+// type Command struct {
+// 	Id ecs.Id // If Id is ecs.InvalidEntity, we will spawn this as a new entity
+// 	Entity *ecs.Entity
+// }
+
+// type CommandList struct {
+// 	world *ecs.World
+// 	list []Command
+// }
+// func NewCommandList(world *ecs.World) *CommandList {
+// 	return &CommandList{
+// 		world: world,
+// 		list: make([]Command, 0),
+// 	}
+// }
+
+// func (l *CommandList) Add(c Command) {
+// 	l.list = append(l.list, c)
+// }
+
+// func (l *CommandList) Map(lambda func(c *Command)) {
+// 	for i := range l.list {
+// 		lambda(&l.list[i])
+// 	}
+// }
+
+// func (l *CommandList) Execute() {
+// 	for _, c := range l.list {
+// 		id := c.Id
+// 		if id == ecs.InvalidEntity {
+// 			id = l.world.NewId()
+// 		}
+
+// 		ecs.WriteEntity(l.world, id, c.Entity)
+// 	}
+// }
+
