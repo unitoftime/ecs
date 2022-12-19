@@ -17,10 +17,9 @@ func TestSchedulerPhysics(t *testing.T) {
 		},
 	})
 	lastTime = time.Now()
-	quit := Signal{}
-	go scheduler.Run(&quit)
+	go scheduler.Run()
 	time.Sleep(1 * time.Second)
-	quit.Set(true)
+	scheduler.SetQuit(true)
 }
 
 var lastTimeInput, lastTimePhysics, lastTimeRender time.Time
@@ -52,8 +51,7 @@ func TestSchedulerAll(t *testing.T) {
 	lastTimeInput = time.Now()
 	lastTimePhysics = time.Now()
 	lastTimeRender = time.Now()
-	quit := Signal{}
-	go scheduler.Run(&quit)
+	go scheduler.Run()
 	time.Sleep(1 * time.Second)
-	quit.Set(true)
+	scheduler.SetQuit(true)
 }
