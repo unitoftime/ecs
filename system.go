@@ -70,6 +70,8 @@ type Scheduler struct {
 	accumulator time.Duration
 	gameSpeed int64
 	quit Signal
+	pauseRender Signal
+	maxLoopCount int
 }
 func NewScheduler() *Scheduler {
 	return &Scheduler{
@@ -95,6 +97,11 @@ func (s *Scheduler) SetQuit(value bool) {
 	s.quit.Set(true)
 }
 
+// Pauses the set of render systems (ie they will be skipped). This API is tentative.
+func (s *Scheduler) PauseRender(value bool) {
+	s.pauseRender.Set(value)
+}
+
 func (s *Scheduler) SetFixedTimeStep(t time.Duration) {
 	s.fixedTimeStep = t
 }
@@ -109,6 +116,13 @@ func (s *Scheduler) AppendPhysics(systems ...System) {
 
 func (s *Scheduler) AppendRender(systems ...System) {
 	s.render = append(s.render, systems...)
+}
+
+// Sets the accumulator maximum point so that if the accumulator gets way to big, we will reset it and continue on, dropping all physics ticks that would have been executed. This is useful in a runtime like WASM where the browser may not let us run as frequently as we may need (for example, when the tab is hidden or minimized).
+// Note: This must be set before you call scheduler.Run()
+// Note: The default value is 0, which will force every physics tick to run. I highly recommend setting this to something if you plan to build for WASM!
+func (s *Scheduler) SetMaxPhysicsLoopCount(count int) {
+	s.maxLoopCount = count
 }
 
 // Returns the front syslog so the user can analyze it. Note: This is only valid for the current frame, you should call this every frame if you use it!
@@ -133,6 +147,7 @@ func (s *Scheduler) Run() {
 	dt := s.fixedTimeStep
 	// var accumulator time.Duration
 	s.accumulator = 0
+	maxLoopCount := time.Duration(s.maxLoopCount)
 
 	for !s.quit.Get() {
 		{
@@ -150,6 +165,12 @@ func (s *Scheduler) Run() {
 				Name: sys.Name,
 				Time: sysTime,
 			})
+		}
+
+		if maxLoopCount > 0 {
+			if s.accumulator > (maxLoopCount * s.fixedTimeStep) {
+				s.accumulator = 0
+			}
 		}
 
 		// TODO - If we get a double run, then all are accumulated
@@ -173,13 +194,15 @@ func (s *Scheduler) Run() {
 		}
 
 		// Render Systems
-		for _,sys := range s.render {
-			sysTime := sys.Run(dt)
+		if !s.pauseRender.Get() {
+			for _,sys := range s.render {
+				sysTime := sys.Run(dt)
 
-			s.sysLogBack = append(s.sysLogBack, SystemLog{
-				Name: sys.Name,
-				Time: sysTime,
-			})
+				s.sysLogBack = append(s.sysLogBack, SystemLog{
+					Name: sys.Name,
+					Time: sysTime,
+				})
+			}
 		}
 
 		// Edge case for schedules only fixed time steps
@@ -194,6 +217,10 @@ func (s *Scheduler) Run() {
 		scaledDt := dt.Nanoseconds() * s.gameSpeed
 		s.accumulator += time.Duration(scaledDt)
 		// fmt.Println(dt, s.accumulator)
+
+		// Attempt to yield the goroutine (This helps in single threaded runtimes such as WASM, where you might have other threads trying to do something simultaneously).
+		time.Sleep(1 * time.Nanosecond)
+		// runtime.Gosched() // Note: This didn't work for some reason?
 	}
 }
 
