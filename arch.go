@@ -8,20 +8,7 @@ import (
 type Id uint32
 type ArchId uint32
 
-
-
 func name(t any) reflect.Type {
-	// n := reflect.TypeOf(t).String()
-	// if n[0] == '*' {
-	// 	return n[1:]
-	// }
-
-	// // TODO - https://pkg.go.dev/reflect#Type - To test for type identity, compare the Types directly.
-	// typeof := reflect.TypeOf(t)
-	// n := typeof.PkgPath()+"."+typeof.Name()
-	// // fmt.Printf("\n%s", n)
-
-	// return n
 	// TODO - might be faster internally to just maintain a counter and just map the type from here to that int in this one function
 	return reflect.TypeOf(t)
 }
