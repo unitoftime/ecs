@@ -8,18 +8,22 @@ import (
 type Id uint32
 type ArchId uint32
 
-func name(t any) string {
+
+
+func name(t any) reflect.Type {
 	// n := reflect.TypeOf(t).String()
 	// if n[0] == '*' {
 	// 	return n[1:]
 	// }
 
-	// TODO - https://pkg.go.dev/reflect#Type - To test for type identity, compare the Types directly.
-	typeof := reflect.TypeOf(t)
-	n := typeof.PkgPath()+"."+typeof.Name()
-	// fmt.Printf("\n%s", n)
+	// // TODO - https://pkg.go.dev/reflect#Type - To test for type identity, compare the Types directly.
+	// typeof := reflect.TypeOf(t)
+	// n := typeof.PkgPath()+"."+typeof.Name()
+	// // fmt.Printf("\n%s", n)
 
-	return n
+	// return n
+	// TODO - might be faster internally to just maintain a counter and just map the type from here to that int in this one function
+	return reflect.TypeOf(t)
 }
 
 type ComponentSlice[T any] struct {
@@ -93,7 +97,7 @@ type ArchEngine struct {
 
 	// positions map[ArchId]ComponentSliceStorage[Position]
 	// velocities map[ArchId]ComponentSliceStorage[Velocity]
-	compSliceStorage map[string]Storage
+	compSliceStorage map[reflect.Type]Storage
 
 	dcr *DCR
 }
@@ -101,7 +105,7 @@ type ArchEngine struct {
 func NewArchEngine() *ArchEngine {
 	return &ArchEngine{
 		lookup: make(map[ArchId]*Lookup),
-		compSliceStorage: make(map[string]Storage),
+		compSliceStorage: make(map[reflect.Type]Storage),
 		dcr: NewDCR(),
 	}
 }

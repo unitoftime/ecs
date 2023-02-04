@@ -1,11 +1,13 @@
 package ecs
 
+import "reflect"
+
 type Entity struct {
-	comp map[string]Component
+	comp map[reflect.Type]Component
 }
 
 func NewEntity(components ...Component) *Entity {
-	c := make(map[string]Component)
+	c := make(map[reflect.Type]Component)
 	for i := range components {
 		c[components[i].Name()] = components[i]
 	}

@@ -3,6 +3,8 @@ package ecs
 import (
 	"fmt"
 	"sort"
+
+	"reflect"
 )
 
 // TODO I think a lot of things can be cleaned up/optimized in this file
@@ -11,7 +13,7 @@ type CompId uint16
 
 type Component interface {
 	Write(*ArchEngine, ArchId, Id)
-	Name() string
+	Name() reflect.Type
 }
 // TODO -I could get rid of reflect if there ends up being some way to compile-time reflect on generics
 type CompBox[T any] struct {
@@ -23,7 +25,7 @@ func C[T any](comp T) CompBox[T] {
 func (c CompBox[T]) Write(engine *ArchEngine, archId ArchId, id Id) {
 	WriteArch[T](engine, archId, id, c.Comp)
 }
-func (c CompBox[T]) Name() string {
+func (c CompBox[T]) Name() reflect.Type {
 	return name(c.Comp)
 }
 
@@ -35,8 +37,8 @@ func (c CompBox[T]) Get() T {
 type DCR struct {
 	archCounter ArchId
 	compCounter CompId
-	mapping map[string]CompId // Contains the CompId for the component name
-	archSet map[string]map[ArchId]bool // Contains the set of ArchIds that have this component
+	mapping map[reflect.Type]CompId // Contains the CompId for the component name
+	archSet map[reflect.Type]map[ArchId]bool // Contains the set of ArchIds that have this component
 	// componentStorageType map[string]any
 	trie *node
 }
@@ -45,8 +47,8 @@ func NewDCR() *DCR {
 	r := &DCR{
 		archCounter: 0,
 		compCounter: 0,
-		mapping: make(map[string]CompId),
-		archSet: make(map[string]map[ArchId]bool),
+		mapping: make(map[reflect.Type]CompId),
+		archSet: make(map[reflect.Type]map[ArchId]bool),
 	}
 	r.trie = NewNode(r)
 	return r

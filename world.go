@@ -136,6 +136,7 @@ func ReadPtr[T any](world *World, id Id) *T {
 // This is safe for maps and loops
 // 1. This deletes the high level id -> archId lookup
 // 2. This creates a "hole" in the archetype list
+// Returns true if the entity was deleted, else returns false if the entity does not exist (or was already deleted)
 func Delete(world *World, id Id) bool {
 	archId, ok := world.arch[id]
 	if !ok { return false }
