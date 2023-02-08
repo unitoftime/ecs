@@ -133,7 +133,36 @@ func (e *ArchEngine) GetArchId(comp ...Component) ArchId {
 
 // Returns the list of ArchIds that contain all components
 // TODO - this can be optimized
+// var filterLists = make([]map[ArchId]bool, 0)
+// var returnedArchIds = make([][]ArchId, 1024) // TODO!!!! - this means that at max you can nest 1024 map functions
+// var currentIndexForReturnedArchIds = 0
+// var returnedArchIds = make([]ArchId, 1024) // TODO!!! - this means you cant nest map functions
 func (e *ArchEngine) Filter(comp ...any) []ArchId {
+	// filterLists = filterLists[:0]
+
+	// for i := range comp {
+	// 	n := name(comp[i])
+	// 	filterLists = append(filterLists, e.dcr.archSet[n])
+	// }
+
+	// // archIds := make([]ArchId, 0)
+	// archIds := returnedArchIds[:0]
+	// for archId := range filterLists[0] {
+	// 	missing := false
+	// 	for i := range filterLists {
+	// 		_, exists := filterLists[i][archId]
+	// 		if !exists {
+	// 			missing = true
+	// 			break // at least one set was missing
+	// 		}
+	// 	}
+	// 	if !missing {
+	// 		archIds = append(archIds, archId)
+	// 	}
+	// }
+
+	// return archIds
+
 	lists := make([]map[ArchId]bool, 0)
 	for i := range comp {
 		n := name(comp[i])
@@ -161,6 +190,7 @@ func (e *ArchEngine) Filter(comp ...any) []ArchId {
 func GetStorage[T any](e *ArchEngine) ComponentSliceStorage[T] {
 	var val T
 	n := name(val)
+	// n := nameGen[T]()
 	ss, ok := e.compSliceStorage[n]
 	if !ok {
 		// TODO - have write call this spot
