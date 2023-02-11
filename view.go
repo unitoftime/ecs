@@ -361,6 +361,7 @@ func RwMap[GA get[A, AO], A any, AO any](world *World, lambda func(id Id, a AO))
 // 	return aSlice.comp
 // }
 
+/*
 type View2[A, B any, F func(Id, *A, *B)] struct {
 	world *World
 	id [][]Id
@@ -782,3 +783,4 @@ func (v *View2F[A, B, F]) Map() {
 		genMap2(v.id[i], v.aSlice[i], v.bSlice[i], v.lambda)
 	}
 }
+*/

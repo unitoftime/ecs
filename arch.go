@@ -8,9 +8,19 @@ import (
 type Id uint32
 type ArchId uint32
 
-func name(t any) reflect.Type {
-	// TODO - might be faster internally to just maintain a counter and just map the type from here to that int in this one function
-	return reflect.TypeOf(t)
+var registeredComponents = make(map[reflect.Type]CompId)
+var invalidComponentId CompId = 0
+var componentRegistryCounter CompId = 1
+
+func name(t any) CompId {
+	typeof := reflect.TypeOf(t)
+	compId, ok := registeredComponents[typeof]
+	if !ok {
+		compId = componentRegistryCounter
+		registeredComponents[typeof] = compId
+		componentRegistryCounter++
+	}
+	return compId
 }
 
 type ComponentSlice[T any] struct {
@@ -82,9 +92,7 @@ func (s ComponentSliceStorage[T]) print(amount int) {
 type ArchEngine struct {
 	lookup map[ArchId]*Lookup
 
-	// positions map[ArchId]ComponentSliceStorage[Position]
-	// velocities map[ArchId]ComponentSliceStorage[Velocity]
-	compSliceStorage map[reflect.Type]Storage
+	compSliceStorage map[CompId]Storage
 
 	dcr *DCR
 }
@@ -92,9 +100,13 @@ type ArchEngine struct {
 func NewArchEngine() *ArchEngine {
 	return &ArchEngine{
 		lookup: make(map[ArchId]*Lookup),
-		compSliceStorage: make(map[reflect.Type]Storage),
+		compSliceStorage: make(map[CompId]Storage),
 		dcr: NewDCR(),
 	}
+}
+
+func (e *ArchEngine) generation() int {
+	return e.dcr.generation
 }
 
 func (e *ArchEngine) Print(amount int) {
@@ -131,11 +143,40 @@ func (e *ArchEngine) GetArchId(comp ...Component) ArchId {
 	return e.dcr.GetArchId(comp...)
 }
 
+// TODO - using this makes things not thread safe
+// TODO - map might be slower than just having an array. I could probably do a big bitmask and then just do a logical OR
+var filterLists = make([]map[ArchId]bool, 0)
+func (e *ArchEngine) FilterList(archIds []ArchId, comp []any) []ArchId {
+	filterLists = filterLists[:0]
+
+	for i := range comp {
+		n := name(comp[i])
+		filterLists = append(filterLists, e.dcr.archSet[n])
+	}
+
+	archIds = archIds[:0]
+	for archId := range filterLists[0] {
+		missing := false
+		for i := range filterLists {
+			_, exists := filterLists[i][archId]
+			if !exists {
+				missing = true
+				break // at least one set was missing
+			}
+		}
+		if !missing {
+			archIds = append(archIds, archId)
+		}
+	}
+
+	return archIds
+}
+
 // Returns the list of ArchIds that contain all components
 // TODO - this can be optimized
 // var filterLists = make([]map[ArchId]bool, 0)
-// var returnedArchIds = make([][]ArchId, 1024) // TODO!!!! - this means that at max you can nest 1024 map functions
-// var currentIndexForReturnedArchIds = 0
+// // var returnedArchIds = make([][]ArchId, 1024) // TODO!!!! - this means that at max you can nest 1024 map functions
+// // var currentIndexForReturnedArchIds = 0
 // var returnedArchIds = make([]ArchId, 1024) // TODO!!! - this means you cant nest map functions
 func (e *ArchEngine) Filter(comp ...any) []ArchId {
 	// filterLists = filterLists[:0]

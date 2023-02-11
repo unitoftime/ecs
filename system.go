@@ -207,6 +207,7 @@ func (s *Scheduler) Run() {
 
 		// Edge case for schedules only fixed time steps
 		if len(s.input) == 0 && len(s.render) == 0 {
+			// Note: This is guaranteed to be positive because the physics execution loops until the accumulator is less than fixedtimestep
 			time.Sleep(s.fixedTimeStep - s.accumulator)
 		}
 
@@ -219,7 +220,7 @@ func (s *Scheduler) Run() {
 		// fmt.Println(dt, s.accumulator)
 
 		// Attempt to yield the goroutine (This helps in single threaded runtimes such as WASM, where you might have other threads trying to do something simultaneously).
-		time.Sleep(1 * time.Nanosecond)
+		// time.Sleep(1 * time.Nanosecond) // TODO - THIS BREAKS WASM!!!!
 		// runtime.Gosched() // Note: This didn't work for some reason?
 	}
 }
