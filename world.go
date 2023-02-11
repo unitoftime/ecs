@@ -1,13 +1,12 @@
 package ecs
 
 import (
-	"fmt"
 	"math"
 )
 
 const (
-	InvalidEntity Id = 0
-	UniqueEntity Id = 1
+	InvalidEntity Id = 0 // Represents the default entity Id, which is invalid
+	firstEntity Id = 0
 	MaxEntity Id = math.MaxUint32
 )
 
@@ -15,24 +14,24 @@ type World struct {
 	nextId Id
 	minId, maxId Id // This is the range of Ids returned by NewId
 	arch map[Id]ArchId
-	engine *ArchEngine
+	engine *archEngine
 }
 
 func NewWorld() *World {
 	return &World{
-		nextId: UniqueEntity + 1,
-		minId: UniqueEntity + 1,
+		nextId: firstEntity + 1,
+		minId: firstEntity + 1,
 		maxId: MaxEntity,
 		arch: make(map[Id]ArchId),
-		engine: NewArchEngine(),
+		engine: newArchEngine(),
 	}
 }
 
 func (w *World) SetIdRange(min, max Id) {
-	if min <= UniqueEntity {
+	if min <= firstEntity {
 		panic("max must be greater than 1")
 	}
-	if max <= UniqueEntity {
+	if max <= firstEntity {
 		panic("max must be greater than 1")
 	}
 	if min > max {
@@ -58,33 +57,33 @@ func (w *World) NewId() Id {
 	return id
 }
 
-func (w *World) Count(anything ...any) int {
-	return w.engine.Count(anything...)
-}
+// func (w *World) Count(anything ...any) int {
+// 	return w.engine.Count(anything...)
+// }
 
-func (w *World) Print(amount int) {
-	fmt.Println("--- World ---")
-	fmt.Printf("nextId: %d\n", w.nextId)
+// func (w *World) Print(amount int) {
+// 	fmt.Println("--- World ---")
+// 	fmt.Printf("nextId: %d\n", w.nextId)
 
-	// max := amount
-	// for id, archId := range w.arch {
-	// 	fmt.Printf("id(%d) -> archId(%d)\n", id, archId)
-	// 	max--; if max <= 0 { break }
-	// }
+// 	// max := amount
+// 	// for id, archId := range w.arch {
+// 	// 	fmt.Printf("id(%d) -> archId(%d)\n", id, archId)
+// 	// 	max--; if max <= 0 { break }
+// 	// }
 
-	// w.engine.Print(amount)
-}
+// 	// w.engine.Print(amount)
+// }
 
-// A debug function for describing the current state of memory allocations in the ECS
-func (w *World) DescribeMemory() {
-	fmt.Println("--- World ---")
-	fmt.Printf("nextId: %d\n", w.nextId)
-	fmt.Printf("Active Ent Count: %d\n", len(w.arch))
-	for archId, lookup := range w.engine.lookup {
-		efficiency := 100 * (1.0 - float64(len(lookup.holes))/float64(len(lookup.id)))
-		fmt.Printf("Lookup[%d] = {len(index)=%d, len(id)=%d, len(holes)=%d} | Efficiency=%.2f%%\n", archId, len(lookup.index), len(lookup.id), len(lookup.holes), efficiency)
-	}
-}
+// // A debug function for describing the current state of memory allocations in the ECS
+// func (w *World) DescribeMemory() {
+// 	fmt.Println("--- World ---")
+// 	fmt.Printf("nextId: %d\n", w.nextId)
+// 	fmt.Printf("Active Ent Count: %d\n", len(w.arch))
+// 	for archId, lookup := range w.engine.lookup {
+// 		efficiency := 100 * (1.0 - float64(len(lookup.holes))/float64(len(lookup.id)))
+// 		fmt.Printf("Lookup[%d] = {len(index)=%d, len(id)=%d, len(holes)=%d} | Efficiency=%.2f%%\n", archId, len(lookup.index), len(lookup.id), len(lookup.holes), efficiency)
+// 	}
+// }
 
 // TODO - Note: This function is not safe inside Maps or view iteraions
 // TODO - make this loop-safe by:
@@ -99,7 +98,7 @@ func (w *World) DescribeMemory() {
 func Write(world *World, id Id, comp ...Component) {
 	archId, ok := world.arch[id]
 	if ok {
-		newArchId := world.engine.RewriteArch(archId, id, comp...)
+		newArchId := world.engine.rewriteArch(archId, id, comp...)
 		world.arch[id] = newArchId
 	} else {
 		// Id does not yet exist, we need to add it for the first time
@@ -121,7 +120,7 @@ func Read[T any](world *World, id Id) (T, bool) {
 		return ret, false
 	}
 
-	return ReadArch[T](world.engine, archId, id)
+	return readArch[T](world.engine, archId, id)
 }
 
 func ReadPtr[T any](world *World, id Id) *T {
@@ -130,7 +129,7 @@ func ReadPtr[T any](world *World, id Id) *T {
 		return nil
 	}
 
-	return ReadPtrArch[T](world.engine, archId, id)
+	return readPtrArch[T](world.engine, archId, id)
 }
 
 // This is safe for maps and loops

@@ -23,12 +23,12 @@ func name(t any) CompId {
 	return compId
 }
 
-type ComponentSlice[T any] struct {
+type componentSlice[T any] struct {
 	comp []T
 }
 
 // Note: This will panic if you write past the buffer by more than 1
-func (s *ComponentSlice[T]) Write(index int, val T) {
+func (s *componentSlice[T]) Write(index int, val T) {
 	if index == len(s.comp) {
 		// Case: index causes a single append (new element added)
 		s.comp = append(s.comp, val)
@@ -39,24 +39,23 @@ func (s *ComponentSlice[T]) Write(index int, val T) {
 	}
 }
 
-type Lookup struct {
+type lookupList struct {
 	index map[Id]int // A mapping from entity ids to array indices
 	id []Id // An array of every id in the arch list (essentially a reverse mapping from index to Id)
 	holes []int // List of indexes that have ben deleted
 }
 
-type Storage interface {
+type storage interface {
 	ReadToEntity(*Entity, ArchId, int) bool
 	Delete(ArchId, int)
 	print(int)
-	// GetComponentSlice(archId ArchId) SliceReader
 }
 
-type ComponentSliceStorage[T any] struct {
-	slice map[ArchId]*ComponentSlice[T]
+type componentSliceStorage[T any] struct {
+	slice map[ArchId]*componentSlice[T]
 }
 
-func (ss ComponentSliceStorage[T]) ReadToEntity(entity *Entity, archId ArchId, index int) bool {
+func (ss componentSliceStorage[T]) ReadToEntity(entity *Entity, archId ArchId, index int) bool {
 	cSlice, ok := ss.slice[archId]
 	if !ok { return false }
 	entity.Add(C(cSlice.comp[index]))
@@ -65,7 +64,7 @@ func (ss ComponentSliceStorage[T]) ReadToEntity(entity *Entity, archId ArchId, i
 
 // Delete is somewhat special because it deletes the index of the archId for the componentSlice
 // but then plugs the hole by pushing the last element of the componentSlice into index
-func (ss ComponentSliceStorage[T]) Delete(archId ArchId, index int) {
+func (ss componentSliceStorage[T]) Delete(archId ArchId, index int) {
 	cSlice, ok := ss.slice[archId]
 	if !ok { return }
 
@@ -74,63 +73,55 @@ func (ss ComponentSliceStorage[T]) Delete(archId ArchId, index int) {
 	cSlice.comp = cSlice.comp[:len(cSlice.comp)-1]
 }
 
-func (s ComponentSliceStorage[T]) print(amount int) {
+func (s componentSliceStorage[T]) print(amount int) {
 	for archId, compSlice := range s.slice {
 		fmt.Printf("archId(%d) - %v\n", archId, *compSlice)
 	}
 }
 
-// func (ss ComponentStorageSlice[T]) GetComponentSlice(archId ArchId) (SliceReader, bool) {
-// 	return ss.slice[archId]
-// }
-
-// type SliceReader interface {
-// 	Get(index int)
-// }
-
 // Provides generic storage for all archetypes
-type ArchEngine struct {
-	lookup map[ArchId]*Lookup
+type archEngine struct {
+	lookup map[ArchId]*lookupList
 
-	compSliceStorage map[CompId]Storage
+	compSliceStorage map[CompId]storage
 
-	dcr *DCR
+	dcr *componentRegistry
 }
 
-func NewArchEngine() *ArchEngine {
-	return &ArchEngine{
-		lookup: make(map[ArchId]*Lookup),
-		compSliceStorage: make(map[CompId]Storage),
-		dcr: NewDCR(),
+func newArchEngine() *archEngine {
+	return &archEngine{
+		lookup: make(map[ArchId]*lookupList),
+		compSliceStorage: make(map[CompId]storage),
+		dcr: newComponentRegistry(),
 	}
 }
 
-func (e *ArchEngine) generation() int {
+func (e *archEngine) generation() int {
 	return e.dcr.generation
 }
 
-func (e *ArchEngine) Print(amount int) {
-	fmt.Println("--- ArchEngine ---")
-	max := amount
-	for archId, lookup := range e.lookup {
-		fmt.Printf("archId(%d) - lookup(%v)\n", archId, lookup)
-		max--; if max <= 0 { break }
-	}
-	for name, storage := range e.compSliceStorage {
-		fmt.Printf("name(%s) -\n", name)
-		storage.print(amount)
-		max--; if max <= 0 { break }
-	}
-	e.dcr.print()
-}
+// func (e *archEngine) Print(amount int) {
+// 	fmt.Println("--- archEngine ---")
+// 	max := amount
+// 	for archId, lookup := range e.lookup {
+// 		fmt.Printf("archId(%d) - lookup(%v)\n", archId, lookup)
+// 		max--; if max <= 0 { break }
+// 	}
+// 	for name, storage := range e.compSliceStorage {
+// 		fmt.Printf("name(%s) -\n", name)
+// 		storage.print(amount)
+// 		max--; if max <= 0 { break }
+// 	}
+// 	e.dcr.print()
+// }
 
-func (e *ArchEngine) Count(anything ...any) int {
+func (e *archEngine) count(anything ...any) int {
 	archIds := e.Filter(anything...)
 
 	total := 0
 	for _, archId := range archIds {
 		lookup, ok := e.lookup[archId]
-		if !ok { panic(fmt.Sprintf("Couldnt find archId in ArchEngine lookup table: %d", archId)) }
+		if !ok { panic(fmt.Sprintf("Couldnt find archId in archEngine lookup table: %d", archId)) }
 
 		// Each id represents an entity that holds the requested component(s)
 		// Each hole represents a deleted entity that used to hold the requested component(s)
@@ -139,14 +130,14 @@ func (e *ArchEngine) Count(anything ...any) int {
 	return total
 }
 
-func (e *ArchEngine) GetArchId(comp ...Component) ArchId {
+func (e *archEngine) GetArchId(comp ...Component) ArchId {
 	return e.dcr.GetArchId(comp...)
 }
 
 // TODO - using this makes things not thread safe
 // TODO - map might be slower than just having an array. I could probably do a big bitmask and then just do a logical OR
 var filterLists = make([]map[ArchId]bool, 0)
-func (e *ArchEngine) FilterList(archIds []ArchId, comp []any) []ArchId {
+func (e *archEngine) FilterList(archIds []ArchId, comp []any) []ArchId {
 	filterLists = filterLists[:0]
 
 	for i := range comp {
@@ -172,13 +163,14 @@ func (e *ArchEngine) FilterList(archIds []ArchId, comp []any) []ArchId {
 	return archIds
 }
 
+// TODO!!! - dump this for FilterList
 // Returns the list of ArchIds that contain all components
 // TODO - this can be optimized
 // var filterLists = make([]map[ArchId]bool, 0)
 // // var returnedArchIds = make([][]ArchId, 1024) // TODO!!!! - this means that at max you can nest 1024 map functions
 // // var currentIndexForReturnedArchIds = 0
 // var returnedArchIds = make([]ArchId, 1024) // TODO!!! - this means you cant nest map functions
-func (e *ArchEngine) Filter(comp ...any) []ArchId {
+func (e *archEngine) Filter(comp ...any) []ArchId {
 	// filterLists = filterLists[:0]
 
 	// for i := range comp {
@@ -228,27 +220,27 @@ func (e *ArchEngine) Filter(comp ...any) []ArchId {
 	return archIds
 }
 
-func GetStorage[T any](e *ArchEngine) ComponentSliceStorage[T] {
+func getStorage[T any](e *archEngine) componentSliceStorage[T] {
 	var val T
 	n := name(val)
 	// n := nameGen[T]()
 	ss, ok := e.compSliceStorage[n]
 	if !ok {
 		// TODO - have write call this spot
-		ss = ComponentSliceStorage[T]{
-			slice: make(map[ArchId]*ComponentSlice[T]),
+		ss = componentSliceStorage[T]{
+			slice: make(map[ArchId]*componentSlice[T]),
 		}
 		e.compSliceStorage[n] = ss
 	}
-	storage := ss.(ComponentSliceStorage[T])
+	storage := ss.(componentSliceStorage[T])
 
 	return storage
 }
 
-func WriteArch[T any](e *ArchEngine, archId ArchId, id Id, val T) {
+func writeArch[T any](e *archEngine, archId ArchId, id Id, val T) {
 	lookup, ok := e.lookup[archId]
 	if !ok {
-		lookup = &Lookup{
+		lookup = &lookupList{
 			index: make(map[Id]int),
 			id: make([]Id, 0),
 			holes: make([]int, 0),
@@ -270,12 +262,12 @@ func WriteArch[T any](e *ArchEngine, archId ArchId, id Id, val T) {
 	}
 
 	// Get the componentSliceStorage
-	storage := GetStorage[T](e)
+	storage := getStorage[T](e)
 
 	// Get the underlying Archetype's componentSlice
 	cSlice, ok := storage.slice[archId]
 	if !ok {
-		cSlice = &ComponentSlice[T]{
+		cSlice = &componentSlice[T]{
 			comp: make([]T, 0),
 		}
 		storage.slice[archId] = cSlice
@@ -284,7 +276,7 @@ func WriteArch[T any](e *ArchEngine, archId ArchId, id Id, val T) {
 	cSlice.Write(index, val)
 }
 
-func ReadArch[T any](e *ArchEngine, archId ArchId, id Id) (T, bool) {
+func readArch[T any](e *archEngine, archId ArchId, id Id) (T, bool) {
 	var ret T
 	lookup, ok := e.lookup[archId]
 	if !ok {
@@ -303,9 +295,11 @@ func ReadArch[T any](e *ArchEngine, archId ArchId, id Id) (T, bool) {
 		return ret, false
 	}
 
-	// fmt.Printf("ComponentSliceStorage[T] type: %s != %s", name(ss), name(ret))
-	storage, ok := ss.(ComponentSliceStorage[T])
-	if !ok { panic(fmt.Sprintf("Wrong ComponentSliceStorage[T] type: %s != %s", name(ss), name(ret))) }
+	// fmt.Printf("componentSliceStorage[T] type: %s != %s", name(ss), name(ret))
+	storage, ok := ss.(componentSliceStorage[T])
+	if !ok {
+		panic(fmt.Sprintf("Wrong componentSliceStorage[T] type: %d != %d", name(ss), name(ret)))
+	}
 
 	// Get the underlying Archetype's componentSlice
 	cSlice, ok := storage.slice[archId]
@@ -316,7 +310,7 @@ func ReadArch[T any](e *ArchEngine, archId ArchId, id Id) (T, bool) {
 	return cSlice.comp[index], true
 }
 
-func ReadPtrArch[T any](e *ArchEngine, archId ArchId, id Id) *T {
+func readPtrArch[T any](e *archEngine, archId ArchId, id Id) *T {
 	var ret T
 	lookup, ok := e.lookup[archId]
 	if !ok {
@@ -335,9 +329,11 @@ func ReadPtrArch[T any](e *ArchEngine, archId ArchId, id Id) *T {
 		return nil
 	}
 
-	// fmt.Printf("ComponentSliceStorage[T] type: %s != %s", name(ss), name(ret))
-	storage, ok := ss.(ComponentSliceStorage[T])
-	if !ok { panic(fmt.Sprintf("Wrong ComponentSliceStorage[T] type: %s != %s", name(ss), name(ret))) }
+	// fmt.Printf("componentSliceStorage[T] type: %s != %s", name(ss), name(ret))
+	storage, ok := ss.(componentSliceStorage[T])
+	if !ok {
+		panic(fmt.Sprintf("Wrong componentSliceStorage[T] type: %d != %d", name(ss), name(ret)))
+	}
 
 	// Get the underlying Archetype's componentSlice
 	cSlice, ok := storage.slice[archId]
@@ -350,7 +346,7 @@ func ReadPtrArch[T any](e *ArchEngine, archId ArchId, id Id) *T {
 
 // TODO - Think: Is it better to read everything then push it into the new ArchId? Or better to migrate everything in place?
 // Returns the ArchId of where the entity ends up
-func (e *ArchEngine) RewriteArch(archId ArchId, id Id, comp ...Component) ArchId {
+func (e *archEngine) rewriteArch(archId ArchId, id Id, comp ...Component) ArchId {
 	// fmt.Println("RewriteArch")
 	ent := e.ReadEntity(archId, id)
 
@@ -387,7 +383,7 @@ func (e *ArchEngine) RewriteArch(archId ArchId, id Id, comp ...Component) ArchId
 	return newArchId
 }
 
-func (e *ArchEngine) ReadEntity(archId ArchId, id Id) *Entity {
+func (e *archEngine) ReadEntity(archId ArchId, id Id) *Entity {
 	lookup, ok := e.lookup[archId]
 	if !ok { panic("Archetype doesn't have lookup list") }
 
@@ -401,7 +397,7 @@ func (e *ArchEngine) ReadEntity(archId ArchId, id Id) *Entity {
 	return ent
 }
 
-// func (e *ArchEngine) DeleteAll(archId ArchId, id Id) {
+// func (e *archEngine) DeleteAll(archId ArchId, id Id) {
 // 	// Trim all holes off the end of the lookup list
 // 	e.trimHoles(archId)
 
@@ -436,7 +432,7 @@ func (e *ArchEngine) ReadEntity(archId ArchId, id Id) *Entity {
 // 	}
 // }
 
-// func (e *ArchEngine) trimHoles(archId ArchId) {
+// func (e *archEngine) trimHoles(archId ArchId) {
 // 	lookup, ok := e.lookup[archId]
 // 	if !ok { panic("Archetype doesn't have lookup list") }
 
@@ -461,7 +457,7 @@ func (e *ArchEngine) ReadEntity(archId ArchId, id Id) *Entity {
 // This creates a "hole" in the archetype at the specified Id
 // Once we get enough holes, we can re-pack the entire slice
 // TODO - How many holes before we repack? How many holes to pack at a time?
-func (e *ArchEngine) TagForDeletion(archId ArchId, id Id) {
+func (e *archEngine) TagForDeletion(archId ArchId, id Id) {
 	lookup, ok := e.lookup[archId]
 	if !ok { panic("Archetype doesn't have lookup list") }
 
@@ -476,7 +472,7 @@ func (e *ArchEngine) TagForDeletion(archId ArchId, id Id) {
 	lookup.holes = append(lookup.holes, index)
 }
 
-func (e *ArchEngine) CleanupHoles(archId ArchId) {
+func (e *archEngine) CleanupHoles(archId ArchId) {
 	lookup, ok := e.lookup[archId]
 	if !ok { panic("Archetype doesn't have lookup list") }
 	// fmt.Println("Cleaning Holes: ", len(lookup.holes))

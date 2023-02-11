@@ -1,19 +1,19 @@
 package ecs
 
-// func ExecuteSystem2[A, B any](world *World, f func(q *Query2[A, B])) {
-// 	query := NewQuery2[A, B](world)
+// // func ExecuteSystem2[A, B any](world *World, f func(q *Query2[A, B])) {
+// // 	query := NewQuery2[A, B](world)
 
-// 	f(query)
-// }
+// // 	f(query)
+// // }
 
-// type Query2[A, B any] struct {
+// type FastQuery2[A, B any] struct {
 // 	world *World
 // 	id [][]Id
 // 	aSlice [][]A
 // 	bSlice [][]B
 // }
-// func NewQuery2[A, B any](world *World) *Query2[A, B] {
-// 	v := Query2[A, B]{
+// func NewFastQuery2[A, B any](world *World) *FastQuery2[A, B] {
+// 	v := FastQuery2[A, B]{
 // 		world: world,
 // 		id: make([][]Id, 0),
 // 		aSlice: make([][]A, 0),
@@ -24,8 +24,8 @@ package ecs
 // 	archIds := v.world.engine.Filter(a, b)
 
 // 	// storages := getAllStorages(world, a)
-// 	aStorage := GetStorage[A](v.world.engine)
-// 	bStorage := GetStorage[B](v.world.engine)
+// 	aStorage := getStorage[A](v.world.engine)
+// 	bStorage := getStorage[B](v.world.engine)
 
 // 	for _, archId := range archIds {
 // 		aSlice, ok := aStorage.slice[archId]
@@ -44,7 +44,7 @@ package ecs
 // }
 
 
-// func (q *Query2[A, B]) Map(f func(ids []Id, a []A, b []B)) {
+// func (q *FastQuery2[A, B]) Map(f func(ids []Id, a []A, b []B)) {
 // 	// Panics are for bounds check eliminations
 // 	ids := q.id
 // 	aa := q.aSlice
@@ -55,7 +55,7 @@ package ecs
 // 	}
 // }
 
-// func (q *Query2[A, B]) Map2D(f func([]Id, []A, []B, []Id, []A, []B)) {
+// func (q *FastQuery2[A, B]) Map2D(f func([]Id, []A, []B, []Id, []A, []B)) {
 // 	// Old code:
 // 	// for i := range q.ids {
 // 	// 	for j := range q.ids {
@@ -87,7 +87,7 @@ package ecs
 // 	}
 // }
 
-// func (q *Query2[A, B]) Iterate() *UnsafeIterator2[A, B] {
+// func (q *FastQuery2[A, B]) Iterate() *UnsafeIterator2[A, B] {
 // 	iterator := &UnsafeIterator2[A, B]{
 // 		query: q,
 // 		outerLen: len(q.id),
@@ -100,15 +100,15 @@ package ecs
 
 // // --------------------------------------------------------------------------------
 
-// type Query3[A, B, C any] struct {
+// type FastQuery3[A, B, C any] struct {
 // 	world *World
 // 	id [][]Id
 // 	aSlice [][]A
 // 	bSlice [][]B
 // 	cSlice [][]C
 // }
-// func NewQuery3[A, B, C any](world *World) *Query3[A, B, C] {
-// 	v := Query3[A, B, C]{
+// func NewFastQuery3[A, B, C any](world *World) *FastQuery3[A, B, C] {
+// 	v := FastQuery3[A, B, C]{
 // 		world: world,
 // 		id: make([][]Id, 0),
 // 		aSlice: make([][]A, 0),
@@ -121,9 +121,9 @@ package ecs
 // 	archIds := v.world.engine.Filter(a, b, c)
 
 // 	// storages := getAllStorages(world, a)
-// 	aStorage := GetStorage[A](v.world.engine)
-// 	bStorage := GetStorage[B](v.world.engine)
-// 	cStorage := GetStorage[C](v.world.engine)
+// 	aStorage := getStorage[A](v.world.engine)
+// 	bStorage := getStorage[B](v.world.engine)
+// 	cStorage := getStorage[C](v.world.engine)
 
 // 	for _, archId := range archIds {
 // 		aSlice, ok := aStorage.slice[archId]
@@ -145,7 +145,7 @@ package ecs
 // }
 
 
-// func (q *Query3[A, B, C]) Map(f func(ids []Id, a []A, b []B, c []C)) {
+// func (q *FastQuery3[A, B, C]) Map(f func(ids []Id, a []A, b []B, c []C)) {
 // 	// Panics are for bounds check eliminations
 // 	ids := q.id
 // 	aa := q.aSlice
@@ -161,7 +161,7 @@ package ecs
 
 
 // type UnsafeIterator2[A, B any] struct {
-// 	query *Query2[A, B]
+// 	query *FastQuery2[A, B]
 // 	outerLen int
 // 	innerIter, outerIter int
 

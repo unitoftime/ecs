@@ -103,15 +103,7 @@ func createWorld(size int) *ecs.World {
 
 	for i := 0; i < size; i++ {
 		id := world.NewId()
-		// ent := ecs.NewEntity(
-		// 	ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
-		// 	ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
-		// 	ecs.C(Collider{
-		// 		Radius: maxCollider * rand.Float64(),
-		// 	}),
-		// 	ecs.C(Count{}),
-		// )
-		// ecs.WriteEntity(world, id, ent)
+
 		ecs.Write(world, id,
 			ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
 			ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
@@ -124,8 +116,8 @@ func createWorld(size int) *ecs.World {
 	return world
 }
 
-func moveCircles(query *ecs.Query2[Position, Velocity], fixedTime float64, maxPosition float64) {
-	query.Map(func(ids []ecs.Id, pos []Position, vel []Velocity) {
+func moveCircles(query *ecs.View2[Position, Velocity], fixedTime float64, maxPosition float64) {
+	query.MapSlices(func(ids []ecs.Id, pos []Position, vel []Velocity) {
 		if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
 		for i := range ids {
 			if ids[i] == ecs.InvalidEntity { continue }
@@ -143,15 +135,13 @@ func moveCircles(query *ecs.Query2[Position, Velocity], fixedTime float64, maxPo
 	})
 }
 
-func checkCollisions(world *ecs.World, query *ecs.Query3[Position, Collider, Count], innerQuery *ecs.Query2[Position, Collider], collisionLimit int32, deathCount *int) {
+func checkCollisions(world *ecs.World,
+	query *ecs.View3[Position, Collider, Count],
+	innerQuery *ecs.View2[Position, Collider],
+	collisionLimit int32, deathCount *int) {
 
-	// Alternative?
-	// archetypes.Map2D(func(
-	// 	aId []ecs.Id, aPos []Position, aCol []Collider,
-	// 	bId []ecs.Id, bPos []Position, bCol []Collider) {
-
-	query.Map(func(aId []ecs.Id, aPos []Position, aCol []Collider, aCnt []Count) {
-		innerQuery.Map(func(bId []ecs.Id, bPos []Position, bCol []Collider) {
+	query.MapSlices(func(aId []ecs.Id, aPos []Position, aCol []Collider, aCnt []Count) {
+		innerQuery.MapSlices(func(bId []ecs.Id, bPos []Position, bCol []Collider) {
 			if len(aId) != len(aPos) || len(aId) != len(aCol) { panic("ERR") }
 			if len(bId) != len(bPos) || len(bId) != len(bCol) { panic("ERR") }
 			for i := range aId {
@@ -196,6 +186,10 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 
 	fixedTime := (15 * time.Millisecond).Seconds()
 
+	moveQuery := ecs.Query2[Position, Velocity](world)
+	posColCntQuery := ecs.Query3[Position, Collider, Count](world)
+	posColQuery := ecs.Query2[Position, Collider](world)
+
 	start := time.Now()
 	dt := time.Since(start)
 	for iterCount := 0; iterCount < iterations; iterCount++ {
@@ -211,15 +205,12 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 		// })
 
 		{
-			query := ecs.NewQuery2[Position, Velocity](world)
-			moveCircles(query, fixedTime, maxPosition)
+			moveCircles(moveQuery, fixedTime, maxPosition)
 		}
 
 		deathCount := 0
 		{
-			query := ecs.NewQuery3[Position, Collider, Count](world)
-			innerQuery := ecs.NewQuery2[Position, Collider](world)
-			checkCollisions(world, query, innerQuery, collisionLimit, &deathCount)
+			checkCollisions(world, posColCntQuery, posColQuery, collisionLimit, &deathCount)
 		}
 
 		// fmt.Println("DeathCount:", deathCount)
@@ -360,13 +351,9 @@ func benchPhysics(size int, collisionLimit int32) {
 func benchPhysicsAlt(size int, collisionLimit int32) {
 	world := createWorld(size)
 
-	// posVelFunc := ecs.MapFunc2[Position, Velocity](world)
-	// posColCnt := ecs.MapFunc3[Position, Collider, Count](world)
-	// posCol := ecs.MapFunc2[Position, Collider](world)
-
-	posVelQuery := ecs.View2[Position, Velocity](world)
-	posColQuery := ecs.View2[Position, Collider](world)
-	posColCntQuery := ecs.View3[Position, Collider, Count](world)
+	posVelQuery := ecs.Query2[Position, Velocity](world)
+	posColQuery := ecs.Query2[Position, Collider](world)
+	posColCntQuery := ecs.Query3[Position, Collider, Count](world)
 
 	// TODO - maybe one day
 	// posVelSystem := ecs.NewSystemFunc(world *ecs.World, func(query ecs.View2[Position, Velocity]))
@@ -396,8 +383,6 @@ func benchPhysicsAlt(size int, collisionLimit int32) {
 		deathCount := 0
 		posColCntQuery.MapId(func(aId ecs.Id, aPos *Position, aCol *Collider, aCnt *Count) {
 			posColQuery.MapId(func(bId ecs.Id, bPos *Position, bCol *Collider) {
-		// ecs.Map3(world, func(aId ecs.Id, aPos *Position, aCol *Collider, aCnt *Count) {
-		// 	ecs.Map2(world, func(bId ecs.Id, bPos *Position, bCol *Collider) {
 				if aId == bId { return } // Skip if entity is the same
 
 				dx := aPos.X - bPos.X

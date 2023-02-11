@@ -44,18 +44,18 @@ func (s *SystemLog) String() string {
 }
 
 // TODO - Just use an atomic here?
-type Signal struct {
+type signal struct {
 	mu sync.Mutex
 	value bool
 }
 
-func (s *Signal) Set(val bool) {
+func (s *signal) Set(val bool) {
 	s.mu.Lock()
 	s.value = val
 	s.mu.Unlock()
 }
 
-func (s *Signal) Get() bool {
+func (s *signal) Get() bool {
 	s.mu.Lock()
 	ret := s.value
 	s.mu.Unlock()
@@ -69,8 +69,8 @@ type Scheduler struct {
 	fixedTimeStep time.Duration
 	accumulator time.Duration
 	gameSpeed int64
-	quit Signal
-	pauseRender Signal
+	quit signal
+	pauseRender signal
 	maxLoopCount int
 }
 func NewScheduler() *Scheduler {
@@ -218,10 +218,6 @@ func (s *Scheduler) Run() {
 		scaledDt := dt.Nanoseconds() * s.gameSpeed
 		s.accumulator += time.Duration(scaledDt)
 		// fmt.Println(dt, s.accumulator)
-
-		// Attempt to yield the goroutine (This helps in single threaded runtimes such as WASM, where you might have other threads trying to do something simultaneously).
-		// time.Sleep(1 * time.Nanosecond) // TODO - THIS BREAKS WASM!!!!
-		// runtime.Gosched() // Note: This didn't work for some reason?
 	}
 }
 

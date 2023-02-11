@@ -1,53 +1,115 @@
 package ecs
 
-// func SpecialMap2[A, B any, F func(Id, *A, *B)](world *World, lambda F) {
-// 	view := ViewAll2[A, B](world)
-// 	for view.Ok() {
-// 		id, pos, vel := view.IterChunkClean()
+// import "fmt"
 
-// 		// mapFuncPhyGen(id, pos, vel, physicsTick)
+// Ideas:
+// view := View2[Position, ecs.Maybe[Velocity]](world)
+// 1. Track pointer to slice for each combination of filter parameters
+// 2. User builds views with whatever they want or dont want
+// 3. todo - need some way to have optionals, or to get whatever fields they want. I guess maybe they'll call map or iterate or something and when they call that they can specify which storages they want to pull out?
 
-// 		genMap2(id, pos, vel, lambda)
-// 		// for j := range id {
-// 		// 	lambda(id[j], &pos[j], &vel[j])
-// 		// }
-// 	}
+// type ArchHandle struct {
+// 	archId ArchId
+// 	lookup *Lookup
+// 	compStorage []Storage
 // }
 
-// func SpecialMap2NonGen(world *World, lambda func(Id, *Position, *Velocity)) {
-// 	view := ViewAll2[Position, Velocity](world)
-// 	for view.Ok() {
-// 		id, pos, vel := view.IterChunkClean()
+// type without struct {
+// 	fields []any
+// }
+// func Without(fields ...any) without {
+// 	return without{fields}
+// }
+	// extractedFilters := make([]any, 0)
+	// for _, f := range filters {
+	// 	switch t := f.(type) {
+	// 	case without:
+	// 	}
+	// }
 
-// 		// mapFuncPhyGen(id, pos, vel, physicsTick)
-
-// 		for j := range id {
-// 			lambda(id[j], &pos[j], &vel[j])
-// 		}
-// 	}
+// type buildQuery interface {
+// 	build(world)
 // }
 
+// TODO - Filter types:
+// Optional - Lets you view even if component is missing (func will return nil)
+// With - Lets you add additional components that must be present
+// Without - Lets you add additional components that must not be present
 
-// func Map[A any](world *World, lambda func(id Id, a *A)) {
-func Map[A any, F func(Id, *A)](world *World, lambda F) {
+type filterList struct {
+	filters []any
+	cachedArchetypeGeneration int // Denotes the world's archetype generation that was used to create the list of archIds. If the world has a new generation, we should probably regenerate
+	archIds []ArchId
+}
+func newFilterList(filters []any) filterList {
+	return filterList{
+		filters: filters,
+		archIds: make([]ArchId, 0),
+	}
+}
+func (f *filterList) regenerate(world *World) {
+	if world.engine.generation() != f.cachedArchetypeGeneration {
+		f.archIds = world.engine.FilterList(f.archIds, f.filters)
+		f.cachedArchetypeGeneration = world.engine.generation()
+	}
+}
+
+type View1[A any] struct {
+	world *World
+	filter filterList
+	storageA componentSliceStorage[A]
+}
+
+func Query1[A any](world *World, filters ...any) *View1[A] {
+	storageA := getStorage[A](world.engine)
+
 	var a A
-	archIds := world.engine.Filter(a)
+	filters = append(filters, a)
+	filter := filterList{
+		filters: filters,
+	}
 
-	// storages := getAllStorages(world, a)
-	aStorage := GetStorage[A](world.engine)
+	filter.regenerate(world)
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
+	v := &View1[A]{
+		world: world,
+		filter: filter,
+		storageA: storageA,
+	}
+	return v
+}
+
+func (v *View1[A]) Read(id Id) (*A) {
+	if id == InvalidEntity { return nil }
+
+	archId, ok := v.world.arch[id]
+	if !ok { return nil }
+
+	lookup, ok := v.world.engine.lookup[archId]
+	if !ok { panic("LookupList is missing!") }
+	index, ok := lookup.index[id]
+	if !ok { return nil }
+
+	aSlice, ok := v.storageA.slice[archId]
+	if !ok { return nil }
+
+	return &aSlice.comp[index]
+}
+
+func (v *View1[A]) MapId(lambda func(id Id, a *A)) {
+	v.filter.regenerate(v.world)
+	for _, archId := range v.filter.archIds {
+		aSlice, ok := v.storageA.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := world.engine.lookup[archId]
+		lookup, ok := v.world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
 		ids := lookup.id
 		aComp := aSlice.comp
-		// if len(ids) != len(aComp) {
-		// 	panic("ERROR - Bounds don't match")
-		// }
+		if len(ids) != len(aComp) {
+			panic("ERROR - Bounds don't match")
+		}
 		for i := range ids {
 			if ids[i] == InvalidEntity { continue }
 			lambda(ids[i], &aComp[i])
@@ -55,35 +117,78 @@ func Map[A any, F func(Id, *A)](world *World, lambda F) {
 	}
 }
 
-// func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
-func Map2[A, B any, F func(Id,*A,*B)](world *World, lambda F) {
-	// This one is faster 360 ms
-	// ExecuteSystem2(world, func(query *Query2[A, B]) {
-	// 	query.Map(func(ids []Id, a []A, b []B) {
-	// 		if len(ids) != len(a) || len(ids) != len(b) { panic("ERR") }
-	// 		for i := range ids {
-	// 			lambda(ids[i], &a[i], &b[i])
-	// 		}
-	// 	})
-	// })
+// --------------------------------------------------------------------------------
+// - View 2
+// --------------------------------------------------------------------------------
 
-	// This one is slower 335 ms
+type View2[A,B any] struct {
+	world *World
+	filter filterList
+	storageA componentSliceStorage[A]
+	storageB componentSliceStorage[B]
+}
+
+func Query2[A,B any](world *World, filters ...any) *View2[A,B] {
+	storageA := getStorage[A](world.engine)
+	storageB := getStorage[B](world.engine)
+
 	var a A
 	var b B
+	filters = append(filters, a, b)
+	filter := filterList{
+		filters: filters,
+	}
 
-	archIds := world.engine.Filter(a, b)
+	filter.regenerate(world)
 
-	// storages := getAllStorages(world, a)
-	aStorage := GetStorage[A](world.engine)
-	bStorage := GetStorage[B](world.engine)
+	v := &View2[A,B]{
+		world: world,
+		filter: filter,
+		storageA: storageA,
+		storageB: storageB,
+	}
+	return v
+}
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
+// Reads always try to read as many components as possible regardless of if the component exists or not
+func (v *View2[A,B]) Read(id Id) (*A, *B) {
+	if id == InvalidEntity { return nil, nil }
+
+	archId, ok := v.world.arch[id]
+	if !ok {
+		return nil, nil
+	}
+	lookup, ok := v.world.engine.lookup[archId]
+	if !ok { panic("LookupList is missing!") }
+	index, ok := lookup.index[id]
+	if !ok { return nil, nil }
+
+	var retA *A
+	aSlice, ok := v.storageA.slice[archId]
+	if ok {
+		retA = &aSlice.comp[index]
+	}
+
+	var retB *B
+	bSlice, ok := v.storageB.slice[archId]
+	if ok {
+		retB = &bSlice.comp[index]
+	}
+
+	return retA, retB
+	// return &aSlice.comp[index], &bSlice.comp[index]
+}
+
+func (v *View2[A,B]) MapId(lambda func(id Id, a *A, b *B)) {
+	v.filter.regenerate(v.world)
+
+	for _, archId := range v.filter.archIds {
+		aSlice, ok := v.storageA.slice[archId]
 		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
+		bSlice, ok := v.storageB.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := world.engine.lookup[archId]
+		lookup, ok := v.world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
 		ids := lookup.id
@@ -99,62 +204,87 @@ func Map2[A, B any, F func(Id,*A,*B)](world *World, lambda F) {
 	}
 }
 
-// // This ia a Map2, but if the lambda returns false, we stop looping
-// func SmartMap2[A, B any](world *World, lambda func(id Id, a *A, b *B) bool) {
-// 	var a A
-// 	var b B
+func (v *View2[A,B]) MapSlices(lambda func(id []Id, a []A, b []B)) {
+	v.filter.regenerate(v.world)
 
-// 	archIds := world.engine.Filter(a, b)
+	id := make([][]Id, 0)
+	sliceListA := make([][]A, 0)
+	sliceListB := make([][]B, 0)
 
-// 	// storages := getAllStorages(world, a)
-// 	aStorage := GetStorage[A](world.engine)
-// 	bStorage := GetStorage[B](world.engine)
+	for _, archId := range v.filter.archIds {
+		sliceA, ok := v.storageA.slice[archId]
+		if !ok { continue }
+		sliceB, ok := v.storageB.slice[archId]
+		if !ok { continue }
 
-// 	for _, archId := range archIds {
-// 		aSlice, ok := aStorage.slice[archId]
-// 		if !ok { continue }
-// 		bSlice, ok := bStorage.slice[archId]
-// 		if !ok { continue }
+		lookup, ok := v.world.engine.lookup[archId]
+		if !ok { panic("LookupList is missing!") }
 
-// 		lookup, ok := world.engine.lookup[archId]
-// 		if !ok { panic("LookupList is missing!") }
+		id = append(id, lookup.id)
+		sliceListA = append(sliceListA, sliceA.comp)
+		sliceListB = append(sliceListB, sliceB.comp)
+	}
 
-// 		for i, id := range lookup.id {
-// 			if id == InvalidEntity { continue }
+	for i := range id {
+		lambda(id[i], sliceListA[i], sliceListB[i])
+	}
+}
+// --------------------------------------------------------------------------------
+// - View 3
+// --------------------------------------------------------------------------------
 
-// 			success := lambda(id, &aSlice.comp[i], &bSlice.comp[i])
-// 			if !success { return }
-// 		}
-// 	}
-// }
+type View3[A,B,C any] struct {
+	world *World
+	filter filterList
+	storageA componentSliceStorage[A]
+	storageB componentSliceStorage[B]
+	storageC componentSliceStorage[C]
+}
 
-func Map3[A, B, C any](world *World, lambda func(id Id, a *A, b *B, c *C)) {
+func Query3[A,B,C any](world *World, filters ...any) *View3[A,B,C] {
+	storageA := getStorage[A](world.engine)
+	storageB := getStorage[B](world.engine)
+	storageC := getStorage[C](world.engine)
+
 	var a A
 	var b B
 	var c C
-	archIds := world.engine.Filter(a, b, c)
+	filters = append(filters, a, b, c)
+	filter := filterList{
+		filters: filters,
+	}
 
-	// storages := getAllStorages(world, a)
-	aStorage := GetStorage[A](world.engine)
-	bStorage := GetStorage[B](world.engine)
-	cStorage := GetStorage[C](world.engine)
+	filter.regenerate(world)
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
+	v := &View3[A,B,C]{
+		world: world,
+		filter: filter,
+		storageA: storageA,
+		storageB: storageB,
+		storageC: storageC,
+	}
+	return v
+}
+
+func (v *View3[A,B,C]) MapId(lambda func(id Id, a *A, b *B, c *C)) {
+	v.filter.regenerate(v.world)
+
+	for _, archId := range v.filter.archIds {
+		aSlice, ok := v.storageA.slice[archId]
 		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
+		bSlice, ok := v.storageB.slice[archId]
 		if !ok { continue }
-		cSlice, ok := cStorage.slice[archId]
+		cSlice, ok := v.storageC.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := world.engine.lookup[archId]
+		lookup, ok := v.world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
 		ids := lookup.id
 		aComp := aSlice.comp
 		bComp := bSlice.comp
 		cComp := cSlice.comp
-		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp){
+		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp) {
 			panic("ERROR - Bounds don't match")
 		}
 		for i := range ids {
@@ -164,30 +294,122 @@ func Map3[A, B, C any](world *World, lambda func(id Id, a *A, b *B, c *C)) {
 	}
 }
 
-func Map4[A, B, C, D any](world *World, lambda func(id Id, a *A, b *B, c *C, d *D)) {
+// Reads always try to read as many components as possible regardless of if the component exists or not
+func (v *View3[A,B,C]) Read(id Id) (*A, *B, *C) {
+	if id == InvalidEntity { return nil, nil, nil }
+
+	archId, ok := v.world.arch[id]
+	if !ok {
+		return nil, nil, nil
+	}
+	lookup, ok := v.world.engine.lookup[archId]
+	if !ok { panic("LookupList is missing!") }
+	index, ok := lookup.index[id]
+	if !ok { return nil, nil, nil }
+
+	var retA *A
+	sliceA, ok := v.storageA.slice[archId]
+	if ok {
+		retA = &sliceA.comp[index]
+	}
+	var retB *B
+	sliceB, ok := v.storageB.slice[archId]
+	if ok {
+		retB = &sliceB.comp[index]
+	}
+	var retC *C
+	sliceC, ok := v.storageC.slice[archId]
+	if ok {
+		retC = &sliceC.comp[index]
+	}
+
+	return retA, retB, retC
+}
+
+func (v *View3[A,B,C]) MapSlices(lambda func(id []Id, a []A, b []B, c []C)) {
+	v.filter.regenerate(v.world)
+
+	id := make([][]Id, 0)
+	sliceListA := make([][]A, 0)
+	sliceListB := make([][]B, 0)
+	sliceListC := make([][]C, 0)
+
+	for _, archId := range v.filter.archIds {
+		sliceA, ok := v.storageA.slice[archId]
+		if !ok { continue }
+		sliceB, ok := v.storageB.slice[archId]
+		if !ok { continue }
+		sliceC, ok := v.storageC.slice[archId]
+		if !ok { continue }
+
+		lookup, ok := v.world.engine.lookup[archId]
+		if !ok { panic("LookupList is missing!") }
+
+		id = append(id, lookup.id)
+		sliceListA = append(sliceListA, sliceA.comp)
+		sliceListB = append(sliceListB, sliceB.comp)
+		sliceListC = append(sliceListC, sliceC.comp)
+	}
+
+	for i := range id {
+		lambda(id[i], sliceListA[i], sliceListB[i], sliceListC[i])
+	}
+}
+// --------------------------------------------------------------------------------
+// - View 4
+// --------------------------------------------------------------------------------
+
+type View4[A,B,C,D any] struct {
+	world *World
+	filter filterList
+	storageA componentSliceStorage[A]
+	storageB componentSliceStorage[B]
+	storageC componentSliceStorage[C]
+	storageD componentSliceStorage[D]
+}
+
+func Query4[A,B,C,D any](world *World, filters ...any) *View4[A,B,C,D] {
+	storageA := getStorage[A](world.engine)
+	storageB := getStorage[B](world.engine)
+	storageC := getStorage[C](world.engine)
+	storageD := getStorage[D](world.engine)
+
 	var a A
 	var b B
 	var c C
 	var d D
-	archIds := world.engine.Filter(a, b, c, d)
+	filters = append(filters, a, b, c, d)
+	filter := filterList{
+		filters: filters,
+	}
 
-	// storages := getAllStorages(world, a)
-	aStorage := GetStorage[A](world.engine)
-	bStorage := GetStorage[B](world.engine)
-	cStorage := GetStorage[C](world.engine)
-	dStorage := GetStorage[D](world.engine)
+	filter.regenerate(world)
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
+	v := &View4[A,B,C,D]{
+		world: world,
+		filter: filter,
+		storageA: storageA,
+		storageB: storageB,
+		storageC: storageC,
+		storageD: storageD,
+	}
+	return v
+}
+
+func (v *View4[A,B,C,D]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D)) {
+	v.filter.regenerate(v.world)
+
+	for _, archId := range v.filter.archIds {
+		aSlice, ok := v.storageA.slice[archId]
 		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
+		bSlice, ok := v.storageB.slice[archId]
 		if !ok { continue }
-		cSlice, ok := cStorage.slice[archId]
+		cSlice, ok := v.storageC.slice[archId]
 		if !ok { continue }
-		dSlice, ok := dStorage.slice[archId]
+		dSlice, ok := v.storageD.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := world.engine.lookup[archId]
+		lookup, ok := v.world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
 		ids := lookup.id
@@ -202,41 +424,107 @@ func Map4[A, B, C, D any](world *World, lambda func(id Id, a *A, b *B, c *C, d *
 			if ids[i] == InvalidEntity { continue }
 			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i], &dComp[i])
 		}
-		// for i, id := range lookup.id {
-		// 	if id == InvalidEntity { continue }
-		// 	lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i], &dSlice.comp[i])
-		// }
 	}
 }
 
-func Map5[A, B, C, D, E any](world *World, lambda func(id Id, a *A, b *B, c *C, d *D, e *E)) {
+// Reads always try to read as many components as possible regardless of if the component exists or not
+func (v *View4[A,B,C,D]) Read(id Id) (*A, *B, *C, *D) {
+	if id == InvalidEntity { return nil, nil, nil, nil }
+
+	archId, ok := v.world.arch[id]
+	if !ok {
+		return nil, nil, nil, nil
+	}
+	lookup, ok := v.world.engine.lookup[archId]
+	if !ok { panic("LookupList is missing!") }
+	index, ok := lookup.index[id]
+	if !ok { return nil, nil, nil, nil }
+
+	var retA *A
+	sliceA, ok := v.storageA.slice[archId]
+	if ok {
+		retA = &sliceA.comp[index]
+	}
+	var retB *B
+	sliceB, ok := v.storageB.slice[archId]
+	if ok {
+		retB = &sliceB.comp[index]
+	}
+	var retC *C
+	sliceC, ok := v.storageC.slice[archId]
+	if ok {
+		retC = &sliceC.comp[index]
+	}
+	var retD *D
+	sliceD, ok := v.storageD.slice[archId]
+	if ok {
+		retD = &sliceD.comp[index]
+	}
+
+	return retA, retB, retC, retD
+}
+
+// --------------------------------------------------------------------------------
+// - View 5
+// --------------------------------------------------------------------------------
+
+type View5[A,B,C,D,E any] struct {
+	world *World
+	filter filterList
+	storageA componentSliceStorage[A]
+	storageB componentSliceStorage[B]
+	storageC componentSliceStorage[C]
+	storageD componentSliceStorage[D]
+	storageE componentSliceStorage[E]
+}
+
+func Query5[A,B,C,D,E any](world *World, filters ...any) *View5[A,B,C,D,E] {
+	storageA := getStorage[A](world.engine)
+	storageB := getStorage[B](world.engine)
+	storageC := getStorage[C](world.engine)
+	storageD := getStorage[D](world.engine)
+	storageE := getStorage[E](world.engine)
+
 	var a A
 	var b B
 	var c C
 	var d D
 	var e E
-	archIds := world.engine.Filter(a, b, c, d, e)
+	filters = append(filters, a, b, c, d, e)
+	filter := filterList{
+		filters: filters,
+	}
 
-	// storages := getAllStorages(world, a)
-	aStorage := GetStorage[A](world.engine)
-	bStorage := GetStorage[B](world.engine)
-	cStorage := GetStorage[C](world.engine)
-	dStorage := GetStorage[D](world.engine)
-	eStorage := GetStorage[E](world.engine)
+	filter.regenerate(world)
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
+	v := &View5[A,B,C,D,E]{
+		world: world,
+		filter: filter,
+		storageA: storageA,
+		storageB: storageB,
+		storageC: storageC,
+		storageD: storageD,
+		storageE: storageE,
+	}
+	return v
+}
+
+func (v *View5[A,B,C,D,E]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E)) {
+	v.filter.regenerate(v.world)
+
+	for _, archId := range v.filter.archIds {
+		aSlice, ok := v.storageA.slice[archId]
 		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
+		bSlice, ok := v.storageB.slice[archId]
 		if !ok { continue }
-		cSlice, ok := cStorage.slice[archId]
+		cSlice, ok := v.storageC.slice[archId]
 		if !ok { continue }
-		dSlice, ok := dStorage.slice[archId]
+		dSlice, ok := v.storageD.slice[archId]
 		if !ok { continue }
-		eSlice, ok := eStorage.slice[archId]
+		eSlice, ok := v.storageE.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := world.engine.lookup[archId]
+		lookup, ok := v.world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
 		ids := lookup.id
@@ -245,542 +533,187 @@ func Map5[A, B, C, D, E any](world *World, lambda func(id Id, a *A, b *B, c *C, 
 		cComp := cSlice.comp
 		dComp := dSlice.comp
 		eComp := eSlice.comp
-		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp) || len(ids) != len(dComp) || len(ids) != len(eComp){
+		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp) || len(ids) != len(dComp) || len(ids) != len(eComp) {
 			panic("ERROR - Bounds don't match")
 		}
 		for i := range ids {
 			if ids[i] == InvalidEntity { continue }
 			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i], &dComp[i], &eComp[i])
 		}
-		// for i, id := range lookup.id {
-		// 	if id == InvalidEntity { continue }
-		// 	lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i], &dSlice.comp[i])
-		// }
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// type SliceReader[T any] interface {
-// 	Read(int) T
-// }
+// Reads always try to read as many components as possible regardless of if the component exists or not
+func (v *View5[A,B,C,D,E]) Read(id Id) (*A, *B, *C, *D, *E) {
+	if id == InvalidEntity { return nil, nil, nil, nil, nil }
 
-// type CompSliceStorageReader[T any] interface {
-// 	GetSliceReader(ArchId) SliceReader[T]
-// }
-
-// func GetStorage2[T any](e *ArchEngine) ComponentSliceStorage[T] {
-// 	var val T
-// 	n := name(val)
-// 	ss, ok := e.compSliceStorage[n]
-// 	if !ok {
-// 		panic("Arch engine doesn't have this storage (I should probably just instantiate it and replace this code with write")
-// 	}
-// 	return storage
-// }
-
-// func (ss ComponentStorageSlice[T]) GetSliceReader(archId ArchId) (SliceReader, bool) {
-// 	return ss.slice[archId]
-// }
-/*
-type ptr[T any] interface {
-	*T
-}
-
-type get[T, U any] interface {
-	get([]T, int) U
-}
-
-type RO[T any] struct {
-}
-func (r RO[T]) get(slice []T, index int) T {
-	return slice[index]
-}
-
-type RW[T any] struct {
-}
-func (r RW[T]) get(slice []T, index int) *T {
-	return &slice[index]
-}
-
-func RwMap2[GA get[A, AO], GB get[B, BO], A any, B any, AO, BO any](world *World, lambda func(id Id, a AO, b BO)) {
-	var a A
-	var b B
-	archIds := world.engine.Filter(a, b)
-
-	var getA GA
-	var getB GB
-
-	// aPtr := (reflect.ValueOf(a).Kind() == reflect.Ptr)
-	// bPtr := (reflect.ValueOf(b).Kind() == reflect.Ptr)
-
-	// storages := getAllStorages(world, a)
-	aStorage := GetStorage[A](world.engine)
-	bStorage := GetStorage[B](world.engine)
-
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
-		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
-		if !ok { continue }
-
-		lookup, ok := world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
-
-		for i := range lookup.id {
-			lambda(lookup.id[i], getA.get(aSlice.comp, i), getB.get(bSlice.comp, i))
-		}
+	archId, ok := v.world.arch[id]
+	if !ok {
+		return nil, nil, nil, nil, nil
 	}
-}
+	lookup, ok := v.world.engine.lookup[archId]
+	if !ok { panic("LookupList is missing!") }
+	index, ok := lookup.index[id]
+	if !ok { return nil, nil, nil, nil, nil }
 
-func RwMap[GA get[A, AO], A any, AO any](world *World, lambda func(id Id, a AO)) {
-	var a A
-	archIds := world.engine.Filter(a)
-
-	var getA GA
-
-	aStorage := GetStorage[A](world.engine)
-
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
-		if !ok { continue }
-
-		lookup, ok := world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
-
-		for i := range lookup.id {
-			lambda(lookup.id[i], getA.get(aSlice.comp, i))
-		}
+	var retA *A
+	sliceA, ok := v.storageA.slice[archId]
+	if ok {
+		retA = &sliceA.comp[index]
 	}
+	var retB *B
+	sliceB, ok := v.storageB.slice[archId]
+	if ok {
+		retB = &sliceB.comp[index]
+	}
+	var retC *C
+	sliceC, ok := v.storageC.slice[archId]
+	if ok {
+		retC = &sliceC.comp[index]
+	}
+	var retD *D
+	sliceD, ok := v.storageD.slice[archId]
+	if ok {
+		retD = &sliceD.comp[index]
+	}
+	var retE *E
+	sliceE, ok := v.storageE.slice[archId]
+	if ok {
+		retE = &sliceE.comp[index]
+	}
+
+	return retA, retB, retC, retD, retE
 }
-*/
-// func getInternalSlice[A any](world *World, archId ArchId) []A {
-// 	aStorage := GetStorage[A](world.engine)
-// 	aSlice, ok := aStorage.slice[archId]
-// 	if !ok { return nil }
 
-// 	return aSlice.comp
-// }
+// --------------------------------------------------------------------------------
+// - View 6
+// --------------------------------------------------------------------------------
 
-/*
-type View2[A, B any, F func(Id, *A, *B)] struct {
+type View6[A,B,C,D,E,F any] struct {
 	world *World
-	id [][]Id
-	aSlice [][]A
-	bSlice [][]B
-
-	outerIter, innerIter int
+	filter filterList
+	storageA componentSliceStorage[A]
+	storageB componentSliceStorage[B]
+	storageC componentSliceStorage[C]
+	storageD componentSliceStorage[D]
+	storageE componentSliceStorage[E]
+	storageF componentSliceStorage[F]
 }
-func ViewAll2[A, B any, F func(Id, *A, *B)](world *World) *View2[A, B, F] {
-	v := View2[A, B, F]{
-		world: world,
-		id: make([][]Id, 0),
-		aSlice: make([][]A, 0),
-		bSlice: make([][]B, 0),
-	}
+
+func Query6[A,B,C,D,E,F any](world *World, filters ...any) *View6[A,B,C,D,E,F] {
+	storageA := getStorage[A](world.engine)
+	storageB := getStorage[B](world.engine)
+	storageC := getStorage[C](world.engine)
+	storageD := getStorage[D](world.engine)
+	storageE := getStorage[E](world.engine)
+	storageF := getStorage[F](world.engine)
+
 	var a A
 	var b B
-	archIds := v.world.engine.Filter(a, b)
+	var c C
+	var d D
+	var e E
+	var f F
+	filters = append(filters, a, b, c, d, e, f)
+	filter := filterList{
+		filters: filters,
+	}
 
-	// storages := getAllStorages(world, a)
-	aStorage := GetStorage[A](v.world.engine)
-	bStorage := GetStorage[B](v.world.engine)
+	filter.regenerate(world)
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
+	v := &View6[A,B,C,D,E,F]{
+		world: world,
+		filter: filter,
+		storageA: storageA,
+		storageB: storageB,
+		storageC: storageC,
+		storageD: storageD,
+		storageE: storageE,
+		storageF: storageF,
+	}
+	return v
+}
+
+func (v *View6[A,B,C,D,E,F]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F)) {
+	v.filter.regenerate(v.world)
+
+	for _, archId := range v.filter.archIds {
+		aSlice, ok := v.storageA.slice[archId]
 		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
+		bSlice, ok := v.storageB.slice[archId]
+		if !ok { continue }
+		cSlice, ok := v.storageC.slice[archId]
+		if !ok { continue }
+		dSlice, ok := v.storageD.slice[archId]
+		if !ok { continue }
+		eSlice, ok := v.storageE.slice[archId]
+		if !ok { continue }
+		fSlice, ok := v.storageF.slice[archId]
 		if !ok { continue }
 
 		lookup, ok := v.world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
 
-		v.id = append(v.id, lookup.id)
-		v.aSlice = append(v.aSlice, aSlice.comp)
-		v.bSlice = append(v.bSlice, bSlice.comp)
-	}
-	return &v
-}
-
-func (v *View2[A, B, F]) Reset() {
-	v.outerIter = 0
-	v.innerIter = 0
-}
-
-func (v *View2[A, B, F]) Ok() bool {
-	return v.outerIter < len(v.id)
-}
-
-func (v *View2[A, B, F]) Map(lambda F) {
-	for i := range v.id {
-		// id := v.id[i]
-		// aSlice := v.aSlice[i]
-		// bSlice := v.bSlice[i]
-		// for j := range id {
-		// 	lambda(id[j], &aSlice[j], &bSlice[j])
-		// }
-
-		genMap2(v.id[i], v.aSlice[i], v.bSlice[i], lambda)
-		// for j := range v.id[i] {
-		// 	lambda(v.id[i][j], &v.aSlice[i][j], &v.bSlice[i][j])
-		// }
-	}
-}
-
-func genMap2[A any, B any, F func(Id, *A, *B)](id []Id, aa []A, bb []B, f F) {
-	for j := range id {
-		f(id[j], &aa[j], &bb[j])
-	}
-}
-
-// func (v *View2[A, B, F]) Iter() (Id, A, B, bool) {
-// 	v.innerIter++
-// 	if v.innerIter >= len(v.id[v.outerIter]) {
-// 		v.innerIter = 0
-// 		v.outerIter++
-// 	}
-
-// 	if v.outerIter >= len(v.id) {
-// 		var id Id
-// 		var a A
-// 		var b B
-// 		return id, a, b, false
-// 	}
-
-// 	return v.id[v.outerIter][v.innerIter], v.aSlice[v.outerIter][v.innerIter], v.bSlice[v.outerIter][v.innerIter], true
-// }
-
-// func (v *View2[A, B, F]) Iter2(id *Id, a *A, b *B) bool {
-// 	inner := v.innerIter
-// 	outer := v.outerIter
-
-// 	v.innerIter++
-// 	if v.innerIter >= len(v.id[v.outerIter]) {
-// 		v.innerIter = 0
-// 		v.outerIter++
-// 	}
-
-// 	if outer >= len(v.id) {
-// 		return false
-// 	}
-
-// 	*id = v.id[outer][inner]
-// 	*a = v.aSlice[outer][inner]
-// 	*b = v.bSlice[outer][inner]
-// 	return true
-// }
-
-// func (v *View2[A, B, F]) IterPointer(id **Id, a **A, b **B) bool {
-// 	inner := v.innerIter
-// 	outer := v.outerIter
-
-// 	v.innerIter++
-// 	if v.innerIter >= len(v.id[v.outerIter]) {
-// 		v.innerIter = 0
-// 		v.outerIter++
-// 	}
-
-// 	if outer >= len(v.id) {
-// 		return false
-// 	}
-
-// 	*id = &v.id[outer][inner]
-// 	*a = &v.aSlice[outer][inner]
-// 	*b = &v.bSlice[outer][inner]
-// 	return true
-// }
-
-// func (v *View2[A, B, F]) Iter3() (Id, *A, *B, bool) {
-// 	v.innerIter++
-// 	if v.innerIter >= len(v.id[v.outerIter]) {
-// 		v.innerIter = 0
-// 		v.outerIter++
-// 	}
-
-// 	if v.outerIter >= len(v.id) {
-// 		return InvalidEntity, nil, nil, false
-// 	}
-
-// 	return v.id[v.outerIter][v.innerIter], &v.aSlice[v.outerIter][v.innerIter], &v.bSlice[v.outerIter][v.innerIter], true
-// }
-
-// func (v *View2[A, B, F]) Next() {
-// 	return v.Iter4()
-// }
-
-// func (v *View2[A, B, F]) Iter4() (Id, *A, *B) {
-// 	inner := v.innerIter
-// 	outer := v.outerIter
-
-// 	v.innerIter++
-// 	if v.innerIter >= len(v.id[v.outerIter]) {
-// 		v.innerIter = 0
-// 		v.outerIter++
-// 	}
-
-// 	if outer >= len(v.id) {
-// 		return InvalidEntity, nil, nil
-// 	}
-
-// 	return v.id[outer][inner], &v.aSlice[outer][inner], &v.bSlice[outer][inner]
-// }
-
-// func (v *View2[A, B, F]) Iterate() (*Id, **A, **B, *Iterator2[A, B, F]) {
-func (v *View2[A, B, F]) Iterate() *Iterator2[A, B, F] {
-	newView := *v
-	iterator := &Iterator2[A, B, F]{
-		view: &newView,
-	}
-	return iterator
-	// return iterator.id, &iterator.a, &iterator.b, iterator
-}
-
-// TODO  You could probably make iterators fast if you removed all the bounds checking that happens, but you'd probably have to do pointer arithmetic on the slices (potentially unsafe)
-type Iterator2[A, B any, F func(Id, *A, *B)] struct {
-	view *View2[A, B, F]
-	innerIter, outerIter int
-}
-
-func (i *Iterator2[A, B, F]) Ok() bool {
-	return i.outerIter < len(i.view.id)
-}
-
-func (i *Iterator2[A, B, F]) Next() (Id, *A, *B) {
-	inner := i.innerIter
-	outer := i.outerIter
-
-	i.innerIter++
-	if i.innerIter >= len(i.view.id[i.outerIter]) {
-		i.innerIter = 0
-		i.outerIter++
-	}
-
-	if outer >= len(i.view.id) {
-		return InvalidEntity, nil, nil
-	}
-
-	return i.view.id[outer][inner], &i.view.aSlice[outer][inner], &i.view.bSlice[outer][inner]
-
-	// return i.view.Iter4()
-	// i.view.IterPointer(&i.id, &i.a, &i.b)
-}
-
-// Iterates on archetype chunks, returns underlying arrays so modifications are automatically written back
-// func (v *View2[A, B, F]) IterChunk() ([]Id, []A, []B, bool) {
-// 	if v.outerIter >= len(v.id) {
-// 		return nil, nil, nil, false
-// 	}
-// 	idx := v.outerIter
-// 	v.outerIter++
-
-// 	return v.id[idx], v.aSlice[idx], v.bSlice[idx], true
-// }
-
-func (v *View2[A, B, F]) IterChunkClean() ([]Id, []A, []B) {
-	if v.outerIter >= len(v.id) {
-		return nil, nil, nil
-	}
-	idx := v.outerIter
-	v.outerIter++
-
-	return v.id[idx], v.aSlice[idx], v.bSlice[idx]
-}
-
-func (v *View2[A, B, F]) GetAllSlices() ([][]Id, [][]A, [][]B) {
-	return v.id, v.aSlice, v.bSlice
-}
-
-func ArchetypeMap[A any, B any, F func(Id, *A, *B)](id [][]Id, aa [][]A, bb [][]B, f F) {
-	for i := range id {
-		for j := range id[i] {
-			f(id[i][j], &aa[i][j], &bb[i][j])
+		ids := lookup.id
+		aComp := aSlice.comp
+		bComp := bSlice.comp
+		cComp := cSlice.comp
+		dComp := dSlice.comp
+		eComp := eSlice.comp
+		fComp := fSlice.comp
+		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp) || len(ids) != len(dComp) || len(ids) != len(eComp) || len(ids) != len(fComp) {
+			panic("ERROR - Bounds don't match")
+		}
+		for i := range ids {
+			if ids[i] == InvalidEntity { continue }
+			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i], &dComp[i], &eComp[i], &fComp[i])
 		}
 	}
 }
 
-func SliceMap2[A any, B any, F func(Id, *A, *B)](id []Id, aa []A, bb []B, f F) {
-	for i := range id {
-		f(id[i], &aa[i], &bb[i])
+// Reads always try to read as many components as possible regardless of if the component exists or not
+func (v *View6[A,B,C,D,E,F]) Read(id Id) (*A, *B, *C, *D, *E, *F) {
+	if id == InvalidEntity { return nil, nil, nil, nil, nil, nil }
+
+	archId, ok := v.world.arch[id]
+	if !ok {
+		return nil, nil, nil, nil, nil, nil
 	}
-}
+	lookup, ok := v.world.engine.lookup[archId]
+	if !ok { panic("LookupList is missing!") }
+	index, ok := lookup.index[id]
+	if !ok { return nil, nil, nil, nil, nil, nil }
 
-// func CleanMap2[A, B any, F func(Id, *A, *B)](world *World, lambda F) {
-// 	view := ViewAll2[A, B](world)
-// 	for view.Ok() {
-// 		id, pos, vel := view.IterChunkClean()
-// 		for i := range id {
-// 			lambda(id[i], &pos[i], &vel[i])
-// 		}
-// 	}
-// }
-
-
-// type View struct {
-// 	world *World // TODO - Can I get away with just engine?
-// 	id [][]Id
-// 	componentSlices [][]any // component index -> outerIter -> innerIter
-
-// 	outerIter, innerIter int
-// }
-
-// func ViewAll(world *World, comp ...Component) *View {
-// 	v := View2[A, B]{
-// 		world: world,
-// 		id: make([][]Id, 0),
-// 		componentSlices: make([][]any),
-// 	}
-// 	var a A
-// 	var b B
-// 	archIds := v.world.engine.Filter(a, b)
-
-// 	// storages := getAllStorages(world, a)
-// 	aStorage := GetStorage[A](v.world.engine)
-// 	bStorage := GetStorage[B](v.world.engine)
-
-// 	for _, archId := range archIds {
-// 		aSlice, ok := aStorage.slice[archId]
-// 		if !ok { continue }
-// 		bSlice, ok := bStorage.slice[archId]
-// 		if !ok { continue }
-
-// 		lookup, ok := v.world.engine.lookup[archId]
-// 		if !ok { panic("LookupList is missing!") }
-
-// 		v.id = append(v.id, lookup.id)
-// 		v.aSlice = append(v.aSlice, aSlice.comp)
-// 		v.bSlice = append(v.bSlice, bSlice.comp)
-// 	}
-// 	return &v
-// }
-
-
-
-// import (
-// 	// "fmt"
-// 	// "reflect"
-// )
-
-// type View struct {
-// 	world *World
-// 	components []any
-// 	// readonly []bool
-// }
-
-// func ViewAll(world *World, comp ...any) *View {
-// 	return &View{
-// 		world: world,
-// 		components: comp,
-// 	}
-// }
-
-// func getAllStorages(world *World, comp ...any) []Storage {
-// 	storages := make([]Storage, 0)
-// 	for i := range comp {
-// 		s := world.archEngine.GetStorage(comp[i])
-// 		storages = append(storages, s)
-// 	}
-// 	return storages
-// }
-
-// func Map[A any](world *World, lambda func(id Id, a A)) {
-// 	var a A
-// 	archIds := world.archEngine.Filter(a)
-// 	storages := getAllStorages(world, a)
-
-// 	for _, archId := range archIds {
-// 		aList := GetStorageList[A](storages[0], archId)
-
-// 		lookup, ok := world.archEngine.lookup[archId]
-// 		if !ok { panic("LookupList is missing!") }
-// 		for i := range lookup.Ids {
-// 			lambda(lookup.Ids[i], aList[i])
-// 		}
-// 	}
-// }
-
-// func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
-// 	var a A
-// 	var b B
-// 	archIds := world.archEngine.Filter(a, b)
-// 	storages := getAllStorages(world, a, b)
-
-// 	// aPtr := (reflect.ValueOf(a).Kind() == reflect.Ptr)
-// 	// bPtr := (reflect.ValueOf(b).Kind() == reflect.Ptr)
-
-// 	for _, archId := range archIds {
-// 		aList := GetStorageList[A](storages[0], archId)
-// 		bList := GetStorageList[B](storages[1], archId)
-
-// 		// var aIter Iterator[A] = ValueIterator[A]{aList}
-// 		// var bIter Iterator[B] = ValueIterator[B]{bList}
-
-
-// 		lookup, ok := world.archEngine.lookup[archId]
-// 		if !ok { panic("LookupList is missing!") }
-// 		for i := range lookup.Ids {
-// 			lambda(lookup.Ids[i], &aList[i], &bList[i])
-
-// 			// lambda(lookup.Ids[i], aIter.Get(i), bIter.Get(i))
-
-// 			// if !aPtr && !bPtr {
-// 			// 	lambda(lookup.Ids[i], aList[i], bList[i])
-// 			// } else if aPtr && !bPtr {
-// 			// 	lambda(lookup.Ids[i], &aList[i], bList[i])
-// 			// } else if !aPtr && !bPtr {
-// 			// 	lambda(lookup.Ids[i], aList[i], &bList[i])
-// 			// } else if aPtr && bPtr {
-// 			// 	lambda(lookup.Ids[i], &aList[i], &bList[i])
-// 			// }
-// 		}
-// 	}
-// }
-
-type View2F[A, B any, F func(Id, *A, *B)] struct {
-	world *World
-	lambda F
-
-	id [][]Id
-	aSlice [][]A
-	bSlice [][]B
-
-	outerIter, innerIter int
-}
-func ViewAll2F[A, B any, F func(Id, *A, *B)](world *World, lambda F) *View2F[A, B, F] {
-	v := View2F[A, B, F]{
-		world: world,
-		lambda: lambda,
-
-		id: make([][]Id, 0),
-		aSlice: make([][]A, 0),
-		bSlice: make([][]B, 0),
-		innerIter: -1, // When we iterate the first thing we do is increment
+	var retA *A
+	sliceA, ok := v.storageA.slice[archId]
+	if ok {
+		retA = &sliceA.comp[index]
 	}
-	var a A
-	var b B
-	archIds := v.world.engine.Filter(a, b)
-
-	// storages := getAllStorages(world, a)
-	aStorage := GetStorage[A](v.world.engine)
-	bStorage := GetStorage[B](v.world.engine)
-
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
-		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
-		if !ok { continue }
-
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
-
-		v.id = append(v.id, lookup.id)
-		v.aSlice = append(v.aSlice, aSlice.comp)
-		v.bSlice = append(v.bSlice, bSlice.comp)
+	var retB *B
+	sliceB, ok := v.storageB.slice[archId]
+	if ok {
+		retB = &sliceB.comp[index]
 	}
-	return &v
-}
-
-func (v *View2F[A, B, F]) Map() {
-	for i := range v.id {
-		genMap2(v.id[i], v.aSlice[i], v.bSlice[i], v.lambda)
+	var retC *C
+	sliceC, ok := v.storageC.slice[archId]
+	if ok {
+		retC = &sliceC.comp[index]
 	}
+	var retD *D
+	sliceD, ok := v.storageD.slice[archId]
+	if ok {
+		retD = &sliceD.comp[index]
+	}
+	var retE *E
+	sliceE, ok := v.storageE.slice[archId]
+	if ok {
+		retE = &sliceE.comp[index]
+	}
+	var retF *F
+	sliceF, ok := v.storageF.slice[archId]
+	if ok {
+		retF = &sliceF.comp[index]
+	}
+
+	return retA, retB, retC, retD, retE, retF
 }
-*/

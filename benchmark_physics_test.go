@@ -119,25 +119,25 @@ func BenchmarkPhysicsEcsMap(b *testing.B) {
 // 	}
 // }
 
-func BenchmarkPhysicsEcsViewMap(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsEcsViewMap(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		view := ViewAll2[Position, Velocity](world)
-		view.Map(physicsTick)
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		view := ViewAll2[Position, Velocity](world)
+// 		view.Map(physicsTick)
+// 	}
+// }
 
-func BenchmarkPhysicsEcsViewMapFunctionalType(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsEcsViewMapFunctionalType(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		view := ViewAll2F[Position, Velocity](world, physicsTick)
-		view.Map()
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		view := ViewAll2F[Position, Velocity](world, physicsTick)
+// 		view.Map()
+// 	}
+// }
 
 // func BenchmarkPhysicsEcsViewIter(b *testing.B) {
 // 	world := setupPhysics(1e6)
@@ -209,130 +209,130 @@ func BenchmarkPhysicsEcsViewMapFunctionalType(b *testing.B) {
 // 	}
 // }
 
-func BenchmarkPhysicsQueryAAA(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsQueryAAA(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	query := NewQuery2[Position, Velocity](world)
+// 	query := NewQuery2[Position, Velocity](world)
 
-	for i := 0; i < b.N; i++ {
-		query.Map(func(ids []Id, pos []Position, vel []Velocity) {
-			if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
-			for i := range ids {
-				physicsTick(ids[i], &pos[i], &vel[i])
-			}
-		})
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		query.Map(func(ids []Id, pos []Position, vel []Velocity) {
+// 			if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
+// 			for i := range ids {
+// 				physicsTick(ids[i], &pos[i], &vel[i])
+// 			}
+// 		})
+// 	}
+// }
 
-func BenchmarkPhysicsQueryIteratorAAA(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsQueryIteratorAAA(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	query := NewQuery2[Position, Velocity](world)
-	for i := 0; i < b.N; i++ {
-		for iter := query.Iterate(); iter.Ok(); {
-			id, pos, vel := iter.Next()
-			physicsTick(id, pos, vel)
-		}
+// 	query := NewQuery2[Position, Velocity](world)
+// 	for i := 0; i < b.N; i++ {
+// 		for iter := query.Iterate(); iter.Ok(); {
+// 			id, pos, vel := iter.Next()
+// 			physicsTick(id, pos, vel)
+// 		}
 
-	}
-}
+// 	}
+// }
 
-func BenchmarkPhysicsQueryMapAAA(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsQueryMapAAA(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		Map2(world, physicsTick)
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		Map2(world, physicsTick)
+// 	}
+// }
 
-func BenchmarkPhysicsEcsViewIterChunkCleanestAAA(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsEcsViewIterChunkCleanestAAA(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+// 	for i := 0; i < b.N; i++ {
 
-		view := ViewAll2[Position, Velocity](world)
+// 		view := ViewAll2[Position, Velocity](world)
 
-		// view.Map(physicsTick)
-		// id, pos, vel := view.IterChunkClean()
-		// map2(id, pos, vel, physicsTick)
+// 		// view.Map(physicsTick)
+// 		// id, pos, vel := view.IterChunkClean()
+// 		// map2(id, pos, vel, physicsTick)
 
-		for view.Ok() {
-			id, pos, vel := view.IterChunkClean()
+// 		for view.Ok() {
+// 			id, pos, vel := view.IterChunkClean()
 
-			// mapFuncPhyGen(id, pos, vel, physicsTick)
+// 			// mapFuncPhyGen(id, pos, vel, physicsTick)
 
-			for j := range id {
-				physicsTick(id[j], &pos[j], &vel[j])
-			}
-		}
-	}
-}
+// 			for j := range id {
+// 				physicsTick(id[j], &pos[j], &vel[j])
+// 			}
+// 		}
+// 	}
+// }
 
-func SpecialMap2NonGen2(world *World, lambda func(Id, *Position, *Velocity)) {
-	view := ViewAll2[Position, Velocity](world)
-	for view.Ok() {
-		id, pos, vel := view.IterChunkClean()
-		mapFuncPhyGen(id, pos, vel, physicsTick)
-		// for j := range id {
-		// 	lambda(id[j], &pos[j], &vel[j])
-		// }
-	}
-}
+// func SpecialMap2NonGen2(world *World, lambda func(Id, *Position, *Velocity)) {
+// 	view := ViewAll2[Position, Velocity](world)
+// 	for view.Ok() {
+// 		id, pos, vel := view.IterChunkClean()
+// 		mapFuncPhyGen(id, pos, vel, physicsTick)
+// 		// for j := range id {
+// 		// 	lambda(id[j], &pos[j], &vel[j])
+// 		// }
+// 	}
+// }
 
-func BenchmarkPhysicsEcsSpecialMapGetAllSlices(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsEcsSpecialMapGetAllSlices(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		view := ViewAll2[Position, Velocity](world)
-		ids, positions, velocities := view.GetAllSlices()
+// 	for i := 0; i < b.N; i++ {
+// 		view := ViewAll2[Position, Velocity](world)
+// 		ids, positions, velocities := view.GetAllSlices()
 
-		// ArchetypeMap(ids, positions, velocities, physicsTick)
+// 		// ArchetypeMap(ids, positions, velocities, physicsTick)
 
-		for ii := range ids {
-			SliceMap2(ids[ii], positions[ii], velocities[ii], physicsTick)
+// 		for ii := range ids {
+// 			SliceMap2(ids[ii], positions[ii], velocities[ii], physicsTick)
 
-			// mapFuncPhyGen(ids[ii], positions[ii], velocities[ii], physicsTick)
+// 			// mapFuncPhyGen(ids[ii], positions[ii], velocities[ii], physicsTick)
 
-			// idList := ids[ii]
-			// posList := positions[ii]
-			// velList := velocities[ii]
-			// for iii := range idList {
-			// 	// physicsTick(ids[ii][iii], &positions[ii][iii], &velocities[ii][iii])
-			// 	physicsTick(idList[iii], &posList[iii], &velList[iii])
-			// }
-		}
-	}
-}
+// 			// idList := ids[ii]
+// 			// posList := positions[ii]
+// 			// velList := velocities[ii]
+// 			// for iii := range idList {
+// 			// 	// physicsTick(ids[ii][iii], &positions[ii][iii], &velocities[ii][iii])
+// 			// 	physicsTick(idList[iii], &posList[iii], &velList[iii])
+// 			// }
+// 		}
+// 	}
+// }
 
-func BenchmarkPhysicsEcsSpecialMap(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsEcsSpecialMap(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		SpecialMap2NonGen2(world, physicsTick)
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		SpecialMap2NonGen2(world, physicsTick)
+// 	}
+// }
 
-func BenchmarkPhysicsEcsSpecialMapFast(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsEcsSpecialMapFast(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		view := ViewAll2[Position, Velocity](world)
-		for view.Ok() {
-			id, pos, vel := view.IterChunkClean()
-			mapFuncPhy(id, pos, vel, physicsTick)
-			// for j := range id {
-			// 	physicsTick(id[j], &pos[j], &vel[j])
-			// }
-		}
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		view := ViewAll2[Position, Velocity](world)
+// 		for view.Ok() {
+// 			id, pos, vel := view.IterChunkClean()
+// 			mapFuncPhy(id, pos, vel, physicsTick)
+// 			// for j := range id {
+// 			// 	physicsTick(id[j], &pos[j], &vel[j])
+// 			// }
+// 		}
+// 	}
+// }
 
 // func BenchmarkPhysicsEcsViewIteratorClean(b *testing.B) {
 // 	world := setupPhysics(1e6)

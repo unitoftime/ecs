@@ -37,7 +37,7 @@ func ReadFromEntity[T any](ent *Entity) (T, bool) {
 	if !ok {
 		return t, false
 	}
-	return icomp.(CompBox[T]).Comp, true
+	return icomp.(Box[T]).Comp, true
 }
 
 func WriteEntity(world *World, id Id, ent *Entity) {

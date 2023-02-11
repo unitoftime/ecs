@@ -67,10 +67,10 @@ func TestWorldReadWrite(t *testing.T) {
 	check(t, ok)
 	compare(t, velOut, vel)
 
-	compare(t, world.Count(position{}), 1)
-	compare(t, world.Count(position{}, velocity{}), 1)
-	compare(t, world.Count(position{}, velocity{}), 1)
-	compare(t, world.Count(acceleration{}), 0)
+	compare(t, world.engine.count(position{}), 1)
+	compare(t, world.engine.count(position{}, velocity{}), 1)
+	compare(t, world.engine.count(position{}, velocity{}), 1)
+	compare(t, world.engine.count(acceleration{}), 0)
 
 	count := 0
 	Map2(world, func(id Id, p *position, v *velocity) {
