@@ -1,26 +1,30 @@
 package ecs
 
+// An Entity is essentially a map of components that is held external to a world. Useful for pulling full entities in and out of the world.
+// Deprecated: This type and its corresponding methods are tentative and might be replaced by something else.
 type Entity struct {
-	comp map[CompId]Component
+	comp map[componentId]Component
 }
 
+// Creates a new entity with the specified components
 func NewEntity(components ...Component) *Entity {
-	c := make(map[CompId]Component)
+	c := make(map[componentId]Component)
 	for i := range components {
-		c[components[i].Name()] = components[i]
+		c[components[i].id()] = components[i]
 	}
 	return &Entity{
 		comp: c,
 	}
 }
 
+// Adds a component to an entity
 func (e *Entity) Add(components ...Component) {
 	for i := range components {
-		e.comp[components[i].Name()] = components[i]
+		e.comp[components[i].id()] = components[i]
 	}
 }
 
-// TODO Hacky - Could probably improve performance
+// Returns a list of the components held by the entity
 func (e *Entity) Comps() []Component {
 	ret := make([]Component, 0, len(e.comp))
 	for _, v := range e.comp {
@@ -29,6 +33,7 @@ func (e *Entity) Comps() []Component {
 	return ret
 }
 
+// Reads a specific component from the entity, returns false if the component doesn't exist
 func ReadFromEntity[T any](ent *Entity) (T, bool) {
 	var t T
 	n := name(t)
@@ -40,13 +45,23 @@ func ReadFromEntity[T any](ent *Entity) (T, bool) {
 	return icomp.(Box[T]).Comp, true
 }
 
-func WriteEntity(world *World, id Id, ent *Entity) {
+// Writes the entire entity to the world
+func (ent *Entity) Write(world *World, id Id) {
 	comps := ent.Comps()
-	Write(world, id, comps...)
+	world.Write(id, comps...)
 }
 
+// Reads the entire entity out of the world and into an *Entity object. Returns nil if the entity doesn't exist
+func ReadEntity(world *World, id Id) *Entity {
+	archId, ok := world.arch[id]
+	if !ok { return nil }
+
+	return world.engine.ReadEntity(archId, id)
+}
+
+// Deletes a component on this entity
 func (e *Entity) Delete(c Component) {
-	delete(e.comp, c.Name())
+	delete(e.comp, c.id())
 }
 
 // TODO revisit this abstraction

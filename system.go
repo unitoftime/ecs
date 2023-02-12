@@ -8,11 +8,13 @@ import (
 	"runtime"
 )
 
+// Represents an individual system
 type System struct {
 	Name string
 	Func func(dt time.Duration)
 }
 
+// Create a new system. The system name will be automatically created based on the function name that calls this function
 func NewSystem(lambda func (dt time.Duration)) System {
 	systemName := "UnknownSystemName"
 
@@ -28,12 +30,15 @@ func NewSystem(lambda func (dt time.Duration)) System {
 	}
 }
 
+// Executes the system once, returning the time taken.
+// This is mostly used by the scheduler, but you can use it too.
 func (s *System) Run(dt time.Duration) time.Duration {
 	start := time.Now()
 	s.Func(dt)
 	return time.Since(start)
 }
 
+// A log of a system and the time it took to execute
 type SystemLog struct {
 	Name string
 	Time time.Duration
@@ -62,6 +67,14 @@ func (s *signal) Get() bool {
 	return ret
 }
 
+// Scheduler is a place to put your systems and have them run.
+// There are two types of systems: Fixed time systems and dynamic time systems
+// 1. Fixed time systems will execute on a fixed time step
+// 2. Dynamic time systems will execute as quickly as they possibly can
+// The scheduler may change in the future, but right now how it works is simple:
+// Input: Execute input systems (Dynamic time systems)
+// Physics: Execute physics systems (Fixed time systems)
+// Render: Execute render systems (Dynamic time systems)
 type Scheduler struct {
 	input, physics, render []System
 	sysLogBack, sysLogFront []SystemLog
@@ -73,6 +86,8 @@ type Scheduler struct {
 	pauseRender signal
 	maxLoopCount int
 }
+
+// Creates a scheduler
 func NewScheduler() *Scheduler {
 	return &Scheduler{
 		input: make([]System, 0),
@@ -88,32 +103,40 @@ func NewScheduler() *Scheduler {
 	}
 }
 
-// TODO make SetGameSpeed and SetFixedTimeStep thread safe. Also, you want them to only change at the end of a frame, else you might get some inconsistencies. Just use a mutex and a single temporary variable
+// TODO make SetGameSpeed and SetFixedTimeStep thread safe.
+
+// Sets the rate at which time accumulates. Also, you want them to only change at the end of a frame, else you might get some inconsistencies. Just use a mutex and a single temporary variable
 func (s *Scheduler) SetGameSpeed(speed int64) {
 	s.gameSpeed = speed
 }
 
+// Tells the scheduler to exit. Scheduler will finish executing its remaining tick before closing.
 func (s *Scheduler) SetQuit(value bool) {
 	s.quit.Set(true)
 }
 
-// Pauses the set of render systems (ie they will be skipped). This API is tentative.
+// Pauses the set of render systems (ie they will be skipped).
+// Deprecated: This API is tentatitive
 func (s *Scheduler) PauseRender(value bool) {
 	s.pauseRender.Set(value)
 }
 
+// Sets the amount of time required before the fixed time systems will execute
 func (s *Scheduler) SetFixedTimeStep(t time.Duration) {
 	s.fixedTimeStep = t
 }
 
+// Adds a system to the list of input systems
 func (s *Scheduler) AppendInput(systems ...System) {
 	s.input = append(s.input, systems...)
 }
 
+// Adds a system to the list of physics systems
 func (s *Scheduler) AppendPhysics(systems ...System) {
 	s.physics = append(s.physics, systems...)
 }
 
+// Adds a system to the list of render systems
 func (s *Scheduler) AppendRender(systems ...System) {
 	s.render = append(s.render, systems...)
 }
@@ -135,13 +158,13 @@ func (s *Scheduler) SyslogFixed() []SystemLog {
 	return s.sysLogFrontFixed
 }
 
+// Returns an interpolation value which represents how close we are to the next fixed time step execution. Can be useful for interpolating dynamic time systems to the fixed time systems. I might rename this
 func (s *Scheduler) GetRenderInterp() float64 {
 	return s.accumulator.Seconds() / s.fixedTimeStep.Seconds()
 }
 
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
-// TODO this doesn't work with vsync because the pause blocks the physics from decrementing the accumulator
 func (s *Scheduler) Run() {
 	frameStart := time.Now()
 	dt := s.fixedTimeStep

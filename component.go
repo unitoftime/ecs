@@ -5,27 +5,28 @@ import (
 	"sort"
 )
 
-type CompId uint16
+type componentId uint16
 
 type Component interface {
-	Write(*archEngine, ArchId, Id)
-	Name() CompId
+	write(*archEngine, archetypeId, Id)
+	id() componentId
 }
-// This type is used to box a component with all of its type info so that it implements the Component interface. I would like to get rid of this and simplify the APIs
+// This type is used to box a component with all of its type info so that it implements the component interface. I would like to get rid of this and simplify the APIs
 type Box[T any] struct {
 	Comp T
-	compId CompId
+	compId componentId
 }
+// Createst the boxed component type
 func C[T any](comp T) Box[T] {
 	return Box[T]{
 		Comp: comp,
 		compId: name(comp),
 	}
 }
-func (c Box[T]) Write(engine *archEngine, archId ArchId, id Id) {
+func (c Box[T]) write(engine *archEngine, archId archetypeId, id Id) {
 	writeArch[T](engine, archId, id, c.Comp)
 }
-func (c Box[T]) Name() CompId {
+func (c Box[T]) id() componentId {
 	if c.compId == invalidComponentId {
 		c.compId = name(c.Comp)
 	}
@@ -36,11 +37,11 @@ func (c Box[T]) Get() T {
 	return c.Comp
 }
 
-// Dynamic Component Registry
+// Dynamic component Registry
 type componentRegistry struct {
-	archCounter ArchId
-	compCounter CompId
-	archSet map[CompId]map[ArchId]bool // Contains the set of ArchIds that have this component
+	archCounter archetypeId
+	compCounter componentId
+	archSet map[componentId]map[archetypeId]bool // Contains the set of archetypeIds that have this component
 	trie *node
 	generation int
 }
@@ -49,7 +50,7 @@ func newComponentRegistry() *componentRegistry {
 	r := &componentRegistry{
 		archCounter: 0,
 		compCounter: 0,
-		archSet: make(map[CompId]map[ArchId]bool),
+		archSet: make(map[componentId]map[archetypeId]bool),
 		generation: 1, // Start at 1 so that anyone with the default int value will always realize they are in the wrong generation
 	}
 	r.trie = newNode(r)
@@ -70,7 +71,7 @@ func (r *componentRegistry) print() {
 	}
 }
 
-func (r *componentRegistry) NewArchId() ArchId {
+func (r *componentRegistry) NewarchetypeId() archetypeId {
 	r.generation++ // Increment the generation
 	archId := r.archCounter
 	r.archCounter++
@@ -79,9 +80,9 @@ func (r *componentRegistry) NewArchId() ArchId {
 
 // 1. Map all components to their component Id
 // 2. Sort all component ids so that we can index the prefix tree
-// 3. Walk the prefix tree to find the ArchId
-func (r *componentRegistry) GetArchId(comp ...Component) ArchId {
-	list := make([]CompId, len(comp))
+// 3. Walk the prefix tree to find the archetypeId
+func (r *componentRegistry) GetarchetypeId(comp ...Component) archetypeId {
+	list := make([]componentId, len(comp))
 	for i := range comp {
 		list[i] = r.Register(comp[i])
 	}
@@ -94,9 +95,9 @@ func (r *componentRegistry) GetArchId(comp ...Component) ArchId {
 		cur = cur.Get(r, idx)
 	}
 
-	// Add this ArchId to every component's archList
+	// Add this archetypeId to every component's archList
 	for _, c := range comp {
-		n := c.Name()
+		n := c.id()
 		r.archSet[n][cur.archId] = true
 	}
 	return cur.archId
@@ -104,31 +105,31 @@ func (r *componentRegistry) GetArchId(comp ...Component) ArchId {
 
 // Registers a component to a component Id and returns the Id
 // If already registered, just return the Id and don't make a new one
-func (r *componentRegistry) Register(comp Component) CompId {
-	compId := comp.Name()
+func (r *componentRegistry) Register(comp Component) componentId {
+	compId := comp.id()
 
 	_, ok := r.archSet[compId]
 	if !ok {
-		r.archSet[compId] = make(map[ArchId]bool)
+		r.archSet[compId] = make(map[archetypeId]bool)
 	}
 
 	return compId
 }
 
 type node struct {
-	archId ArchId
+	archId archetypeId
 	child []*node
 }
 
 func newNode(r *componentRegistry) *node {
 	return &node{
-		archId: r.NewArchId(),
+		archId: r.NewarchetypeId(),
 		child: make([]*node, 0),
 	}
 }
 
-func (n *node) Get(r *componentRegistry, id CompId) *node {
-	if id < CompId(len(n.child)) {
+func (n *node) Get(r *componentRegistry, id componentId) *node {
+	if id < componentId(len(n.child)) {
 		if n.child[id] == nil {
 			n.child[id] = newNode(r)
 		}

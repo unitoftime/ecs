@@ -88,14 +88,14 @@ func physicsTick2(id Id, pos *Position, vel *Velocity) {
 	// TODO - writeback?
 }
 
-func BenchmarkPhysicsEcsMap(b *testing.B) {
-	world := setupPhysics(1e6)
-	b.ResetTimer()
+// func BenchmarkPhysicsEcsMap(b *testing.B) {
+// 	world := setupPhysics(1e6)
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		Map2[Position, Velocity](world, physicsTick)
-	}
-}
+// 	for i := 0; i < b.N; i++ {
+// 		Map2[Position, Velocity](world, physicsTick)
+// 	}
+// }
 
 // func BenchmarkPhysicsEcsCleanMap(b *testing.B) {
 // 	world := setupPhysics(1e6)

@@ -72,11 +72,11 @@ func TestWorldReadWrite(t *testing.T) {
 	compare(t, world.engine.count(position{}, velocity{}), 1)
 	compare(t, world.engine.count(acceleration{}), 0)
 
-	count := 0
-	Map2(world, func(id Id, p *position, v *velocity) {
-		count++
-	})
-	compare(t, count, 1)
+	// count := 0
+	// Map2(world, func(id Id, p *position, v *velocity) {
+	// 	count++
+	// })
+	// compare(t, count, 1)
 
 	// count = 0
 	// view := ViewAll2[position, velocity](world)

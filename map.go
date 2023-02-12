@@ -1,106 +1,73 @@
 package ecs
 
-// func SpecialMap2[A, B any, F func(Id, *A, *B)](world *World, lambda F) {
-// 	view := ViewAll2[A, B](world)
-// 	for view.Ok() {
-// 		id, pos, vel := view.IterChunkClean()
+// // func SpecialMap2[A, B any, F func(Id, *A, *B)](world *World, lambda F) {
+// // 	view := ViewAll2[A, B](world)
+// // 	for view.Ok() {
+// // 		id, pos, vel := view.IterChunkClean()
 
-// 		// mapFuncPhyGen(id, pos, vel, physicsTick)
+// // 		// mapFuncPhyGen(id, pos, vel, physicsTick)
 
-// 		genMap2(id, pos, vel, lambda)
-// 		// for j := range id {
-// 		// 	lambda(id[j], &pos[j], &vel[j])
+// // 		genMap2(id, pos, vel, lambda)
+// // 		// for j := range id {
+// // 		// 	lambda(id[j], &pos[j], &vel[j])
+// // 		// }
+// // 	}
+// // }
+
+// // func SpecialMap2NonGen(world *World, lambda func(Id, *Position, *Velocity)) {
+// // 	view := ViewAll2[Position, Velocity](world)
+// // 	for view.Ok() {
+// // 		id, pos, vel := view.IterChunkClean()
+
+// // 		// mapFuncPhyGen(id, pos, vel, physicsTick)
+
+// // 		for j := range id {
+// // 			lambda(id[j], &pos[j], &vel[j])
+// // 		}
+// // 	}
+// // }
+
+
+// // func Map[A any](world *World, lambda func(id Id, a *A)) {
+// func Map[A any, F func(Id, *A)](world *World, lambda F) {
+// 	var a A
+// 	archIds := world.engine.Filter(a)
+
+// 	// storages := getAllStorages(world, a)
+// 	aStorage := getStorage[A](world.engine)
+
+// 	for _, archId := range archIds {
+// 		aSlice, ok := aStorage.slice[archId]
+// 		if !ok { continue }
+
+// 		lookup, ok := world.engine.lookup[archId]
+// 		if !ok { panic("LookupList is missing!") }
+
+// 		ids := lookup.id
+// 		aComp := aSlice.comp
+// 		// if len(ids) != len(aComp) {
+// 		// 	panic("ERROR - Bounds don't match")
 // 		// }
-// 	}
-// }
-
-// func SpecialMap2NonGen(world *World, lambda func(Id, *Position, *Velocity)) {
-// 	view := ViewAll2[Position, Velocity](world)
-// 	for view.Ok() {
-// 		id, pos, vel := view.IterChunkClean()
-
-// 		// mapFuncPhyGen(id, pos, vel, physicsTick)
-
-// 		for j := range id {
-// 			lambda(id[j], &pos[j], &vel[j])
+// 		for i := range ids {
+// 			if ids[i] == InvalidEntity { continue }
+// 			lambda(ids[i], &aComp[i])
 // 		}
 // 	}
 // }
 
+// // func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
+// func Map2[A, B any, F func(Id,*A,*B)](world *World, lambda F) {
+// 	// This one is faster 360 ms
+// 	// ExecuteSystem2(world, func(query *Query2[A, B]) {
+// 	// 	query.Map(func(ids []Id, a []A, b []B) {
+// 	// 		if len(ids) != len(a) || len(ids) != len(b) { panic("ERR") }
+// 	// 		for i := range ids {
+// 	// 			lambda(ids[i], &a[i], &b[i])
+// 	// 		}
+// 	// 	})
+// 	// })
 
-// func Map[A any](world *World, lambda func(id Id, a *A)) {
-func Map[A any, F func(Id, *A)](world *World, lambda F) {
-	var a A
-	archIds := world.engine.Filter(a)
-
-	// storages := getAllStorages(world, a)
-	aStorage := getStorage[A](world.engine)
-
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
-		if !ok { continue }
-
-		lookup, ok := world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
-
-		ids := lookup.id
-		aComp := aSlice.comp
-		// if len(ids) != len(aComp) {
-		// 	panic("ERROR - Bounds don't match")
-		// }
-		for i := range ids {
-			if ids[i] == InvalidEntity { continue }
-			lambda(ids[i], &aComp[i])
-		}
-	}
-}
-
-// func Map2[A, B any](world *World, lambda func(id Id, a *A, b *B)) {
-func Map2[A, B any, F func(Id,*A,*B)](world *World, lambda F) {
-	// This one is faster 360 ms
-	// ExecuteSystem2(world, func(query *Query2[A, B]) {
-	// 	query.Map(func(ids []Id, a []A, b []B) {
-	// 		if len(ids) != len(a) || len(ids) != len(b) { panic("ERR") }
-	// 		for i := range ids {
-	// 			lambda(ids[i], &a[i], &b[i])
-	// 		}
-	// 	})
-	// })
-
-	// This one is slower 335 ms
-	var a A
-	var b B
-
-	archIds := world.engine.Filter(a, b)
-
-	// storages := getAllStorages(world, a)
-	aStorage := getStorage[A](world.engine)
-	bStorage := getStorage[B](world.engine)
-
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
-		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
-		if !ok { continue }
-
-		lookup, ok := world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
-
-		ids := lookup.id
-		aComp := aSlice.comp
-		bComp := bSlice.comp
-		if len(ids) != len(aComp) || len(ids) != len(bComp) {
-			panic("ERROR - Bounds don't match")
-		}
-		for i := range ids {
-			if ids[i] == InvalidEntity { continue }
-			lambda(ids[i], &aComp[i], &bComp[i])
-		}
-	}
-}
-
-// // This ia a Map2, but if the lambda returns false, we stop looping
-// func SmartMap2[A, B any](world *World, lambda func(id Id, a *A, b *B) bool) {
+// 	// This one is slower 335 ms
 // 	var a A
 // 	var b B
 
@@ -119,145 +86,178 @@ func Map2[A, B any, F func(Id,*A,*B)](world *World, lambda F) {
 // 		lookup, ok := world.engine.lookup[archId]
 // 		if !ok { panic("LookupList is missing!") }
 
-// 		for i, id := range lookup.id {
-// 			if id == InvalidEntity { continue }
-
-// 			success := lambda(id, &aSlice.comp[i], &bSlice.comp[i])
-// 			if !success { return }
+// 		ids := lookup.id
+// 		aComp := aSlice.comp
+// 		bComp := bSlice.comp
+// 		if len(ids) != len(aComp) || len(ids) != len(bComp) {
+// 			panic("ERROR - Bounds don't match")
+// 		}
+// 		for i := range ids {
+// 			if ids[i] == InvalidEntity { continue }
+// 			lambda(ids[i], &aComp[i], &bComp[i])
 // 		}
 // 	}
 // }
 
-func Map3[A, B, C any](world *World, lambda func(id Id, a *A, b *B, c *C)) {
-	var a A
-	var b B
-	var c C
-	archIds := world.engine.Filter(a, b, c)
+// // // This ia a Map2, but if the lambda returns false, we stop looping
+// // func SmartMap2[A, B any](world *World, lambda func(id Id, a *A, b *B) bool) {
+// // 	var a A
+// // 	var b B
 
-	// storages := getAllStorages(world, a)
-	aStorage := getStorage[A](world.engine)
-	bStorage := getStorage[B](world.engine)
-	cStorage := getStorage[C](world.engine)
+// // 	archIds := world.engine.Filter(a, b)
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
-		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
-		if !ok { continue }
-		cSlice, ok := cStorage.slice[archId]
-		if !ok { continue }
+// // 	// storages := getAllStorages(world, a)
+// // 	aStorage := getStorage[A](world.engine)
+// // 	bStorage := getStorage[B](world.engine)
 
-		lookup, ok := world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+// // 	for _, archId := range archIds {
+// // 		aSlice, ok := aStorage.slice[archId]
+// // 		if !ok { continue }
+// // 		bSlice, ok := bStorage.slice[archId]
+// // 		if !ok { continue }
 
-		ids := lookup.id
-		aComp := aSlice.comp
-		bComp := bSlice.comp
-		cComp := cSlice.comp
-		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp){
-			panic("ERROR - Bounds don't match")
-		}
-		for i := range ids {
-			if ids[i] == InvalidEntity { continue }
-			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i])
-		}
-	}
-}
+// // 		lookup, ok := world.engine.lookup[archId]
+// // 		if !ok { panic("LookupList is missing!") }
 
-func Map4[A, B, C, D any](world *World, lambda func(id Id, a *A, b *B, c *C, d *D)) {
-	var a A
-	var b B
-	var c C
-	var d D
-	archIds := world.engine.Filter(a, b, c, d)
+// // 		for i, id := range lookup.id {
+// // 			if id == InvalidEntity { continue }
 
-	// storages := getAllStorages(world, a)
-	aStorage := getStorage[A](world.engine)
-	bStorage := getStorage[B](world.engine)
-	cStorage := getStorage[C](world.engine)
-	dStorage := getStorage[D](world.engine)
+// // 			success := lambda(id, &aSlice.comp[i], &bSlice.comp[i])
+// // 			if !success { return }
+// // 		}
+// // 	}
+// // }
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
-		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
-		if !ok { continue }
-		cSlice, ok := cStorage.slice[archId]
-		if !ok { continue }
-		dSlice, ok := dStorage.slice[archId]
-		if !ok { continue }
+// func Map3[A, B, C any](world *World, lambda func(id Id, a *A, b *B, c *C)) {
+// 	var a A
+// 	var b B
+// 	var c C
+// 	archIds := world.engine.Filter(a, b, c)
 
-		lookup, ok := world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+// 	// storages := getAllStorages(world, a)
+// 	aStorage := getStorage[A](world.engine)
+// 	bStorage := getStorage[B](world.engine)
+// 	cStorage := getStorage[C](world.engine)
 
-		ids := lookup.id
-		aComp := aSlice.comp
-		bComp := bSlice.comp
-		cComp := cSlice.comp
-		dComp := dSlice.comp
-		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp) || len(ids) != len(dComp){
-			panic("ERROR - Bounds don't match")
-		}
-		for i := range ids {
-			if ids[i] == InvalidEntity { continue }
-			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i], &dComp[i])
-		}
-		// for i, id := range lookup.id {
-		// 	if id == InvalidEntity { continue }
-		// 	lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i], &dSlice.comp[i])
-		// }
-	}
-}
+// 	for _, archId := range archIds {
+// 		aSlice, ok := aStorage.slice[archId]
+// 		if !ok { continue }
+// 		bSlice, ok := bStorage.slice[archId]
+// 		if !ok { continue }
+// 		cSlice, ok := cStorage.slice[archId]
+// 		if !ok { continue }
 
-func Map5[A, B, C, D, E any](world *World, lambda func(id Id, a *A, b *B, c *C, d *D, e *E)) {
-	var a A
-	var b B
-	var c C
-	var d D
-	var e E
-	archIds := world.engine.Filter(a, b, c, d, e)
+// 		lookup, ok := world.engine.lookup[archId]
+// 		if !ok { panic("LookupList is missing!") }
 
-	// storages := getAllStorages(world, a)
-	aStorage := getStorage[A](world.engine)
-	bStorage := getStorage[B](world.engine)
-	cStorage := getStorage[C](world.engine)
-	dStorage := getStorage[D](world.engine)
-	eStorage := getStorage[E](world.engine)
+// 		ids := lookup.id
+// 		aComp := aSlice.comp
+// 		bComp := bSlice.comp
+// 		cComp := cSlice.comp
+// 		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp){
+// 			panic("ERROR - Bounds don't match")
+// 		}
+// 		for i := range ids {
+// 			if ids[i] == InvalidEntity { continue }
+// 			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i])
+// 		}
+// 	}
+// }
 
-	for _, archId := range archIds {
-		aSlice, ok := aStorage.slice[archId]
-		if !ok { continue }
-		bSlice, ok := bStorage.slice[archId]
-		if !ok { continue }
-		cSlice, ok := cStorage.slice[archId]
-		if !ok { continue }
-		dSlice, ok := dStorage.slice[archId]
-		if !ok { continue }
-		eSlice, ok := eStorage.slice[archId]
-		if !ok { continue }
+// func Map4[A, B, C, D any](world *World, lambda func(id Id, a *A, b *B, c *C, d *D)) {
+// 	var a A
+// 	var b B
+// 	var c C
+// 	var d D
+// 	archIds := world.engine.Filter(a, b, c, d)
 
-		lookup, ok := world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+// 	// storages := getAllStorages(world, a)
+// 	aStorage := getStorage[A](world.engine)
+// 	bStorage := getStorage[B](world.engine)
+// 	cStorage := getStorage[C](world.engine)
+// 	dStorage := getStorage[D](world.engine)
 
-		ids := lookup.id
-		aComp := aSlice.comp
-		bComp := bSlice.comp
-		cComp := cSlice.comp
-		dComp := dSlice.comp
-		eComp := eSlice.comp
-		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp) || len(ids) != len(dComp) || len(ids) != len(eComp){
-			panic("ERROR - Bounds don't match")
-		}
-		for i := range ids {
-			if ids[i] == InvalidEntity { continue }
-			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i], &dComp[i], &eComp[i])
-		}
-		// for i, id := range lookup.id {
-		// 	if id == InvalidEntity { continue }
-		// 	lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i], &dSlice.comp[i])
-		// }
-	}
-}
+// 	for _, archId := range archIds {
+// 		aSlice, ok := aStorage.slice[archId]
+// 		if !ok { continue }
+// 		bSlice, ok := bStorage.slice[archId]
+// 		if !ok { continue }
+// 		cSlice, ok := cStorage.slice[archId]
+// 		if !ok { continue }
+// 		dSlice, ok := dStorage.slice[archId]
+// 		if !ok { continue }
+
+// 		lookup, ok := world.engine.lookup[archId]
+// 		if !ok { panic("LookupList is missing!") }
+
+// 		ids := lookup.id
+// 		aComp := aSlice.comp
+// 		bComp := bSlice.comp
+// 		cComp := cSlice.comp
+// 		dComp := dSlice.comp
+// 		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp) || len(ids) != len(dComp){
+// 			panic("ERROR - Bounds don't match")
+// 		}
+// 		for i := range ids {
+// 			if ids[i] == InvalidEntity { continue }
+// 			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i], &dComp[i])
+// 		}
+// 		// for i, id := range lookup.id {
+// 		// 	if id == InvalidEntity { continue }
+// 		// 	lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i], &dSlice.comp[i])
+// 		// }
+// 	}
+// }
+
+// func Map5[A, B, C, D, E any](world *World, lambda func(id Id, a *A, b *B, c *C, d *D, e *E)) {
+// 	var a A
+// 	var b B
+// 	var c C
+// 	var d D
+// 	var e E
+// 	archIds := world.engine.Filter(a, b, c, d, e)
+
+// 	// storages := getAllStorages(world, a)
+// 	aStorage := getStorage[A](world.engine)
+// 	bStorage := getStorage[B](world.engine)
+// 	cStorage := getStorage[C](world.engine)
+// 	dStorage := getStorage[D](world.engine)
+// 	eStorage := getStorage[E](world.engine)
+
+// 	for _, archId := range archIds {
+// 		aSlice, ok := aStorage.slice[archId]
+// 		if !ok { continue }
+// 		bSlice, ok := bStorage.slice[archId]
+// 		if !ok { continue }
+// 		cSlice, ok := cStorage.slice[archId]
+// 		if !ok { continue }
+// 		dSlice, ok := dStorage.slice[archId]
+// 		if !ok { continue }
+// 		eSlice, ok := eStorage.slice[archId]
+// 		if !ok { continue }
+
+// 		lookup, ok := world.engine.lookup[archId]
+// 		if !ok { panic("LookupList is missing!") }
+
+// 		ids := lookup.id
+// 		aComp := aSlice.comp
+// 		bComp := bSlice.comp
+// 		cComp := cSlice.comp
+// 		dComp := dSlice.comp
+// 		eComp := eSlice.comp
+// 		if len(ids) != len(aComp) || len(ids) != len(bComp) || len(ids) != len(cComp) || len(ids) != len(dComp) || len(ids) != len(eComp){
+// 			panic("ERROR - Bounds don't match")
+// 		}
+// 		for i := range ids {
+// 			if ids[i] == InvalidEntity { continue }
+// 			lambda(ids[i], &aComp[i], &bComp[i], &cComp[i], &dComp[i], &eComp[i])
+// 		}
+// 		// for i, id := range lookup.id {
+// 		// 	if id == InvalidEntity { continue }
+// 		// 	lambda(lookup.id[i], &aSlice.comp[i], &bSlice.comp[i], &cSlice.comp[i], &dSlice.comp[i])
+// 		// }
+// 	}
+// }
 
 // ////////////////////////////////////////////////////////////////////////////////
 // // type SliceReader[T any] interface {

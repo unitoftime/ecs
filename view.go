@@ -2,18 +2,6 @@ package ecs
 
 // import "fmt"
 
-// Ideas:
-// view := View2[Position, ecs.Maybe[Velocity]](world)
-// 1. Track pointer to slice for each combination of filter parameters
-// 2. User builds views with whatever they want or dont want
-// 3. todo - need some way to have optionals, or to get whatever fields they want. I guess maybe they'll call map or iterate or something and when they call that they can specify which storages they want to pull out?
-
-// type ArchHandle struct {
-// 	archId ArchId
-// 	lookup *Lookup
-// 	compStorage []Storage
-// }
-
 // type without struct {
 // 	fields []any
 // }
@@ -35,50 +23,126 @@ package ecs
 // Optional - Lets you view even if component is missing (func will return nil)
 // With - Lets you add additional components that must be present
 // Without - Lets you add additional components that must not be present
+type Filter interface {
+	Filter([]componentId) []componentId
+}
+
+// type without struct {
+// 	comps []any
+// }
+
+// TODO - figure out how to implement
+// // Creates a filter to ensure that entities will not have the specified components
+// func Without(comps ...any) without {
+// 	return without{
+// 		comps: comps,
+// 	}
+// }
+
+type with struct {
+	comps []componentId
+}
+
+// Creates a filter to ensure that entities have the specified components
+func With(comps ...any) with {
+	ids := make([]componentId, len(comps))
+	for i := range comps {
+		ids[i] = name(comps[i])
+	}
+	return with{
+		comps: ids,
+	}
+}
+
+func (w with) Filter(list []componentId) []componentId {
+	return append(list, w.comps...)
+}
+
+type optional struct {
+	comps []componentId
+}
+
+// Creates a filter to make the query still iterate even if a specific component is missing, in which case you'll get nil if the component isn't there when accessed
+func Optional(comps ...any) optional {
+	ids := make([]componentId, len(comps))
+	for i := range comps {
+		ids[i] = name(comps[i])
+	}
+
+	return optional{
+		comps: ids,
+	}
+}
+
+func (f optional) Filter(list []componentId) []componentId {
+	for i := 0; i < len(list); i++ {
+		for j := range f.comps {
+			if list[i] == f.comps[j] {
+				// If we have a match, we want to remove it from the list.
+				list[i] = list[len(list)-1]
+				list = list[:len(list)-1]
+
+				// Because we just moved the last element to index i, we need to go back to process that element
+				i--
+				break
+			}
+		}
+	}
+	return list
+}
 
 type filterList struct {
-	filters []any
+	comps []componentId
 	cachedArchetypeGeneration int // Denotes the world's archetype generation that was used to create the list of archIds. If the world has a new generation, we should probably regenerate
-	archIds []ArchId
+	archIds []archetypeId
 }
-func newFilterList(filters []any) filterList {
+func newFilterList(comps []componentId, filters ...Filter) filterList {
+	for _, f := range filters {
+		comps = f.Filter(comps)
+	}
+
 	return filterList{
-		filters: filters,
-		archIds: make([]ArchId, 0),
+		comps: comps,
+		archIds: make([]archetypeId, 0),
 	}
 }
 func (f *filterList) regenerate(world *World) {
 	if world.engine.generation() != f.cachedArchetypeGeneration {
-		f.archIds = world.engine.FilterList(f.archIds, f.filters)
+		f.archIds = world.engine.FilterList(f.archIds, f.comps)
 		f.cachedArchetypeGeneration = world.engine.generation()
 	}
 }
 
+// Represents a view of data in a specific world. Provides access to the components specified in the generic block
 type View1[A any] struct {
 	world *World
 	filter filterList
 	storageA componentSliceStorage[A]
 }
 
-func Query1[A any](world *World, filters ...any) *View1[A] {
+// Creates a View for the specified world with the specified component filters.
+func Query1[A any](world *World, filters ...Filter) *View1[A] {
 	storageA := getStorage[A](world.engine)
 
 	var a A
-	filters = append(filters, a)
-	filter := filterList{
-		filters: filters,
+	comps := []componentId{
+		name(a),
 	}
-
-	filter.regenerate(world)
+	filterList := newFilterList(comps, filters...)
+	filterList.regenerate(world)
 
 	v := &View1[A]{
 		world: world,
-		filter: filter,
+		filter: filterList,
 		storageA: storageA,
 	}
 	return v
 }
 
+// Reads a pointer to the underlying component at the specified id.
+// Read will return even if the specified id doesn't match the filter list
+// Read will return the value if it exists, else returns nil.
+// If you execute any ecs.Write(...) or ecs.Delete(...) this pointer may become invalid.
 func (v *View1[A]) Read(id Id) (*A) {
 	if id == InvalidEntity { return nil }
 
@@ -96,6 +160,7 @@ func (v *View1[A]) Read(id Id) (*A) {
 	return &aSlice.comp[index]
 }
 
+// Maps the lambda function across every entity which matched the specified filters.
 func (v *View1[A]) MapId(lambda func(id Id, a *A)) {
 	v.filter.regenerate(v.world)
 	for _, archId := range v.filter.archIds {
@@ -121,6 +186,7 @@ func (v *View1[A]) MapId(lambda func(id Id, a *A)) {
 // - View 2
 // --------------------------------------------------------------------------------
 
+// Represents a view of data in a specific world. Provides access to the components specified in the generic block
 type View2[A,B any] struct {
 	world *World
 	filter filterList
@@ -128,29 +194,33 @@ type View2[A,B any] struct {
 	storageB componentSliceStorage[B]
 }
 
-func Query2[A,B any](world *World, filters ...any) *View2[A,B] {
+// Creates a View for the specified world with the specified component filters.
+func Query2[A,B any](world *World, filters ...Filter) *View2[A,B] {
 	storageA := getStorage[A](world.engine)
 	storageB := getStorage[B](world.engine)
 
 	var a A
 	var b B
-	filters = append(filters, a, b)
-	filter := filterList{
-		filters: filters,
+	comps := []componentId{
+		name(a),
+		name(b),
 	}
-
-	filter.regenerate(world)
+	filterList := newFilterList(comps, filters...)
+	filterList.regenerate(world)
 
 	v := &View2[A,B]{
 		world: world,
-		filter: filter,
+		filter: filterList,
 		storageA: storageA,
 		storageB: storageB,
 	}
 	return v
 }
 
-// Reads always try to read as many components as possible regardless of if the component exists or not
+// Reads a pointer to the underlying component at the specified id.
+// Read will return even if the specified id doesn't match the filter list
+// Read will return the value if it exists, else returns nil.
+// If you execute any ecs.Write(...) or ecs.Delete(...) this pointer may become invalid.
 func (v *View2[A,B]) Read(id Id) (*A, *B) {
 	if id == InvalidEntity { return nil, nil }
 
@@ -179,6 +249,7 @@ func (v *View2[A,B]) Read(id Id) (*A, *B) {
 	// return &aSlice.comp[index], &bSlice.comp[index]
 }
 
+// Maps the lambda function across every entity which matched the specified filters.
 func (v *View2[A,B]) MapId(lambda func(id Id, a *A, b *B)) {
 	v.filter.regenerate(v.world)
 
@@ -204,6 +275,7 @@ func (v *View2[A,B]) MapId(lambda func(id Id, a *A, b *B)) {
 	}
 }
 
+// Deprecated: This API is a tentative alternative way to map
 func (v *View2[A,B]) MapSlices(lambda func(id []Id, a []A, b []B)) {
 	v.filter.regenerate(v.world)
 
@@ -233,6 +305,7 @@ func (v *View2[A,B]) MapSlices(lambda func(id []Id, a []A, b []B)) {
 // - View 3
 // --------------------------------------------------------------------------------
 
+// Represents a view of data in a specific world. Provides access to the components specified in the generic block
 type View3[A,B,C any] struct {
 	world *World
 	filter filterList
@@ -241,7 +314,8 @@ type View3[A,B,C any] struct {
 	storageC componentSliceStorage[C]
 }
 
-func Query3[A,B,C any](world *World, filters ...any) *View3[A,B,C] {
+// Creates a View for the specified world with the specified component filters.
+func Query3[A,B,C any](world *World, filters ...Filter) *View3[A,B,C] {
 	storageA := getStorage[A](world.engine)
 	storageB := getStorage[B](world.engine)
 	storageC := getStorage[C](world.engine)
@@ -249,16 +323,18 @@ func Query3[A,B,C any](world *World, filters ...any) *View3[A,B,C] {
 	var a A
 	var b B
 	var c C
-	filters = append(filters, a, b, c)
-	filter := filterList{
-		filters: filters,
-	}
 
-	filter.regenerate(world)
+	comps := []componentId{
+		name(a),
+		name(b),
+		name(c),
+	}
+	filterList := newFilterList(comps, filters...)
+	filterList.regenerate(world)
 
 	v := &View3[A,B,C]{
 		world: world,
-		filter: filter,
+		filter: filterList,
 		storageA: storageA,
 		storageB: storageB,
 		storageC: storageC,
@@ -266,6 +342,7 @@ func Query3[A,B,C any](world *World, filters ...any) *View3[A,B,C] {
 	return v
 }
 
+// Maps the lambda function across every entity which matched the specified filters.
 func (v *View3[A,B,C]) MapId(lambda func(id Id, a *A, b *B, c *C)) {
 	v.filter.regenerate(v.world)
 
@@ -294,7 +371,10 @@ func (v *View3[A,B,C]) MapId(lambda func(id Id, a *A, b *B, c *C)) {
 	}
 }
 
-// Reads always try to read as many components as possible regardless of if the component exists or not
+// Reads a pointer to the underlying component at the specified id.
+// Read will return even if the specified id doesn't match the filter list
+// Read will return the value if it exists, else returns nil.
+// If you execute any ecs.Write(...) or ecs.Delete(...) this pointer may become invalid.
 func (v *View3[A,B,C]) Read(id Id) (*A, *B, *C) {
 	if id == InvalidEntity { return nil, nil, nil }
 
@@ -326,6 +406,7 @@ func (v *View3[A,B,C]) Read(id Id) (*A, *B, *C) {
 	return retA, retB, retC
 }
 
+// Deprecated: This API is a tentative alternative way to map
 func (v *View3[A,B,C]) MapSlices(lambda func(id []Id, a []A, b []B, c []C)) {
 	v.filter.regenerate(v.world)
 
@@ -359,6 +440,7 @@ func (v *View3[A,B,C]) MapSlices(lambda func(id []Id, a []A, b []B, c []C)) {
 // - View 4
 // --------------------------------------------------------------------------------
 
+// Represents a view of data in a specific world. Provides access to the components specified in the generic block
 type View4[A,B,C,D any] struct {
 	world *World
 	filter filterList
@@ -368,7 +450,8 @@ type View4[A,B,C,D any] struct {
 	storageD componentSliceStorage[D]
 }
 
-func Query4[A,B,C,D any](world *World, filters ...any) *View4[A,B,C,D] {
+// Creates a View for the specified world with the specified component filters.
+func Query4[A,B,C,D any](world *World, filters ...Filter) *View4[A,B,C,D] {
 	storageA := getStorage[A](world.engine)
 	storageB := getStorage[B](world.engine)
 	storageC := getStorage[C](world.engine)
@@ -378,16 +461,18 @@ func Query4[A,B,C,D any](world *World, filters ...any) *View4[A,B,C,D] {
 	var b B
 	var c C
 	var d D
-	filters = append(filters, a, b, c, d)
-	filter := filterList{
-		filters: filters,
+	comps := []componentId{
+		name(a),
+		name(b),
+		name(c),
+		name(d),
 	}
-
-	filter.regenerate(world)
+	filterList := newFilterList(comps, filters...)
+	filterList.regenerate(world)
 
 	v := &View4[A,B,C,D]{
 		world: world,
-		filter: filter,
+		filter: filterList,
 		storageA: storageA,
 		storageB: storageB,
 		storageC: storageC,
@@ -396,6 +481,7 @@ func Query4[A,B,C,D any](world *World, filters ...any) *View4[A,B,C,D] {
 	return v
 }
 
+// Maps the lambda function across every entity which matched the specified filters.
 func (v *View4[A,B,C,D]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D)) {
 	v.filter.regenerate(v.world)
 
@@ -427,7 +513,10 @@ func (v *View4[A,B,C,D]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D)) {
 	}
 }
 
-// Reads always try to read as many components as possible regardless of if the component exists or not
+// Reads a pointer to the underlying component at the specified id.
+// Read will return even if the specified id doesn't match the filter list
+// Read will return the value if it exists, else returns nil.
+// If you execute any ecs.Write(...) or ecs.Delete(...) this pointer may become invalid.
 func (v *View4[A,B,C,D]) Read(id Id) (*A, *B, *C, *D) {
 	if id == InvalidEntity { return nil, nil, nil, nil }
 
@@ -468,6 +557,7 @@ func (v *View4[A,B,C,D]) Read(id Id) (*A, *B, *C, *D) {
 // - View 5
 // --------------------------------------------------------------------------------
 
+// Represents a view of data in a specific world. Provides access to the components specified in the generic block
 type View5[A,B,C,D,E any] struct {
 	world *World
 	filter filterList
@@ -478,7 +568,8 @@ type View5[A,B,C,D,E any] struct {
 	storageE componentSliceStorage[E]
 }
 
-func Query5[A,B,C,D,E any](world *World, filters ...any) *View5[A,B,C,D,E] {
+// Creates a View for the specified world with the specified component filters.
+func Query5[A,B,C,D,E any](world *World, filters ...Filter) *View5[A,B,C,D,E] {
 	storageA := getStorage[A](world.engine)
 	storageB := getStorage[B](world.engine)
 	storageC := getStorage[C](world.engine)
@@ -490,16 +581,19 @@ func Query5[A,B,C,D,E any](world *World, filters ...any) *View5[A,B,C,D,E] {
 	var c C
 	var d D
 	var e E
-	filters = append(filters, a, b, c, d, e)
-	filter := filterList{
-		filters: filters,
+	comps := []componentId{
+		name(a),
+		name(b),
+		name(c),
+		name(d),
+		name(e),
 	}
-
-	filter.regenerate(world)
+	filterList := newFilterList(comps, filters...)
+	filterList.regenerate(world)
 
 	v := &View5[A,B,C,D,E]{
 		world: world,
-		filter: filter,
+		filter: filterList,
 		storageA: storageA,
 		storageB: storageB,
 		storageC: storageC,
@@ -509,20 +603,21 @@ func Query5[A,B,C,D,E any](world *World, filters ...any) *View5[A,B,C,D,E] {
 	return v
 }
 
+// Maps the lambda function across every entity which matched the specified filters.
 func (v *View5[A,B,C,D,E]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E)) {
 	v.filter.regenerate(v.world)
 
 	for _, archId := range v.filter.archIds {
 		aSlice, ok := v.storageA.slice[archId]
-		if !ok { continue }
+		// if !ok { continue }
 		bSlice, ok := v.storageB.slice[archId]
-		if !ok { continue }
+		// if !ok { continue }
 		cSlice, ok := v.storageC.slice[archId]
-		if !ok { continue }
+		// if !ok { continue }
 		dSlice, ok := v.storageD.slice[archId]
-		if !ok { continue }
+		// if !ok { continue }
 		eSlice, ok := v.storageE.slice[archId]
-		if !ok { continue }
+		// if !ok { continue }
 
 		lookup, ok := v.world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
@@ -543,7 +638,10 @@ func (v *View5[A,B,C,D,E]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E
 	}
 }
 
-// Reads always try to read as many components as possible regardless of if the component exists or not
+// Reads a pointer to the underlying component at the specified id.
+// Read will return even if the specified id doesn't match the filter list
+// Read will return the value if it exists, else returns nil.
+// If you execute any ecs.Write(...) or ecs.Delete(...) this pointer may become invalid.
 func (v *View5[A,B,C,D,E]) Read(id Id) (*A, *B, *C, *D, *E) {
 	if id == InvalidEntity { return nil, nil, nil, nil, nil }
 
@@ -589,6 +687,7 @@ func (v *View5[A,B,C,D,E]) Read(id Id) (*A, *B, *C, *D, *E) {
 // - View 6
 // --------------------------------------------------------------------------------
 
+// Represents a view of data in a specific world. Provides access to the components specified in the generic block
 type View6[A,B,C,D,E,F any] struct {
 	world *World
 	filter filterList
@@ -600,7 +699,8 @@ type View6[A,B,C,D,E,F any] struct {
 	storageF componentSliceStorage[F]
 }
 
-func Query6[A,B,C,D,E,F any](world *World, filters ...any) *View6[A,B,C,D,E,F] {
+// Creates a View for the specified world with the specified component filters.
+func Query6[A,B,C,D,E,F any](world *World, filters ...Filter) *View6[A,B,C,D,E,F] {
 	storageA := getStorage[A](world.engine)
 	storageB := getStorage[B](world.engine)
 	storageC := getStorage[C](world.engine)
@@ -614,16 +714,20 @@ func Query6[A,B,C,D,E,F any](world *World, filters ...any) *View6[A,B,C,D,E,F] {
 	var d D
 	var e E
 	var f F
-	filters = append(filters, a, b, c, d, e, f)
-	filter := filterList{
-		filters: filters,
+	comps := []componentId{
+		name(a),
+		name(b),
+		name(c),
+		name(d),
+		name(e),
+		name(f),
 	}
-
-	filter.regenerate(world)
+	filterList := newFilterList(comps, filters...)
+	filterList.regenerate(world)
 
 	v := &View6[A,B,C,D,E,F]{
 		world: world,
-		filter: filter,
+		filter: filterList,
 		storageA: storageA,
 		storageB: storageB,
 		storageC: storageC,
@@ -634,6 +738,7 @@ func Query6[A,B,C,D,E,F any](world *World, filters ...any) *View6[A,B,C,D,E,F] {
 	return v
 }
 
+// Maps the lambda function across every entity which matched the specified filters.
 func (v *View6[A,B,C,D,E,F]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F)) {
 	v.filter.regenerate(v.world)
 
@@ -671,7 +776,10 @@ func (v *View6[A,B,C,D,E,F]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e 
 	}
 }
 
-// Reads always try to read as many components as possible regardless of if the component exists or not
+// Reads a pointer to the underlying component at the specified id.
+// Read will return even if the specified id doesn't match the filter list
+// Read will return the value if it exists, else returns nil.
+// If you execute any ecs.Write(...) or ecs.Delete(...) this pointer may become invalid.
 func (v *View6[A,B,C,D,E,F]) Read(id Id) (*A, *B, *C, *D, *E, *F) {
 	if id == InvalidEntity { return nil, nil, nil, nil, nil, nil }
 

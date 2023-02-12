@@ -5,14 +5,16 @@ import (
 	"reflect"
 )
 
+// This is the identifier for entities in the world
 type Id uint32
-type ArchId uint32
 
-var registeredComponents = make(map[reflect.Type]CompId)
-var invalidComponentId CompId = 0
-var componentRegistryCounter CompId = 1
+type archetypeId uint32
 
-func name(t any) CompId {
+var registeredComponents = make(map[reflect.Type]componentId)
+var invalidComponentId componentId = 0
+var componentRegistryCounter componentId = 1
+
+func name(t any) componentId {
 	typeof := reflect.TypeOf(t)
 	compId, ok := registeredComponents[typeof]
 	if !ok {
@@ -46,16 +48,16 @@ type lookupList struct {
 }
 
 type storage interface {
-	ReadToEntity(*Entity, ArchId, int) bool
-	Delete(ArchId, int)
+	ReadToEntity(*Entity, archetypeId, int) bool
+	Delete(archetypeId, int)
 	print(int)
 }
 
 type componentSliceStorage[T any] struct {
-	slice map[ArchId]*componentSlice[T]
+	slice map[archetypeId]*componentSlice[T]
 }
 
-func (ss componentSliceStorage[T]) ReadToEntity(entity *Entity, archId ArchId, index int) bool {
+func (ss componentSliceStorage[T]) ReadToEntity(entity *Entity, archId archetypeId, index int) bool {
 	cSlice, ok := ss.slice[archId]
 	if !ok { return false }
 	entity.Add(C(cSlice.comp[index]))
@@ -64,7 +66,7 @@ func (ss componentSliceStorage[T]) ReadToEntity(entity *Entity, archId ArchId, i
 
 // Delete is somewhat special because it deletes the index of the archId for the componentSlice
 // but then plugs the hole by pushing the last element of the componentSlice into index
-func (ss componentSliceStorage[T]) Delete(archId ArchId, index int) {
+func (ss componentSliceStorage[T]) Delete(archId archetypeId, index int) {
 	cSlice, ok := ss.slice[archId]
 	if !ok { return }
 
@@ -81,17 +83,17 @@ func (s componentSliceStorage[T]) print(amount int) {
 
 // Provides generic storage for all archetypes
 type archEngine struct {
-	lookup map[ArchId]*lookupList
+	lookup map[archetypeId]*lookupList
 
-	compSliceStorage map[CompId]storage
+	compSliceStorage map[componentId]storage
 
 	dcr *componentRegistry
 }
 
 func newArchEngine() *archEngine {
 	return &archEngine{
-		lookup: make(map[ArchId]*lookupList),
-		compSliceStorage: make(map[CompId]storage),
+		lookup: make(map[archetypeId]*lookupList),
+		compSliceStorage: make(map[componentId]storage),
 		dcr: newComponentRegistry(),
 	}
 }
@@ -130,19 +132,18 @@ func (e *archEngine) count(anything ...any) int {
 	return total
 }
 
-func (e *archEngine) GetArchId(comp ...Component) ArchId {
-	return e.dcr.GetArchId(comp...)
+func (e *archEngine) GetarchetypeId(comp ...Component) archetypeId {
+	return e.dcr.GetarchetypeId(comp...)
 }
 
 // TODO - using this makes things not thread safe
 // TODO - map might be slower than just having an array. I could probably do a big bitmask and then just do a logical OR
-var filterLists = make([]map[ArchId]bool, 0)
-func (e *archEngine) FilterList(archIds []ArchId, comp []any) []ArchId {
+var filterLists = make([]map[archetypeId]bool, 0)
+func (e *archEngine) FilterList(archIds []archetypeId, comp []componentId) []archetypeId {
 	filterLists = filterLists[:0]
 
-	for i := range comp {
-		n := name(comp[i])
-		filterLists = append(filterLists, e.dcr.archSet[n])
+	for _, compId := range comp {
+		filterLists = append(filterLists, e.dcr.archSet[compId])
 	}
 
 	archIds = archIds[:0]
@@ -164,13 +165,13 @@ func (e *archEngine) FilterList(archIds []ArchId, comp []any) []ArchId {
 }
 
 // TODO!!! - dump this for FilterList
-// Returns the list of ArchIds that contain all components
+// Returns the list of archetypeIds that contain all components
 // TODO - this can be optimized
-// var filterLists = make([]map[ArchId]bool, 0)
-// // var returnedArchIds = make([][]ArchId, 1024) // TODO!!!! - this means that at max you can nest 1024 map functions
-// // var currentIndexForReturnedArchIds = 0
-// var returnedArchIds = make([]ArchId, 1024) // TODO!!! - this means you cant nest map functions
-func (e *archEngine) Filter(comp ...any) []ArchId {
+// var filterLists = make([]map[archetypeId]bool, 0)
+// // var returnedarchetypeIds = make([][]archetypeId, 1024) // TODO!!!! - this means that at max you can nest 1024 map functions
+// // var currentIndexForReturnedarchetypeIds = 0
+// var returnedarchetypeIds = make([]archetypeId, 1024) // TODO!!! - this means you cant nest map functions
+func (e *archEngine) Filter(comp ...any) []archetypeId {
 	// filterLists = filterLists[:0]
 
 	// for i := range comp {
@@ -178,8 +179,8 @@ func (e *archEngine) Filter(comp ...any) []ArchId {
 	// 	filterLists = append(filterLists, e.dcr.archSet[n])
 	// }
 
-	// // archIds := make([]ArchId, 0)
-	// archIds := returnedArchIds[:0]
+	// // archIds := make([]archetypeId, 0)
+	// archIds := returnedarchetypeIds[:0]
 	// for archId := range filterLists[0] {
 	// 	missing := false
 	// 	for i := range filterLists {
@@ -196,13 +197,13 @@ func (e *archEngine) Filter(comp ...any) []ArchId {
 
 	// return archIds
 
-	lists := make([]map[ArchId]bool, 0)
+	lists := make([]map[archetypeId]bool, 0)
 	for i := range comp {
 		n := name(comp[i])
 		lists = append(lists, e.dcr.archSet[n])
 	}
 
-	archIds := make([]ArchId, 0)
+	archIds := make([]archetypeId, 0)
 	for archId := range lists[0] {
 		missing := false
 		for i := range lists {
@@ -228,7 +229,7 @@ func getStorage[T any](e *archEngine) componentSliceStorage[T] {
 	if !ok {
 		// TODO - have write call this spot
 		ss = componentSliceStorage[T]{
-			slice: make(map[ArchId]*componentSlice[T]),
+			slice: make(map[archetypeId]*componentSlice[T]),
 		}
 		e.compSliceStorage[n] = ss
 	}
@@ -237,7 +238,7 @@ func getStorage[T any](e *archEngine) componentSliceStorage[T] {
 	return storage
 }
 
-func writeArch[T any](e *archEngine, archId ArchId, id Id, val T) {
+func writeArch[T any](e *archEngine, archId archetypeId, id Id, val T) {
 	lookup, ok := e.lookup[archId]
 	if !ok {
 		lookup = &lookupList{
@@ -276,7 +277,7 @@ func writeArch[T any](e *archEngine, archId ArchId, id Id, val T) {
 	cSlice.Write(index, val)
 }
 
-func readArch[T any](e *archEngine, archId ArchId, id Id) (T, bool) {
+func readArch[T any](e *archEngine, archId archetypeId, id Id) (T, bool) {
 	var ret T
 	lookup, ok := e.lookup[archId]
 	if !ok {
@@ -310,7 +311,7 @@ func readArch[T any](e *archEngine, archId ArchId, id Id) (T, bool) {
 	return cSlice.comp[index], true
 }
 
-func readPtrArch[T any](e *archEngine, archId ArchId, id Id) *T {
+func readPtrArch[T any](e *archEngine, archId archetypeId, id Id) *T {
 	var ret T
 	lookup, ok := e.lookup[archId]
 	if !ok {
@@ -344,9 +345,9 @@ func readPtrArch[T any](e *archEngine, archId ArchId, id Id) *T {
 	return &cSlice.comp[index]
 }
 
-// TODO - Think: Is it better to read everything then push it into the new ArchId? Or better to migrate everything in place?
-// Returns the ArchId of where the entity ends up
-func (e *archEngine) rewriteArch(archId ArchId, id Id, comp ...Component) ArchId {
+// TODO - Think: Is it better to read everything then push it into the new archetypeId? Or better to migrate everything in place?
+// Returns the archetypeId of where the entity ends up
+func (e *archEngine) rewriteArch(archId archetypeId, id Id, comp ...Component) archetypeId {
 	// fmt.Println("RewriteArch")
 	ent := e.ReadEntity(archId, id)
 
@@ -355,13 +356,13 @@ func (e *archEngine) rewriteArch(archId ArchId, id Id, comp ...Component) ArchId
 
 	ent.Add(comp...)
 	combinedComps := ent.Comps()
-	newArchId := e.GetArchId(combinedComps...)
+	newarchetypeId := e.GetarchetypeId(combinedComps...)
 
-	// fmt.Println("archId == newArchId", archId, newArchId)
-	if archId == newArchId {
+	// fmt.Println("archId == newarchetypeId", archId, newarchetypeId)
+	if archId == newarchetypeId {
 		// Case 1: Archetype stays the same
 		for i := range comp {
-			comp[i].Write(e, archId, id)
+			comp[i].write(e, archId, id)
 		}
 	} else {
 		// Case 2: Archetype changes
@@ -371,19 +372,19 @@ func (e *archEngine) rewriteArch(archId ArchId, id Id, comp ...Component) ArchId
 
 		// 2: Write current entity to world
 		for _, c := range ent.comp {
-			c.Write(e, newArchId, id)
+			c.write(e, newarchetypeId, id)
 		}
 		// 3: Write new components to world
 		for _, c := range comp {
-			c.Write(e, newArchId, id)
+			c.write(e, newarchetypeId, id)
 		}
 
 		// 4: TODO - Write the new lookupList???
 	}
-	return newArchId
+	return newarchetypeId
 }
 
-func (e *archEngine) ReadEntity(archId ArchId, id Id) *Entity {
+func (e *archEngine) ReadEntity(archId archetypeId, id Id) *Entity {
 	lookup, ok := e.lookup[archId]
 	if !ok { panic("Archetype doesn't have lookup list") }
 
@@ -397,7 +398,7 @@ func (e *archEngine) ReadEntity(archId ArchId, id Id) *Entity {
 	return ent
 }
 
-// func (e *archEngine) DeleteAll(archId ArchId, id Id) {
+// func (e *archEngine) DeleteAll(archId archetypeId, id Id) {
 // 	// Trim all holes off the end of the lookup list
 // 	e.trimHoles(archId)
 
@@ -432,7 +433,7 @@ func (e *archEngine) ReadEntity(archId ArchId, id Id) *Entity {
 // 	}
 // }
 
-// func (e *archEngine) trimHoles(archId ArchId) {
+// func (e *archEngine) trimHoles(archId archetypeId) {
 // 	lookup, ok := e.lookup[archId]
 // 	if !ok { panic("Archetype doesn't have lookup list") }
 
@@ -457,7 +458,7 @@ func (e *archEngine) ReadEntity(archId ArchId, id Id) *Entity {
 // This creates a "hole" in the archetype at the specified Id
 // Once we get enough holes, we can re-pack the entire slice
 // TODO - How many holes before we repack? How many holes to pack at a time?
-func (e *archEngine) TagForDeletion(archId ArchId, id Id) {
+func (e *archEngine) TagForDeletion(archId archetypeId, id Id) {
 	lookup, ok := e.lookup[archId]
 	if !ok { panic("Archetype doesn't have lookup list") }
 
@@ -472,7 +473,7 @@ func (e *archEngine) TagForDeletion(archId ArchId, id Id) {
 	lookup.holes = append(lookup.holes, index)
 }
 
-func (e *archEngine) CleanupHoles(archId ArchId) {
+func (e *archEngine) CleanupHoles(archId archetypeId) {
 	lookup, ok := e.lookup[archId]
 	if !ok { panic("Archetype doesn't have lookup list") }
 	// fmt.Println("Cleaning Holes: ", len(lookup.holes))

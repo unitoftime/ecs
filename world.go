@@ -6,27 +6,31 @@ import (
 
 const (
 	InvalidEntity Id = 0 // Represents the default entity Id, which is invalid
-	firstEntity Id = 0
+	firstEntity Id = 1
 	MaxEntity Id = math.MaxUint32
 )
 
+// World is the main data-holder. You usually pass it to other functions to do things.
 type World struct {
 	nextId Id
 	minId, maxId Id // This is the range of Ids returned by NewId
-	arch map[Id]ArchId
+	arch map[Id]archetypeId
 	engine *archEngine
 }
 
+// Creates a new world
 func NewWorld() *World {
 	return &World{
 		nextId: firstEntity + 1,
 		minId: firstEntity + 1,
 		maxId: MaxEntity,
-		arch: make(map[Id]ArchId),
+		arch: make(map[Id]archetypeId),
 		engine: newArchEngine(),
 	}
 }
 
+// Sets an range of Ids that the world will use when creating new Ids. Potentially helpful when you have multiple worlds and don't want their Id space to collide.
+// Deprecated: This API is tentative. It may be better to just have the user create Ids as they see fit
 func (w *World) SetIdRange(min, max Id) {
 	if min <= firstEntity {
 		panic("max must be greater than 1")
@@ -42,6 +46,7 @@ func (w *World) SetIdRange(min, max Id) {
 	w.maxId = max
 }
 
+// Creates a new Id which can then be used to create an entity
 func (w *World) NewId() Id {
 	if w.nextId < w.minId {
 		w.nextId = w.minId
@@ -92,27 +97,37 @@ func (w *World) NewId() Id {
 // 3. Modify the entity object by removing the requested components
 // 4. Write the entity object to the destination archetype
 // 4.a If the destination archetype is currently locked/flagged to indicate we are looping over it then wait for the lock release before writing the entity
-// 4.b When creating Maps and Views we need to lock each archId that needs to be processed. Notably this guarantees that all "Writes" to this ArchId will be done AFTER the lambda has processed - Meaning that we won't execute the same entity twice.
+// 4.b When creating Maps and Views we need to lock each archId that needs to be processed. Notably this guarantees that all "Writes" to this archetypeId will be done AFTER the lambda has processed - Meaning that we won't execute the same entity twice.
 // 4.b.i When creating a view I may need like a "Close" method or "end" or something otherwise I'm not sure how to unlock the archId for modification
 // Question: Why not write directly to holes if possible?
+
+// Writes components to the entity specified at id. This API can potentially break if you call it inside of a loop. Specifically, if you cause the archetype of the entity to change by writing a new component, then the loop may act in mysterious ways.
+// Deprecated: This API is tentative, I might replace it with something similar to bevy commands to alleviate the above concern
 func Write(world *World, id Id, comp ...Component) {
+	world.Write(id, comp...)
+}
+
+func (world *World) Write(id Id, comp ...Component) {
 	archId, ok := world.arch[id]
 	if ok {
-		newArchId := world.engine.rewriteArch(archId, id, comp...)
-		world.arch[id] = newArchId
+		newarchetypeId := world.engine.rewriteArch(archId, id, comp...)
+		world.arch[id] = newarchetypeId
 	} else {
 		// Id does not yet exist, we need to add it for the first time
-		archId = world.engine.GetArchId(comp...)
+		archId = world.engine.GetarchetypeId(comp...)
 		world.arch[id] = archId
 
 		// Write all components to that archetype
 		// TODO - Push this inward for efficiency?
 		for i := range comp {
-			comp[i].Write(world.engine, archId, id)
+			comp[i].write(world.engine, archId, id)
 		}
 	}
 }
 
+// Reads a specific component of the entity specified at id.
+// Returns true if the entity was found and had that component, else returns false.
+// Deprecated: This API is tentative, I'm trying to improve the QueryN construct so that it can capture this usecase.
 func Read[T any](world *World, id Id) (T, bool) {
 	var ret T
 	archId, ok := world.arch[id]
@@ -123,6 +138,10 @@ func Read[T any](world *World, id Id) (T, bool) {
 	return readArch[T](world.engine, archId, id)
 }
 
+// Reads a pointer to the component of the entity at the specified id.
+// Returns true if the entity was found and had that component, else returns false.
+// This pointer is short lived and can become invalid if any other entity changes in the world
+// Deprecated: This API is tentative, I'm trying to improve the QueryN construct so that it can capture this usecase.
 func ReadPtr[T any](world *World, id Id) *T {
 	archId, ok := world.arch[id]
 	if !ok {
@@ -136,6 +155,10 @@ func ReadPtr[T any](world *World, id Id) *T {
 // 1. This deletes the high level id -> archId lookup
 // 2. This creates a "hole" in the archetype list
 // Returns true if the entity was deleted, else returns false if the entity does not exist (or was already deleted)
+
+// Deletes the entire entity specified by the id
+// This can be called inside maps and loops, it will delete the entity immediately.
+// Returns true if the entity exists and was actually deleted, else returns false
 func Delete(world *World, id Id) bool {
 	archId, ok := world.arch[id]
 	if !ok { return false }
@@ -153,11 +176,3 @@ func (world *World) Exists(id Id) bool {
 	_, ok := world.arch[id]
 	return ok
 }
-
-func ReadEntity(world *World, id Id) *Entity {
-	archId, ok := world.arch[id]
-	if !ok { return nil }
-
-	return world.engine.ReadEntity(archId, id)
-}
-

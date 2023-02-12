@@ -15,8 +15,8 @@ type Vel struct {
 
 func TestArchEngine(t *testing.T) {
 	engine := newArchEngine()
-	writeArch(engine, ArchId(1), Id(1), Pos{1,1,1})
-	pos, ok := readArch[Pos](engine, ArchId(1), Id(1))
+	writeArch(engine, archetypeId(1), Id(1), Pos{1,1,1})
+	pos, ok := readArch[Pos](engine, archetypeId(1), Id(1))
 	fmt.Println(pos, ok)
 	fmt.Println(engine)
 }
@@ -151,11 +151,11 @@ type d3 struct {
 
 // func TestArchEngine(t *testing.T) {
 // 	arch := NewArchEngine()
-// 	id := arch.NewArchId()
+// 	id := arch.NewarchetypeId()
 // 	ArchWrite(arch, id, d1List(make([]d1, 100)))
 // 	ArchWrite(arch, id, d2List(make([]d2, 200)))
 
-// 	ArchEach(arch, cList[d1]{}, func(id ArchId, a interface{}) {
+// 	ArchEach(arch, cList[d1]{}, func(id archetypeId, a interface{}) {
 // 		val := a.(d1)
 // 		t.Log(val)
 // 		// list := a.(d1List)

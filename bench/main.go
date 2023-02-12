@@ -34,7 +34,7 @@ type Count struct {
 	Count int32
 }
 
-const iterations = 50
+const iterations = 10
 const maxPosition = 100.0
 const maxSpeed = 10.0
 const maxCollider = 1.0
@@ -226,7 +226,7 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 				}),
 				ecs.C(Count{}),
 			)
-			ecs.WriteEntity(world, id, ent)
+			ent.Write(world, id)
 		}
 
 		// world.Print(0)
@@ -271,82 +271,82 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 1001 638
 */
 
-func benchPhysics(size int, collisionLimit int32) {
-	world := createWorld(size)
+// func benchPhysics(size int, collisionLimit int32) {
+// 	world := createWorld(size)
 
-	start := time.Now()
-	dt := time.Since(start)
-	fixedTime := (15 * time.Millisecond).Seconds()
-	for i := 0; i < iterations; i++ {
-		start = time.Now()
+// 	start := time.Now()
+// 	dt := time.Since(start)
+// 	fixedTime := (15 * time.Millisecond).Seconds()
+// 	for i := 0; i < iterations; i++ {
+// 		start = time.Now()
 
-		// Update positions
-		ecs.Map2(world, func(id ecs.Id, position *Position, velocity *Velocity) {
-			position.X += velocity.X * fixedTime
-			position.Y += velocity.Y * fixedTime
+// 		// Update positions
+// 		ecs.Map2(world, func(id ecs.Id, position *Position, velocity *Velocity) {
+// 			position.X += velocity.X * fixedTime
+// 			position.Y += velocity.Y * fixedTime
 
-			// Bump into the bounding rect
-			if position.X <= 0 || position.X >= maxPosition {
-				velocity.X = -velocity.X
-			}
-			if position.Y <= 0 || position.Y >= maxPosition {
-				velocity.Y = -velocity.Y
-			}
-		})
+// 			// Bump into the bounding rect
+// 			if position.X <= 0 || position.X >= maxPosition {
+// 				velocity.X = -velocity.X
+// 			}
+// 			if position.Y <= 0 || position.Y >= maxPosition {
+// 				velocity.Y = -velocity.Y
+// 			}
+// 		})
 
-		// Check collisions, increment the count if a collision happens
-		deathCount := 0
-		ecs.Map3(world, func(aId ecs.Id, aPos *Position, aCol *Collider, aCnt *Count) {
-			ecs.Map2(world, func(bId ecs.Id, bPos *Position, bCol *Collider) {
-				if aId == bId { return } // Skip if entity is the same
+// 		// Check collisions, increment the count if a collision happens
+// 		deathCount := 0
+// 		ecs.Map3(world, func(aId ecs.Id, aPos *Position, aCol *Collider, aCnt *Count) {
+// 			ecs.Map2(world, func(bId ecs.Id, bPos *Position, bCol *Collider) {
+// 				if aId == bId { return } // Skip if entity is the same
 
-				dx := aPos.X - bPos.X
-				dy := aPos.Y - bPos.Y
-				distSq := (dx * dx) + (dy * dy)
+// 				dx := aPos.X - bPos.X
+// 				dy := aPos.Y - bPos.Y
+// 				distSq := (dx * dx) + (dy * dy)
 
-				dr := aCol.Radius + bCol.Radius
-				drSq := dr * dr
+// 				dr := aCol.Radius + bCol.Radius
+// 				drSq := dr * dr
 
-				if drSq > distSq {
-					aCnt.Count++
-				}
+// 				if drSq > distSq {
+// 					aCnt.Count++
+// 				}
 
-				// Kill and spawn one
-				// TODO move to outer loop?
-				if collisionLimit > 0 && aCnt.Count > collisionLimit {
-					success := ecs.Delete(world, aId)
-					if success {
-						deathCount++
-						return
-					}
-				}
-			})
-		})
+// 				// Kill and spawn one
+// 				// TODO move to outer loop?
+// 				if collisionLimit > 0 && aCnt.Count > collisionLimit {
+// 					success := ecs.Delete(world, aId)
+// 					if success {
+// 						deathCount++
+// 						return
+// 					}
+// 				}
+// 			})
+// 		})
 
-		// Spawn new entities, one per each entity we deleted
-		for i := 0; i < deathCount; i++ {
-			id := world.NewId()
-			ent := ecs.NewEntity(
-				ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
-				ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
-				ecs.C(Collider{
-					Radius: maxCollider * rand.Float64(),
-				}),
-				ecs.C(Count{}),
-			)
-			ecs.WriteEntity(world, id, ent)
-		}
+// 		// Spawn new entities, one per each entity we deleted
+// 		for i := 0; i < deathCount; i++ {
+// 			id := world.NewId()
+// 			ent := ecs.NewEntity(
+// 				ecs.C(Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}),
+// 				ecs.C(Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}),
+// 				ecs.C(Collider{
+// 					Radius: maxCollider * rand.Float64(),
+// 				}),
+// 				ecs.C(Count{}),
+// 			)
+// 			ecs.WriteEntity(world, id, ent)
+// 		}
 
-		// world.Print(0)
+// 		// world.Print(0)
 
-		dt = time.Since(start)
-		fmt.Println(i, dt.Seconds())
-	}
+// 		dt = time.Since(start)
+// 		fmt.Println(i, dt.Seconds())
+// 	}
 
-	// ecs.Map(world, func(id ecs.Id, collider *Collider) {
-	// 	fmt.Println(id, collider.Count)
-	// })
-}
+// 	// ecs.Map(world, func(id ecs.Id, collider *Collider) {
+// 	// 	fmt.Println(id, collider.Count)
+// 	// })
+// }
 
 func benchPhysicsAlt(size int, collisionLimit int32) {
 	world := createWorld(size)
@@ -419,7 +419,7 @@ func benchPhysicsAlt(size int, collisionLimit int32) {
 				}),
 				ecs.C(Count{}),
 			)
-			ecs.WriteEntity(world, id, ent)
+			ent.Write(world, id)
 		}
 
 		// world.Print(0)
