@@ -43,7 +43,6 @@ package ecs
 // 	return &v
 // }
 
-
 // func (q *FastQuery2[A, B]) Map(f func(ids []Id, a []A, b []B)) {
 // 	// Panics are for bounds check eliminations
 // 	ids := q.id
@@ -144,7 +143,6 @@ package ecs
 // 	return &v
 // }
 
-
 // func (q *FastQuery3[A, B, C]) Map(f func(ids []Id, a []A, b []B, c []C)) {
 // 	// Panics are for bounds check eliminations
 // 	ids := q.id
@@ -159,7 +157,6 @@ package ecs
 
 // // --------------------------------------------------------------------------------
 
-
 // type UnsafeIterator2[A, B any] struct {
 // 	query *FastQuery2[A, B]
 // 	outerLen int
@@ -173,7 +170,6 @@ package ecs
 // func (i *UnsafeIterator2[A, B]) Ok() bool {
 // 	return i.outerIter < len(i.query.id)
 // }
-
 
 // func (i *UnsafeIterator2[A, B]) Next() (Id, *A, *B) {
 // 	// // Note this is broken
@@ -198,7 +194,6 @@ package ecs
 // 	// inner := i.innerIter
 // 	// i.innerIter++
 // 	// return i.id[inner], &i.a[inner], &i.b[inner]
-
 
 // 	if i.outerIter >= i.outerLen {
 // 		return InvalidEntity, nil, nil

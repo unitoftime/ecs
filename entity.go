@@ -54,7 +54,9 @@ func (ent *Entity) Write(world *World, id Id) {
 // Reads the entire entity out of the world and into an *Entity object. Returns nil if the entity doesn't exist
 func ReadEntity(world *World, id Id) *Entity {
 	archId, ok := world.arch[id]
-	if !ok { return nil }
+	if !ok {
+		return nil
+	}
 
 	return world.engine.ReadEntity(archId, id)
 }
@@ -84,4 +86,3 @@ func (e *Entity) Delete(c Component) {
 // 	}
 // 	return copy
 // }
-

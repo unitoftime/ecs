@@ -27,7 +27,6 @@ package ecs
 // // 	}
 // // }
 
-
 // // func Map[A any](world *World, lambda func(id Id, a *A)) {
 // func Map[A any, F func(Id, *A)](world *World, lambda F) {
 // 	var a A
@@ -361,7 +360,6 @@ package ecs
 // // 	return aSlice.comp
 // // }
 
-
 // type FastView2[A, B any, F func(Id, *A, *B)] struct {
 // 	world *World
 // 	id [][]Id
@@ -613,7 +611,6 @@ package ecs
 // // 	}
 // // }
 
-
 // // type View struct {
 // // 	world *World // TODO - Can I get away with just engine?
 // // 	id [][]Id
@@ -651,8 +648,6 @@ package ecs
 // // 	}
 // // 	return &v
 // // }
-
-
 
 // // import (
 // // 	// "fmt"
@@ -712,7 +707,6 @@ package ecs
 
 // // 		// var aIter Iterator[A] = ValueIterator[A]{aList}
 // // 		// var bIter Iterator[B] = ValueIterator[B]{bList}
-
 
 // // 		lookup, ok := world.archEngine.lookup[archId]
 // // 		if !ok { panic("LookupList is missing!") }
@@ -783,4 +777,3 @@ package ecs
 // 		genMap2(v.id[i], v.aSlice[i], v.bSlice[i], v.lambda)
 // 	}
 // }
-

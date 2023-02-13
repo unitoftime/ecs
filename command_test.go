@@ -12,7 +12,7 @@ func TestCommandExecution(t *testing.T) {
 
 	// Write position
 	id := world.NewId()
-	pos := position{1,1,1}
+	pos := position{1, 1, 1}
 	WriteCmd(cmd, id, pos)
 	cmd.Execute()
 
@@ -22,7 +22,7 @@ func TestCommandExecution(t *testing.T) {
 	compare(t, velOut, nil)
 
 	// Write velocity
-	vel := velocity{2,2,2}
+	vel := velocity{2, 2, 2}
 	WriteCmd(cmd, id, vel)
 	cmd.Execute()
 

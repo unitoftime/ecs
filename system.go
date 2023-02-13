@@ -2,8 +2,8 @@ package ecs
 
 import (
 	"fmt"
-	"time"
 	"sync"
+	"time"
 
 	"runtime"
 )
@@ -15,7 +15,7 @@ type System struct {
 }
 
 // Create a new system. The system name will be automatically created based on the function name that calls this function
-func NewSystem(lambda func (dt time.Duration)) System {
+func NewSystem(lambda func(dt time.Duration)) System {
 	systemName := "UnknownSystemName"
 
 	pc, _, _, ok := runtime.Caller(1)
@@ -50,7 +50,7 @@ func (s *SystemLog) String() string {
 
 // TODO - Just use an atomic here?
 type signal struct {
-	mu sync.Mutex
+	mu    sync.Mutex
 	value bool
 }
 
@@ -76,30 +76,30 @@ func (s *signal) Get() bool {
 // Physics: Execute physics systems (Fixed time systems)
 // Render: Execute render systems (Dynamic time systems)
 type Scheduler struct {
-	input, physics, render []System
-	sysLogBack, sysLogFront []SystemLog
+	input, physics, render            []System
+	sysLogBack, sysLogFront           []SystemLog
 	sysLogBackFixed, sysLogFrontFixed []SystemLog
-	fixedTimeStep time.Duration
-	accumulator time.Duration
-	gameSpeed int64
-	quit signal
-	pauseRender signal
-	maxLoopCount int
+	fixedTimeStep                     time.Duration
+	accumulator                       time.Duration
+	gameSpeed                         int64
+	quit                              signal
+	pauseRender                       signal
+	maxLoopCount                      int
 }
 
 // Creates a scheduler
 func NewScheduler() *Scheduler {
 	return &Scheduler{
-		input: make([]System, 0),
-		physics: make([]System, 0),
-		render: make([]System, 0),
-		sysLogFront: make([]SystemLog, 0),
-		sysLogBack: make([]SystemLog, 0),
+		input:            make([]System, 0),
+		physics:          make([]System, 0),
+		render:           make([]System, 0),
+		sysLogFront:      make([]SystemLog, 0),
+		sysLogBack:       make([]SystemLog, 0),
 		sysLogFrontFixed: make([]SystemLog, 0),
-		sysLogBackFixed: make([]SystemLog, 0),
-		fixedTimeStep: 16 * time.Millisecond,
-		accumulator: 0,
-		gameSpeed: 1,
+		sysLogBackFixed:  make([]SystemLog, 0),
+		fixedTimeStep:    16 * time.Millisecond,
+		accumulator:      0,
+		gameSpeed:        1,
 	}
 }
 
@@ -181,7 +181,7 @@ func (s *Scheduler) Run() {
 		}
 
 		// Input Systems
-		for _,sys := range s.input {
+		for _, sys := range s.input {
 			sysTime := sys.Run(dt)
 
 			s.sysLogBack = append(s.sysLogBack, SystemLog{
@@ -205,7 +205,7 @@ func (s *Scheduler) Run() {
 		}
 		// Physics Systems
 		for s.accumulator >= s.fixedTimeStep {
-			for _,sys := range s.physics {
+			for _, sys := range s.physics {
 				sysTime := sys.Run(s.fixedTimeStep)
 
 				s.sysLogBackFixed = append(s.sysLogBackFixed, SystemLog{
@@ -218,7 +218,7 @@ func (s *Scheduler) Run() {
 
 		// Render Systems
 		if !s.pauseRender.Get() {
-			for _,sys := range s.render {
+			for _, sys := range s.render {
 				sysTime := sys.Run(dt)
 
 				s.sysLogBack = append(s.sysLogBack, SystemLog{
@@ -281,4 +281,3 @@ func (s *Scheduler) Run() {
 // 		ecs.WriteEntity(l.world, id, c.Entity)
 // 	}
 // }
-

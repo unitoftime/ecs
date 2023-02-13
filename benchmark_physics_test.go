@@ -1,8 +1,8 @@
 package ecs
 
 import (
-	"testing"
 	"math/rand"
+	"testing"
 )
 
 // Before we applied monomorphization techniques described here: https://planetscale.com/blog/generics-can-make-your-go-code-slower
@@ -22,7 +22,6 @@ import (
 // BenchmarkData-12                               	     628	   1942784 ns/op	       0 B/op	       0 allocs/op
 // BenchmarkData2-12                              	     620	   2013305 ns/op	       0 B/op	       0 allocs/op
 // BenchmarkDataFastest-12                        	     606	   1938433 ns/op	       0 B/op	       0 allocs/op
-
 
 // goos: linux
 // goarch: amd64
@@ -359,7 +358,6 @@ func physicsTick2(id Id, pos *Position, vel *Velocity) {
 // 	}
 // }
 
-
 // func simpleMap(world *World, lambda func(id Id, pos Position, vel Velocity)) {
 // 	view := ViewAll2[Position, Velocity](world)
 // 	for {
@@ -539,29 +537,30 @@ func (d *Data) BCE() {
 }
 
 type Iter[A, B any] struct {
-	d *Data
-	a []A
-	b []B
+	d   *Data
+	a   []A
+	b   []B
 	idx int
 }
+
 func (i *Iter[A, B]) BCE() {
 	if len(i.a) != len(i.b) {
 		panic("SHOULD EQUAL")
 	}
 }
-func (i *Iter[A,B]) Next(a A, b B) (*A, *B, bool) {
+func (i *Iter[A, B]) Next(a A, b B) (*A, *B, bool) {
 	i.idx++
 	// fmt.Println(i.idx + 1, len(i.a))
 	return &i.a[i.idx], &i.b[i.idx], (i.idx+1 < len(i.a))
 }
 
-func (i *Iter[A,B]) MapNext(lambda func(a A, b B)) (*A, *B, bool) {
+func (i *Iter[A, B]) MapNext(lambda func(a A, b B)) (*A, *B, bool) {
 	i.idx++
 	// fmt.Println(i.idx + 1, len(i.a))
 	return &i.a[i.idx], &i.b[i.idx], (i.idx+1 < len(i.a))
 }
 
-func (i *Iter[A,B]) NextPtr(a *A, b *B) bool {
+func (i *Iter[A, B]) NextPtr(a *A, b *B) bool {
 	i.idx++
 	// fmt.Println(i.idx + 1, len(i.a))
 	*a = i.a[i.idx]
@@ -569,7 +568,7 @@ func (i *Iter[A,B]) NextPtr(a *A, b *B) bool {
 	return (i.idx+1 < len(i.a))
 }
 
-func (i *Iter[A,B]) Map(lambda func(a *A, b *B)) {
+func (i *Iter[A, B]) Map(lambda func(a *A, b *B)) {
 	ids := i.d.ids
 	pos := i.a
 	vel := i.b
@@ -586,15 +585,17 @@ func BenchmarkRetryGenIter(b *testing.B) {
 	b.ResetTimer()
 
 	iter := Iter[Position, Velocity]{
-		a: d.pos,
-		b: d.vel,
+		a:   d.pos,
+		b:   d.vel,
 		idx: -1,
 	}
 
 	for i := 0; i < b.N; i++ {
 		for {
 			pos, vel, ok := iter.Next(Position{}, Velocity{})
-			if !ok { break }
+			if !ok {
+				break
+			}
 
 			pos.X += vel.X * dt
 			pos.Y += vel.Y * dt
@@ -609,14 +610,16 @@ func BenchmarkRetryGenIterWeirdGet(b *testing.B) {
 	b.ResetTimer()
 
 	iter := Iter[Position, Velocity]{
-		a: d.pos,
-		b: d.vel,
+		a:   d.pos,
+		b:   d.vel,
 		idx: -1,
 	}
 	for i := 0; i < b.N; i++ {
 		for {
 			pos, vel, ok := iter.MapNext(func(p Position, v Velocity) {})
-			if !ok { break }
+			if !ok {
+				break
+			}
 
 			pos.X += vel.X * dt
 			pos.Y += vel.Y * dt
@@ -631,8 +634,8 @@ func BenchmarkRetryGenIterPtr(b *testing.B) {
 	b.ResetTimer()
 
 	iter := Iter[Position, Velocity]{
-		a: d.pos,
-		b: d.vel,
+		a:   d.pos,
+		b:   d.vel,
 		idx: -1,
 	}
 	var pos Position
@@ -640,7 +643,9 @@ func BenchmarkRetryGenIterPtr(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for {
 			ok := iter.NextPtr(&pos, &vel)
-			if !ok { break }
+			if !ok {
+				break
+			}
 
 			pos.X += vel.X * dt
 			pos.Y += vel.Y * dt
@@ -655,9 +660,9 @@ func BenchmarkRetryGenMap(b *testing.B) {
 	b.ResetTimer()
 
 	iter := Iter[Position, Velocity]{
-		d: d,
-		a: d.pos,
-		b: d.vel,
+		d:   d,
+		a:   d.pos,
+		b:   d.vel,
 		idx: -1,
 	}
 	for i := 0; i < b.N; i++ {
@@ -671,9 +676,9 @@ func BenchmarkRetryGenMap(b *testing.B) {
 
 // Non generic copy
 type IterNo struct {
-	d *Data
-	a []Position
-	b []Velocity
+	d   *Data
+	a   []Position
+	b   []Velocity
 	idx int
 }
 
@@ -702,7 +707,6 @@ func (i *IterNo) MapNext(lambda func(a *Position, b *Velocity)) (*Position, *Vel
 	return &i.a[i.idx], &i.b[i.idx], (i.idx+1 < len(i.a))
 }
 
-
 func (i *IterNo) Map(lambda func(a *Position, b *Velocity)) {
 	ids := i.d.ids
 	pos := i.a
@@ -720,14 +724,16 @@ func BenchmarkRetryNoGenIter(b *testing.B) {
 	b.ResetTimer()
 
 	iter := IterNo{
-		a: d.pos,
-		b: d.vel,
+		a:   d.pos,
+		b:   d.vel,
 		idx: -1,
 	}
 	for i := 0; i < b.N; i++ {
 		for {
 			pos, vel, ok := iter.Next()
-			if !ok { break }
+			if !ok {
+				break
+			}
 
 			pos.X += vel.X * dt
 			pos.Y += vel.Y * dt
@@ -742,14 +748,16 @@ func BenchmarkRetryNoGenIterVal(b *testing.B) {
 	b.ResetTimer()
 
 	iter := IterNo{
-		a: d.pos,
-		b: d.vel,
+		a:   d.pos,
+		b:   d.vel,
 		idx: -1,
 	}
 	for i := 0; i < b.N; i++ {
 		for {
 			pos, vel, ok := iter.NextVal(Position{}, Velocity{})
-			if !ok { break }
+			if !ok {
+				break
+			}
 
 			pos.X += vel.X * dt
 			pos.Y += vel.Y * dt
@@ -764,14 +772,16 @@ func BenchmarkRetryNoGenIterWeirdGet(b *testing.B) {
 	b.ResetTimer()
 
 	iter := IterNo{
-		a: d.pos,
-		b: d.vel,
+		a:   d.pos,
+		b:   d.vel,
 		idx: -1,
 	}
 	for i := 0; i < b.N; i++ {
 		for {
 			pos, vel, ok := iter.MapNext(func(p *Position, v *Velocity) {})
-			if !ok { break }
+			if !ok {
+				break
+			}
 
 			pos.X += vel.X * dt
 			pos.Y += vel.Y * dt
@@ -786,8 +796,8 @@ func BenchmarkRetryNoGenIterPtr(b *testing.B) {
 	b.ResetTimer()
 
 	iter := IterNo{
-		a: d.pos,
-		b: d.vel,
+		a:   d.pos,
+		b:   d.vel,
 		idx: -1,
 	}
 	var pos Position
@@ -795,7 +805,9 @@ func BenchmarkRetryNoGenIterPtr(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for {
 			ok := iter.NextPtr(&pos, &vel)
-			if !ok { break }
+			if !ok {
+				break
+			}
 
 			pos.X += vel.X * dt
 			pos.Y += vel.Y * dt
@@ -810,9 +822,9 @@ func BenchmarkRetryNoGenMap(b *testing.B) {
 	b.ResetTimer()
 
 	iter := IterNo{
-		d: d,
-		a: d.pos,
-		b: d.vel,
+		d:   d,
+		a:   d.pos,
+		b:   d.vel,
 		idx: -1,
 	}
 	for i := 0; i < b.N; i++ {

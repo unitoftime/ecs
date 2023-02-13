@@ -11,15 +11,17 @@ type Component interface {
 	write(*archEngine, archetypeId, Id)
 	id() componentId
 }
+
 // This type is used to box a component with all of its type info so that it implements the component interface. I would like to get rid of this and simplify the APIs
 type Box[T any] struct {
-	Comp T
+	Comp   T
 	compId componentId
 }
+
 // Createst the boxed component type
 func C[T any](comp T) Box[T] {
 	return Box[T]{
-		Comp: comp,
+		Comp:   comp,
 		compId: name(comp),
 	}
 }
@@ -41,17 +43,17 @@ func (c Box[T]) Get() T {
 type componentRegistry struct {
 	archCounter archetypeId
 	compCounter componentId
-	archSet map[componentId]map[archetypeId]bool // Contains the set of archetypeIds that have this component
-	trie *node
-	generation int
+	archSet     map[componentId]map[archetypeId]bool // Contains the set of archetypeIds that have this component
+	trie        *node
+	generation  int
 }
 
 func newComponentRegistry() *componentRegistry {
 	r := &componentRegistry{
 		archCounter: 0,
 		compCounter: 0,
-		archSet: make(map[componentId]map[archetypeId]bool),
-		generation: 1, // Start at 1 so that anyone with the default int value will always realize they are in the wrong generation
+		archSet:     make(map[componentId]map[archetypeId]bool),
+		generation:  1, // Start at 1 so that anyone with the default int value will always realize they are in the wrong generation
 	}
 	r.trie = newNode(r)
 	return r
@@ -118,13 +120,13 @@ func (r *componentRegistry) Register(comp Component) componentId {
 
 type node struct {
 	archId archetypeId
-	child []*node
+	child  []*node
 }
 
 func newNode(r *componentRegistry) *node {
 	return &node{
 		archId: r.NewarchetypeId(),
-		child: make([]*node, 0),
+		child:  make([]*node, 0),
 	}
 }
 
@@ -137,7 +139,7 @@ func (n *node) Get(r *componentRegistry, id componentId) *node {
 	}
 
 	// Expand the slice to hold all required children
-	n.child = append(n.child, make([]*node, 1 + int(id) - len(n.child))...)
+	n.child = append(n.child, make([]*node, 1+int(id)-len(n.child))...)
 	if n.child[id] == nil {
 		n.child[id] = newNode(r)
 	}

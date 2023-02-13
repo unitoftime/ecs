@@ -1,8 +1,8 @@
 package ecs
 
 import (
-	"testing"
 	"runtime"
+	"testing"
 )
 
 type position struct {
@@ -44,7 +44,7 @@ func TestWorldReadWrite(t *testing.T) {
 	id := world.NewId()
 
 	// Write position
-	pos := position{1,1,1}
+	pos := position{1, 1, 1}
 	Write(world, id, C(pos))
 
 	// Check position and velocity
@@ -53,10 +53,10 @@ func TestWorldReadWrite(t *testing.T) {
 	compare(t, posOut, pos)
 	velOut, ok := Read[velocity](world, id)
 	check(t, !ok) // We expect this to be false
-	compare(t, velOut, velocity{0,0,0})
+	compare(t, velOut, velocity{0, 0, 0})
 
 	// Write velocity
-	vel := velocity{2,2,2}
+	vel := velocity{2, 2, 2}
 	Write(world, id, C(vel))
 
 	// Check position and velocity
@@ -92,8 +92,8 @@ func TestWorldReadMultiWrite(t *testing.T) {
 	world := NewWorld()
 	id := world.NewId()
 
-	pos := position{1,1,1}
-	vel := velocity{2,2,2}
+	pos := position{1, 1, 1}
+	vel := velocity{2, 2, 2}
 	Write(world, id, C(pos), C(vel))
 
 	// Check position and velocity
@@ -130,8 +130,8 @@ func TestWorldWriteDelete(t *testing.T) {
 	for i := 0; i < 1e6; i++ {
 		id := world.NewId()
 		v := float64(id)
-		pos := position{v,v,v}
-		vel := velocity{v,v,v}
+		pos := position{v, v, v}
+		vel := velocity{v, v, v}
 		Write(world, id, C(pos), C(vel))
 		ids = append(ids, id)
 	}
@@ -143,7 +143,6 @@ func TestWorldWriteDelete(t *testing.T) {
 		posOut, ok := Read[position](world, id)
 		check(t, ok)
 		compare(t, posOut, position{expected, expected, expected})
-
 
 		velOut, ok := Read[velocity](world, id)
 		check(t, ok)
@@ -170,7 +169,7 @@ func TestWorldWriteDelete(t *testing.T) {
 
 			velOut, ok := Read[velocity](world, id)
 			check(t, !ok) // Expect to be false because we've deleted this
-			compare(t, velOut, velocity{expected,expected,expected})
+			compare(t, velOut, velocity{expected, expected, expected})
 		} else {
 			// Expect these to still exist in the world
 			posOut, ok := Read[position](world, id)
@@ -179,7 +178,7 @@ func TestWorldWriteDelete(t *testing.T) {
 
 			velOut, ok := Read[velocity](world, id)
 			check(t, ok)
-			compare(t, velOut, velocity{expected,expected,expected})
+			compare(t, velOut, velocity{expected, expected, expected})
 		}
 	}
 }

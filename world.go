@@ -6,25 +6,25 @@ import (
 
 const (
 	InvalidEntity Id = 0 // Represents the default entity Id, which is invalid
-	firstEntity Id = 1
-	MaxEntity Id = math.MaxUint32
+	firstEntity   Id = 1
+	MaxEntity     Id = math.MaxUint32
 )
 
 // World is the main data-holder. You usually pass it to other functions to do things.
 type World struct {
-	nextId Id
+	nextId       Id
 	minId, maxId Id // This is the range of Ids returned by NewId
-	arch map[Id]archetypeId
-	engine *archEngine
+	arch         map[Id]archetypeId
+	engine       *archEngine
 }
 
 // Creates a new world
 func NewWorld() *World {
 	return &World{
 		nextId: firstEntity + 1,
-		minId: firstEntity + 1,
-		maxId: MaxEntity,
-		arch: make(map[Id]archetypeId),
+		minId:  firstEntity + 1,
+		maxId:  MaxEntity,
+		arch:   make(map[Id]archetypeId),
 		engine: newArchEngine(),
 	}
 }
@@ -161,7 +161,9 @@ func ReadPtr[T any](world *World, id Id) *T {
 // Returns true if the entity exists and was actually deleted, else returns false
 func Delete(world *World, id Id) bool {
 	archId, ok := world.arch[id]
-	if !ok { return false }
+	if !ok {
+		return false
+	}
 
 	delete(world.arch, id)
 

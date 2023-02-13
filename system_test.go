@@ -2,11 +2,12 @@ package ecs
 
 import (
 	"fmt"
-	"time"
 	"testing"
+	"time"
 )
 
 var lastTime time.Time
+
 func TestSchedulerPhysics(t *testing.T) {
 	scheduler := NewScheduler()
 	scheduler.AppendPhysics(System{
@@ -23,6 +24,7 @@ func TestSchedulerPhysics(t *testing.T) {
 }
 
 var lastTimeInput, lastTimePhysics, lastTimeRender time.Time
+
 func TestSchedulerAll(t *testing.T) {
 	scheduler := NewScheduler()
 	scheduler.AppendInput(System{

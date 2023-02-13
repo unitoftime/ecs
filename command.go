@@ -3,14 +3,14 @@ package ecs
 // Represents a list of commands that need to be executed on the world
 type Command struct {
 	world *World
-	list map[Id]*writeCmd // TODO - Note to self: if you ever add deletion inside of commands, then the packing commands into a map based on entity Id assumption wont hold, because you'll need some amount of specific ordering
+	list  map[Id]*writeCmd // TODO - Note to self: if you ever add deletion inside of commands, then the packing commands into a map based on entity Id assumption wont hold, because you'll need some amount of specific ordering
 }
 
 // Create a new command to be executed
 func NewCommand(world *World) *Command {
 	return &Command{
 		world: world,
-		list: make(map[Id]*writeCmd),
+		list:  make(map[Id]*writeCmd),
 	}
 }
 
@@ -46,12 +46,13 @@ func WriteCmd[A any](c *Command, id Id, comp A) {
 // }
 
 type writeCmd struct {
-	id Id
+	id    Id
 	comps []Component
 }
+
 func newWriteCmd(id Id) *writeCmd {
 	return &writeCmd{
-		id: id,
+		id:    id,
 		comps: make([]Component, 0, 2), // TODO - guaranteed to at least have 1, but a bit arbitrary
 	}
 }

@@ -8,12 +8,12 @@ package ecs
 // func Without(fields ...any) without {
 // 	return without{fields}
 // }
-	// extractedFilters := make([]any, 0)
-	// for _, f := range filters {
-	// 	switch t := f.(type) {
-	// 	case without:
-	// 	}
-	// }
+// extractedFilters := make([]any, 0)
+// for _, f := range filters {
+// 	switch t := f.(type) {
+// 	case without:
+// 	}
+// }
 
 // type buildQuery interface {
 // 	build(world)
@@ -92,17 +92,18 @@ func (f optional) Filter(list []componentId) []componentId {
 }
 
 type filterList struct {
-	comps []componentId
+	comps                     []componentId
 	cachedArchetypeGeneration int // Denotes the world's archetype generation that was used to create the list of archIds. If the world has a new generation, we should probably regenerate
-	archIds []archetypeId
+	archIds                   []archetypeId
 }
+
 func newFilterList(comps []componentId, filters ...Filter) filterList {
 	for _, f := range filters {
 		comps = f.Filter(comps)
 	}
 
 	return filterList{
-		comps: comps,
+		comps:   comps,
 		archIds: make([]archetypeId, 0),
 	}
 }
