@@ -113,6 +113,8 @@ func (f *filterList) regenerate(world *World) {
 	}
 }
 
+/* Note: replaced all this with code generation
+
 // Represents a view of data in a specific world. Provides access to the components specified in the generic block
 type View1[A any] struct {
 	world *World
@@ -253,26 +255,93 @@ func (v *View2[A,B]) Read(id Id) (*A, *B) {
 func (v *View2[A,B]) MapId(lambda func(id Id, a *A, b *B)) {
 	v.filter.regenerate(v.world)
 
+	var sliceA *componentSlice[A]
+	var sliceB *componentSlice[B]
+	var compA []A
+	var compB []B
+	var a *A
+	var b *B
 	for _, archId := range v.filter.archIds {
-		aSlice, ok := v.storageA.slice[archId]
-		if !ok { continue }
-		bSlice, ok := v.storageB.slice[archId]
-		if !ok { continue }
+		sliceA, _ = v.storageA.slice[archId]
+		sliceB, _ = v.storageB.slice[archId]
 
 		lookup, ok := v.world.engine.lookup[archId]
 		if !ok { panic("LookupList is missing!") }
-
 		ids := lookup.id
-		aComp := aSlice.comp
-		bComp := bSlice.comp
-		if len(ids) != len(aComp) || len(ids) != len(bComp) {
-			panic("ERROR - Bounds don't match")
+
+
+		// TODO - this flattened version causes a mild performance hit. Switch to code generation and use Option 2 eventually
+		if sliceA != nil {
+			compA = sliceA.comp
+		} else {
+			compA = nil
 		}
+		if sliceB != nil {
+			compB = sliceB.comp
+		} else {
+			compB = nil
+		}
+
+		a = nil
+		b = nil
 		for i := range ids {
 			if ids[i] == InvalidEntity { continue }
-			lambda(ids[i], &aComp[i], &bComp[i])
+			if compA != nil { a = &compA[i] }
+			if compB != nil { b = &compB[i] }
+			lambda(ids[i], a, b)
 		}
+
+	// 	// Option 2
+	// 	if compA == nil && compB == nil {
+	// 		return
+	// 	} else if compA != nil && compB == nil {
+	// 		if len(ids) != len(compA) {
+	// 			panic("ERROR - Bounds don't match")
+	// 		}
+	// 		for i := range ids {
+	// 			if ids[i] == InvalidEntity { continue }
+	// 			lambda(ids[i], &compA[i], nil)
+	// 		}
+	// 	} else if compA == nil && compB != nil {
+	// 		if len(ids) != len(compB) {
+	// 			panic("ERROR - Bounds don't match")
+	// 		}
+	// 		for i := range ids {
+	// 			if ids[i] == InvalidEntity { continue }
+	// 			lambda(ids[i], nil, &compB[i])
+	// 		}
+	// 	} else if compA != nil && compB != nil {
+	// 		if len(ids) != len(compA) || len(ids) != len(compB) {
+	// 			panic("ERROR - Bounds don't match")
+	// 		}
+	// 		for i := range ids {
+	// 			if ids[i] == InvalidEntity { continue }
+	// 			lambda(ids[i], &compA[i], &compB[i])
+	// 		}
+	// 	}
 	}
+
+		// Original - doesn't handle optional
+	// for _, archId := range v.filter.archIds {
+	// 	aSlice, ok := v.storageA.slice[archId]
+	// 	if !ok { continue }
+	// 	bSlice, ok := v.storageB.slice[archId]
+	// 	if !ok { continue }
+
+	// 	lookup, ok := v.world.engine.lookup[archId]
+	// 	if !ok { panic("LookupList is missing!") }
+
+	// 	ids := lookup.id
+	// 	aComp := aSlice.comp
+	// 	bComp := bSlice.comp
+	// 	if len(ids) != len(aComp) || len(ids) != len(bComp) {
+	// 		panic("ERROR - Bounds don't match")
+	// 	}
+	// 	for i := range ids {
+	// 		if ids[i] == InvalidEntity { continue }
+	// 		lambda(ids[i], &aComp[i], &bComp[i])
+	// 	}
+	// }
 }
 
 // Deprecated: This API is a tentative alternative way to map
@@ -825,3 +894,4 @@ func (v *View6[A,B,C,D,E,F]) Read(id Id) (*A, *B, *C, *D, *E, *F) {
 
 	return retA, retB, retC, retD, retE, retF
 }
+*/
