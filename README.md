@@ -1,7 +1,7 @@
 ### 
 [![Build](https://github.com/unitoftime/ecs/actions/workflows/build.yml/badge.svg)](https://github.com/unitoftime/ecs/actions/workflows/build.yml)
 
-This is an ecs library I wrote for doing game development in Go. I'm actively using it and its pretty stable, but I do find bugs every once in a while. That said, the APIs might change in the future, because I haven't finalized how iteration will be performed because I wasn't able to find near-native-performance iterator in Go that doesn't require me to leak the underlying slices back to the user, though that is an option I guess...
+This is an ecs library I wrote for doing game development in Go. I'm actively using it and its pretty stable, but I do find bugs every once in a while. I might vary the APIs in the future if native iterators are added.
 
 ### Overview
 Conceptually you can imagine an ECS as one big table, where an `Id` column associates an *Entity Id* with various other component columns. Kind of like this:
@@ -13,7 +13,7 @@ Conceptually you can imagine an ECS as one big table, where an `Id` column assoc
 
 We use an archetype-based storage mechanism. Which simply means we have a specific table for a specific component layout. This means that if you add or remove components it can be somewhat expensive, because we have to copy the entire entity to the new table.
 
-### Usage
+### Basic Usage
 Import the library: `import "github.com/unitoftime/ecs"`
 
 Create Components like you normally would:
@@ -46,9 +46,14 @@ ecs.Write(world, id,
 //            does that for you.
 ```
 
-Do some simulation. You basically pass in a lambda, and internally the library calls it for every entity in the world which has all of the components specified. Notably your lambda takes pointer values which represent a pointer to the internally stored component. So modifying these pointers will modify the entity's data.
+Create a View, by calling `Query`:
 ```
-ecs.Map2(world, func(id ecs.Id, pos *Position, rot *Rotation) {
+query := ecs.Query[Position, Rotation](world)
+``
+
+Iterate on the query. You basically pass in a lambda, and internally the library calls it for every entity in the world which has all of the components specified. Notably your lambda takes pointer values which represent a pointer to the internally stored component. So modifying these pointers will modify the entity's data.
+```
+query.MapId(func(id ecs.Id, pos *Position, rot *Rotation) {
     pos.X += 1
     pos.Y += 1
 
@@ -56,18 +61,37 @@ ecs.Map2(world, func(id ecs.Id, pos *Position, rot *Rotation) {
 })
 ```
 
-There are several map functions you can use, each with varying numbers of parameters. I support up to `Map5`. They all look like this:
+There are several map functions you can use, each with varying numbers of parameters. I support up to `Map12`. They all look like this:
 ```
 ecs.MapN(world, func(id ecs.Id, a *ComponentA, /*... */, n *ComponentN) {
     // Do your work
 })
 ```
 
+### Advanced queries
+You can also filter your queries for more advanced usage:
+```
+// Returns a view of Position and Velocity, but only if the entity also has the `Rotation` component.
+query := ecs.Query[Position, Velocity](world, ecs.With(Rotation))
+
+// Returns a view of Position and Velocity, but if velocity is missing on the entity, will just return nil during the `MapId(...)`. You must do nil checks for all components included in the `Optional()`!
+query := ecs.Query[Position, Velocity](world, ecs.Optional(Velocity))
+```
+
+### Commands
+
+Commands will eventually replace `ecs.Write(...)` once I figure out how their usage will work. Commands essentially buffer some work on the ECS so that the work can be executed later on. You can use them in loop safe ways by calling `Execute()` after your loop has completed. Right now they work like this:
+```
+cmd := ecs.NewCommand(world)
+WriteCmd(cmd, id, Position{1,1,1})
+WriteCmd(cmd, id, Velocity{1,1,1})
+cmd.Execute()
+```
+
 ### Still In Progress
-- [ ] Reducing memory allocations
 - [ ] Improving iterator performance: See: https://github.com/golang/go/discussions/54245
-- [ ] General cleanup and API standardization
-- [ ] Multithreading and thread safety
+- [ ] Automatic multithreading
+- [ ] Without() filter
 
 ### Videos
 Hopefully, eventually I can have some automated test-bench that runs and measures performance, but for now you'll just have to refer to my second video and hopefully trust me. Of course, you can run the benchmark in the `bench` folder to measure how long frames take on your computer.
