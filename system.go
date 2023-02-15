@@ -192,7 +192,7 @@ func (s *Scheduler) Run() {
 
 		if maxLoopCount > 0 {
 			if s.accumulator > (maxLoopCount * s.fixedTimeStep) {
-				s.accumulator = 0
+				s.accumulator = s.fixedTimeStep // Just run one loop
 			}
 		}
 
