@@ -33,6 +33,10 @@ func NewSystem(lambda func(dt time.Duration)) System {
 // Executes the system once, returning the time taken.
 // This is mostly used by the scheduler, but you can use it too.
 func (s *System) Run(dt time.Duration) time.Duration {
+	// Note: Disable timing
+	// s.Func(dt)
+	// return 0
+
 	start := time.Now()
 	s.Func(dt)
 	return time.Since(start)
@@ -81,7 +85,7 @@ type Scheduler struct {
 	sysLogBackFixed, sysLogFrontFixed []SystemLog
 	fixedTimeStep                     time.Duration
 	accumulator                       time.Duration
-	gameSpeed                         int64
+	// gameSpeed                         int64
 	quit                              signal
 	pauseRender                       signal
 	maxLoopCount                      int
@@ -99,16 +103,16 @@ func NewScheduler() *Scheduler {
 		sysLogBackFixed:  make([]SystemLog, 0),
 		fixedTimeStep:    16 * time.Millisecond,
 		accumulator:      0,
-		gameSpeed:        1,
+		// gameSpeed:        1,
 	}
 }
 
 // TODO make SetGameSpeed and SetFixedTimeStep thread safe.
 
 // Sets the rate at which time accumulates. Also, you want them to only change at the end of a frame, else you might get some inconsistencies. Just use a mutex and a single temporary variable
-func (s *Scheduler) SetGameSpeed(speed int64) {
-	s.gameSpeed = speed
-}
+// func (s *Scheduler) SetGameSpeed(speed int64) {
+// 	s.gameSpeed = speed
+// }
 
 // Tells the scheduler to exit. Scheduler will finish executing its remaining tick before closing.
 func (s *Scheduler) SetQuit(value bool) {
@@ -171,6 +175,22 @@ func (s *Scheduler) Run() {
 	// var accumulator time.Duration
 	s.accumulator = 0
 	maxLoopCount := time.Duration(s.maxLoopCount)
+
+
+	// go func() {
+	// 	for {
+	// 		time.Sleep(s.fixedTimeStep)
+	// 		for _, sys := range s.physics {
+	// 			sysTime := sys.Run(s.fixedTimeStep)
+
+	// 			s.sysLogBackFixed = append(s.sysLogBackFixed, SystemLog{
+	// 				Name: sys.Name,
+	// 				Time: sysTime,
+	// 			})
+	// 		}
+	// 	}
+	// }()
+
 
 	for !s.quit.Get() {
 		{
@@ -235,11 +255,19 @@ func (s *Scheduler) Run() {
 		}
 
 		// Capture Frame time
-		dt = time.Since(frameStart)
-		frameStart = time.Now()
+		now := time.Now()
+		dt = now.Sub(frameStart)
+		frameStart = now
 
-		scaledDt := dt.Nanoseconds() * s.gameSpeed
-		s.accumulator += time.Duration(scaledDt)
+		// dt = time.Since(frameStart)
+		// frameStart = time.Now()
+
+		s.accumulator += dt
+
+		// scaledDt := dt.Nanoseconds() * s.gameSpeed
+		// s.accumulator += time.Duration(scaledDt)
+
+		// s.accumulator += 16667 * time.Microsecond
 		// fmt.Println(dt, s.accumulator)
 	}
 }
