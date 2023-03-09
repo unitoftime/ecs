@@ -46,9 +46,9 @@ ecs.Write(world, id,
 //            does that for you.
 ```
 
-Create a View, by calling `Query`:
+Create a View, by calling `QueryN`:
 ```
-query := ecs.Query[Position, Rotation](world)
+query := ecs.Query2[Position, Rotation](world)
 ```
 
 Iterate on the query. You basically pass in a lambda, and internally the library calls it for every entity in the world which has all of the components specified. Notably your lambda takes pointer values which represent a pointer to the internally stored component. So modifying these pointers will modify the entity's data.
@@ -72,10 +72,10 @@ ecs.MapN(world, func(id ecs.Id, a *ComponentA, /*... */, n *ComponentN) {
 You can also filter your queries for more advanced usage:
 ```
 // Returns a view of Position and Velocity, but only if the entity also has the `Rotation` component.
-query := ecs.Query[Position, Velocity](world, ecs.With(Rotation))
+query := ecs.Query2[Position, Velocity](world, ecs.With(Rotation))
 
 // Returns a view of Position and Velocity, but if velocity is missing on the entity, will just return nil during the `MapId(...)`. You must do nil checks for all components included in the `Optional()`!
-query := ecs.Query[Position, Velocity](world, ecs.Optional(Velocity))
+query := ecs.Query2[Position, Velocity](world, ecs.Optional(Velocity))
 ```
 
 ### Commands
