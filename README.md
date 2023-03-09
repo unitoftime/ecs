@@ -1,4 +1,4 @@
-### 
+###
 [![Build](https://github.com/unitoftime/ecs/actions/workflows/build.yml/badge.svg)](https://github.com/unitoftime/ecs/actions/workflows/build.yml)
 
 This is an ecs library I wrote for doing game development in Go. I'm actively using it and its pretty stable, but I do find bugs every once in a while. I might vary the APIs in the future if native iterators are added.
@@ -49,7 +49,7 @@ ecs.Write(world, id,
 Create a View, by calling `Query`:
 ```
 query := ecs.Query[Position, Rotation](world)
-``
+```
 
 Iterate on the query. You basically pass in a lambda, and internally the library calls it for every entity in the world which has all of the components specified. Notably your lambda takes pointer values which represent a pointer to the internally stored component. So modifying these pointers will modify the entity's data.
 ```
