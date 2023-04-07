@@ -30,6 +30,39 @@ func NewSystem(lambda func(dt time.Duration)) System {
 	}
 }
 
+// TODO - how to support filters?
+// type Initializer interface {
+// 	Initialize(*World)
+// }
+
+// // Idea: Automatically created, Generic systems
+// func NewSystem1[A Initializer](world *World, lambda func(dt time.Duration, a *A)) System {
+// 	a := new(A)
+
+// 	(*a).Initialize(world)
+// 	return System{
+// 		Name: "TODO - Use Reflection",
+// 		Func: func(dt time.Duration) {
+// 			// aPointer.Lock()
+// 			// defer aPointer.Unlock()
+// 			lambda(dt, a)
+// 		},
+// 	}
+// }
+
+// func NewSystem1[A any](world, lambda func(a A)) System {
+// 	var a A
+// 	aPointer := a.Initialize(world)
+// 	return System{
+// 		Name: systemName,
+// 		Func: func(dt time.Duration) {
+// 			aPointer.Lock()
+// 			defer aPointer.Unlock()
+// 			lambda(dt, aPointer)
+// 		},
+// 	}
+// }
+
 // Executes the system once, returning the time taken.
 // This is mostly used by the scheduler, but you can use it too.
 func (s *System) Run(dt time.Duration) time.Duration {

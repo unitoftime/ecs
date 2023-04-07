@@ -6,6 +6,21 @@ import (
 	"time"
 )
 
+// // func physicsSystem(id Id, pos *Position, vel *Velocity) {
+// func physicsSystem(dt time.Duration, query *View2[position, velocity]) {
+// 	query.MapId(func(id Id, pos *position, vel *velocity) {
+// 		pos.x += vel.x * dt.Seconds()
+// 		pos.y += vel.y * dt.Seconds()
+// 		pos.z += vel.z * dt.Seconds()
+// 	})
+// }
+
+// func TestSystemCreationNew(t *testing.T) {
+// 	world := setupPhysics(100)
+// 	sys := NewSystem1(world, physicsSystem)
+// 	sys.Run(16 * time.Millisecond)
+// }
+
 var lastTime time.Time
 
 func TestSchedulerPhysics(t *testing.T) {

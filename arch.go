@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"fmt"
+	"sync"
 	"reflect"
 )
 
@@ -10,11 +11,17 @@ type Id uint32
 
 type archetypeId uint32
 
+var componentIdMutex sync.Mutex
 var registeredComponents = make(map[reflect.Type]componentId)
 var invalidComponentId componentId = 0
 var componentRegistryCounter componentId = 1
 
 func name(t any) componentId {
+	// Note: We have to lock here in case there are multiple worlds
+	// TODO!! - This probably causes some performance penalty
+	componentIdMutex.Lock()
+	defer componentIdMutex.Unlock()
+
 	typeof := reflect.TypeOf(t)
 	compId, ok := registeredComponents[typeof]
 	if !ok {
@@ -92,6 +99,9 @@ type archEngine struct {
 	compSliceStorage map[componentId]storage
 
 	dcr *componentRegistry
+
+	// TODO - using this makes things not thread safe inside the engine
+	filterLists []map[archetypeId]bool
 }
 
 func newArchEngine() *archEngine {
@@ -99,6 +109,7 @@ func newArchEngine() *archEngine {
 		lookup:           make(map[archetypeId]*lookupList),
 		compSliceStorage: make(map[componentId]storage),
 		dcr:              newComponentRegistry(),
+		filterLists:      make([]map[archetypeId]bool, 0),
 	}
 }
 
@@ -142,22 +153,19 @@ func (e *archEngine) GetarchetypeId(comp ...Component) archetypeId {
 	return e.dcr.GetarchetypeId(comp...)
 }
 
-// TODO - using this makes things not thread safe
 // TODO - map might be slower than just having an array. I could probably do a big bitmask and then just do a logical OR
-var filterLists = make([]map[archetypeId]bool, 0)
-
 func (e *archEngine) FilterList(archIds []archetypeId, comp []componentId) []archetypeId {
-	filterLists = filterLists[:0]
+	e.filterLists = e.filterLists[:0]
 
 	for _, compId := range comp {
-		filterLists = append(filterLists, e.dcr.archSet[compId])
+		e.filterLists = append(e.filterLists, e.dcr.archSet[compId])
 	}
 
 	archIds = archIds[:0]
-	for archId := range filterLists[0] {
+	for archId := range e.filterLists[0] {
 		missing := false
-		for i := range filterLists {
-			_, exists := filterLists[i][archId]
+		for i := range e.filterLists {
+			_, exists := e.filterLists[i][archId]
 			if !exists {
 				missing = true
 				break // at least one set was missing
