@@ -1,4 +1,4 @@
-###
+[![Go Reference](https://pkg.go.dev/badge/github.com/unitoftime/ecs.svg)](https://pkg.go.dev/github.com/unitoftime/ecs)
 [![Build](https://github.com/unitoftime/ecs/actions/workflows/build.yml/badge.svg)](https://github.com/unitoftime/ecs/actions/workflows/build.yml)
 
 This is an ecs library I wrote for doing game development in Go. I'm actively using it and its pretty stable, but I do find bugs every once in a while. I might vary the APIs in the future if native iterators are added.
