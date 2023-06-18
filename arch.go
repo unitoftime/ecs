@@ -7,6 +7,7 @@ import (
 )
 
 // This is the identifier for entities in the world
+//cod:struct
 type Id uint32
 
 type archetypeId uint32

@@ -70,6 +70,8 @@ func (s *System) Run(dt time.Duration) time.Duration {
 	// s.Func(dt)
 	// return 0
 
+	// fmt.Println(s.Name) // Spew
+
 	start := time.Now()
 	s.Func(dt)
 	return time.Since(start)
