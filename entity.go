@@ -66,6 +66,14 @@ func (e *Entity) Delete(c Component) {
 	delete(e.comp, c.id())
 }
 
+// Clears the map, but retains the space
+func (e *Entity) Clear() {
+	// Clearing Optimization: https://go.dev/doc/go1.11#performance-compiler
+	for k := range e.comp {
+		delete(e.comp, k)
+	}
+}
+
 // TODO revisit this abstraction
 // type Copier interface {
 // 	Copy() interface{}
