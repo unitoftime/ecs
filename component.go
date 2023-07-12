@@ -100,7 +100,14 @@ func (r *componentRegistry) GetarchetypeId(comp ...Component) archetypeId {
 	// Add this archetypeId to every component's archList
 	for _, c := range comp {
 		n := c.id()
-		r.archSet[n][cur.archId] = true
+
+
+		if !r.archSet[n][cur.archId] {
+			r.archSet[n][cur.archId] = true
+
+			// If this was the first time we've associated this archetype to this component, then we need to bump the generation, so that all views get regenerated based on this update. This could maybe be moved to somewhere else.
+			r.generation++
+		}
 	}
 	return cur.archId
 }
