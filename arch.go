@@ -57,6 +57,7 @@ type lookupList struct {
 
 type storage interface {
 	ReadToEntity(*Entity, archetypeId, int) bool
+	ReadToRawEntity(*RawEntity, archetypeId, int) bool
 	Delete(archetypeId, int)
 	print(int)
 }
@@ -71,6 +72,15 @@ func (ss componentSliceStorage[T]) ReadToEntity(entity *Entity, archId archetype
 		return false
 	}
 	entity.Add(C(cSlice.comp[index]))
+	return true
+}
+
+func (ss componentSliceStorage[T]) ReadToRawEntity(entity *RawEntity, archId archetypeId, index int) bool {
+	cSlice, ok := ss.slice[archId]
+	if !ok {
+		return false
+	}
+	entity.Add(&cSlice.comp[index])
 	return true
 }
 
@@ -414,6 +424,24 @@ func (e *archEngine) ReadEntity(archId archetypeId, id Id) *Entity {
 	ent := NewEntity()
 	for n := range e.compSliceStorage {
 		e.compSliceStorage[n].ReadToEntity(ent, archId, index)
+	}
+	return ent
+}
+
+func (e *archEngine) ReadRawEntity(archId archetypeId, id Id) *RawEntity {
+	lookup, ok := e.lookup[archId]
+	if !ok {
+		panic("Archetype doesn't have lookup list")
+	}
+
+	index, ok := lookup.index[id]
+	if !ok {
+		panic("Archetype doesn't contain ID")
+	}
+
+	ent := NewRawEntity()
+	for n := range e.compSliceStorage {
+		e.compSliceStorage[n].ReadToRawEntity(ent, archId, index)
 	}
 	return ent
 }
