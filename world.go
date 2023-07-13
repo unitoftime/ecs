@@ -108,6 +108,8 @@ func Write(world *World, id Id, comp ...Component) {
 }
 
 func (world *World) Write(id Id, comp ...Component) {
+	if len(comp) <= 0 { return } // Do nothing if there are no components
+
 	archId, ok := world.arch[id]
 	if ok {
 		newarchetypeId := world.engine.rewriteArch(archId, id, comp...)
