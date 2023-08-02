@@ -2,6 +2,8 @@ package ecs
 
 import (
 	"math"
+
+	"reflect" // For resourceName
 )
 
 const (
@@ -16,6 +18,7 @@ type World struct {
 	minId, maxId Id // This is the range of Ids returned by NewId
 	arch         map[Id]archetypeId
 	engine       *archEngine
+	resources    map[reflect.Type]any
 }
 
 // Creates a new world
@@ -26,6 +29,8 @@ func NewWorld() *World {
 		maxId:  MaxEntity,
 		arch:   make(map[Id]archetypeId),
 		engine: newArchEngine(),
+
+		resources: make(map[reflect.Type]any),
 	}
 }
 
@@ -179,4 +184,29 @@ func Delete(world *World, id Id) bool {
 func (world *World) Exists(id Id) bool {
 	_, ok := world.arch[id]
 	return ok
+}
+
+
+// --------------------------------------------------------------------------------
+// - Resources
+// --------------------------------------------------------------------------------
+func resourceName(t any) reflect.Type {
+	return reflect.TypeOf(t)
+}
+
+// TODO: Should I force people to do pointers?
+func PutResource[T any](world *World, resource *T) {
+	name := resourceName(resource)
+	world.resources[name] = resource
+}
+
+func GetResource[T any](world *World) *T {
+	var t T
+	name := resourceName(&t)
+	anyVal, ok := world.resources[name]
+	if !ok {
+		return nil
+	}
+
+	return anyVal.(*T)
 }

@@ -182,3 +182,17 @@ func TestWorldWriteDelete(t *testing.T) {
 		}
 	}
 }
+
+func TestResources(t *testing.T) {
+	world := NewWorld()
+	p := position{1, 2, 3}
+
+	p0 := GetResource[position](world)
+	compare(t, p0, nil) // should be nil b/c it isnt added yet
+
+	PutResource(world, &p)
+
+	p1 := GetResource[position](world)
+	compare(t, p1, &p) // Should match the original pointer
+	compare(t, *p1, p)
+}
