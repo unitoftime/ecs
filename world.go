@@ -121,7 +121,12 @@ func (world *World) Write(id Id, comp ...Component) {
 		world.arch[id] = newarchetypeId
 	} else {
 		// Id does not yet exist, we need to add it for the first time
-		archId = world.engine.GetarchetypeId(comp...)
+		compIds := make([]componentId, len(comp))
+		for i, c := range comp { // TODO: fix
+			compIds[i] = c.id()
+		}
+
+		archId = world.engine.GetarchetypeId(compIds...)
 		world.arch[id] = archId
 
 		// Write all components to that archetype

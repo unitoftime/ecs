@@ -16,6 +16,7 @@ type Component interface {
 type Box[T any] struct {
 	Comp   T
 	compId componentId
+	storage *componentSliceStorage[T]
 }
 
 // Createst the boxed component type
@@ -26,7 +27,10 @@ func C[T any](comp T) Box[T] {
 	}
 }
 func (c Box[T]) write(engine *archEngine, archId archetypeId, index int) {
-	writeArch[T](engine, archId, index, c.Comp)
+	if c.storage == nil {
+		c.storage = getStorageByCompId[T](engine, c.id())
+	}
+	writeArch[T](engine, archId, index, c.storage, c.Comp)
 }
 func (c Box[T]) id() componentId {
 	if c.compId == invalidComponentId {
@@ -43,7 +47,6 @@ func (c Box[T]) Get() T {
 // Dynamic component Registry
 type componentRegistry struct {
 	archCounter archetypeId
-	compCounter componentId
 	archSet     map[componentId]map[archetypeId]bool // Contains the set of archetypeIds that have this component
 	trie        *node
 	generation  int
@@ -52,7 +55,6 @@ type componentRegistry struct {
 func newComponentRegistry() *componentRegistry {
 	r := &componentRegistry{
 		archCounter: 0,
-		compCounter: 0,
 		archSet:     make(map[componentId]map[archetypeId]bool),
 		generation:  1, // Start at 1 so that anyone with the default int value will always realize they are in the wrong generation
 	}
@@ -63,7 +65,6 @@ func newComponentRegistry() *componentRegistry {
 func (r *componentRegistry) print() {
 	fmt.Println("--- componentRegistry ---")
 	fmt.Println("archCounter", r.archCounter)
-	fmt.Println("compCounter", r.compCounter)
 	fmt.Println("-- archSet --")
 	for name, set := range r.archSet {
 		fmt.Printf("name(%d): archId: [ ", name)
@@ -84,10 +85,11 @@ func (r *componentRegistry) NewarchetypeId() archetypeId {
 // 1. Map all components to their component Id
 // 2. Sort all component ids so that we can index the prefix tree
 // 3. Walk the prefix tree to find the archetypeId
-func (r *componentRegistry) GetarchetypeId(comp ...Component) archetypeId {
+func (r *componentRegistry) GetarchetypeId(comp ...componentId) archetypeId {
 	list := make([]componentId, len(comp))
-	for i := range comp {
-		list[i] = r.Register(comp[i])
+	for i, compId := range comp {
+		r.Register(compId)
+		list[i] = compId
 	}
 	sort.Slice(list, func(i, j int) bool {
 		return list[i] < list[j]
@@ -99,12 +101,9 @@ func (r *componentRegistry) GetarchetypeId(comp ...Component) archetypeId {
 	}
 
 	// Add this archetypeId to every component's archList
-	for _, c := range comp {
-		n := c.id()
-
-
-		if !r.archSet[n][cur.archId] {
-			r.archSet[n][cur.archId] = true
+	for _, compId := range comp {
+		if !r.archSet[compId][cur.archId] {
+			r.archSet[compId][cur.archId] = true
 
 			// If this was the first time we've associated this archetype to this component, then we need to bump the generation, so that all views get regenerated based on this update. This could maybe be moved to somewhere else.
 			r.generation++
@@ -113,17 +112,12 @@ func (r *componentRegistry) GetarchetypeId(comp ...Component) archetypeId {
 	return cur.archId
 }
 
-// Registers a component to a component Id and returns the Id
-// If already registered, just return the Id and don't make a new one
-func (r *componentRegistry) Register(comp Component) componentId {
-	compId := comp.id()
-
+// Registers the component
+func (r *componentRegistry) Register(compId componentId) {
 	_, ok := r.archSet[compId]
 	if !ok {
 		r.archSet[compId] = make(map[archetypeId]bool)
 	}
-
-	return compId
 }
 
 type node struct {

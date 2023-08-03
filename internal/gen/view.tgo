@@ -13,7 +13,7 @@ type View{{len $element}}[{{join $element ","}} any] struct {
 	world *World
 	filter filterList
 	{{range $ii, $arg := $element}}
-	storage{{$arg}} componentSliceStorage[{{$arg}}]{{end}}
+	storage{{$arg}} *componentSliceStorage[{{$arg}}]{{end}}
 }
 
 // Creates a View for the specified world with the specified component filters.

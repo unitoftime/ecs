@@ -87,7 +87,7 @@ type componentSliceStorage[T any] struct {
 	slice map[archetypeId]*componentSlice[T]
 }
 
-func (ss componentSliceStorage[T]) ReadToEntity(entity *Entity, archId archetypeId, index int) bool {
+func (ss *componentSliceStorage[T]) ReadToEntity(entity *Entity, archId archetypeId, index int) bool {
 	cSlice, ok := ss.slice[archId]
 	if !ok {
 		return false
@@ -96,7 +96,7 @@ func (ss componentSliceStorage[T]) ReadToEntity(entity *Entity, archId archetype
 	return true
 }
 
-func (ss componentSliceStorage[T]) ReadToRawEntity(entity *RawEntity, archId archetypeId, index int) bool {
+func (ss *componentSliceStorage[T]) ReadToRawEntity(entity *RawEntity, archId archetypeId, index int) bool {
 	cSlice, ok := ss.slice[archId]
 	if !ok {
 		return false
@@ -107,7 +107,7 @@ func (ss componentSliceStorage[T]) ReadToRawEntity(entity *RawEntity, archId arc
 
 // Delete is somewhat special because it deletes the index of the archId for the componentSlice
 // but then plugs the hole by pushing the last element of the componentSlice into index
-func (ss componentSliceStorage[T]) Delete(archId archetypeId, index int) {
+func (ss *componentSliceStorage[T]) Delete(archId archetypeId, index int) {
 	cSlice, ok := ss.slice[archId]
 	if !ok {
 		return
@@ -118,7 +118,7 @@ func (ss componentSliceStorage[T]) Delete(archId archetypeId, index int) {
 	cSlice.comp = cSlice.comp[:len(cSlice.comp)-1]
 }
 
-func (s componentSliceStorage[T]) print(amount int) {
+func (s *componentSliceStorage[T]) print(amount int) {
 	for archId, compSlice := range s.slice {
 		fmt.Printf("archId(%d) - %v\n", archId, *compSlice)
 	}
@@ -127,9 +127,7 @@ func (s componentSliceStorage[T]) print(amount int) {
 // Provides generic storage for all archetypes
 type archEngine struct {
 	lookup map[archetypeId]*lookupList
-
 	compSliceStorage map[componentId]storage
-
 	dcr *componentRegistry
 
 	// TODO - using this makes things not thread safe inside the engine
@@ -165,7 +163,13 @@ func (e *archEngine) generation() int {
 // }
 
 func (e *archEngine) count(anything ...any) int {
-	archIds := e.Filter(anything...)
+	comps := make([]componentId, len(anything))
+	for i, c := range anything {
+		comps[i] = name(c)
+	}
+
+	archIds := make([]archetypeId, 0)
+	archIds = e.FilterList(archIds, comps)
 
 	total := 0
 	for _, archId := range archIds {
@@ -181,7 +185,7 @@ func (e *archEngine) count(anything ...any) int {
 	return total
 }
 
-func (e *archEngine) GetarchetypeId(comp ...Component) archetypeId {
+func (e *archEngine) GetarchetypeId(comp ...componentId) archetypeId {
 	return e.dcr.GetarchetypeId(comp...)
 }
 
@@ -211,81 +215,28 @@ func (e *archEngine) FilterList(archIds []archetypeId, comp []componentId) []arc
 	return archIds
 }
 
-// TODO!!! - dump this for FilterList
-// Returns the list of archetypeIds that contain all components
-// TODO - this can be optimized
-// var filterLists = make([]map[archetypeId]bool, 0)
-// // var returnedarchetypeIds = make([][]archetypeId, 1024) // TODO!!!! - this means that at max you can nest 1024 map functions
-// // var currentIndexForReturnedarchetypeIds = 0
-// var returnedarchetypeIds = make([]archetypeId, 1024) // TODO!!! - this means you cant nest map functions
-func (e *archEngine) Filter(comp ...any) []archetypeId {
-	// filterLists = filterLists[:0]
-
-	// for i := range comp {
-	// 	n := name(comp[i])
-	// 	filterLists = append(filterLists, e.dcr.archSet[n])
-	// }
-
-	// // archIds := make([]archetypeId, 0)
-	// archIds := returnedarchetypeIds[:0]
-	// for archId := range filterLists[0] {
-	// 	missing := false
-	// 	for i := range filterLists {
-	// 		_, exists := filterLists[i][archId]
-	// 		if !exists {
-	// 			missing = true
-	// 			break // at least one set was missing
-	// 		}
-	// 	}
-	// 	if !missing {
-	// 		archIds = append(archIds, archId)
-	// 	}
-	// }
-
-	// return archIds
-
-	lists := make([]map[archetypeId]bool, 0)
-	for i := range comp {
-		n := name(comp[i])
-		lists = append(lists, e.dcr.archSet[n])
-	}
-
-	archIds := make([]archetypeId, 0)
-	for archId := range lists[0] {
-		missing := false
-		for i := range lists {
-			_, exists := lists[i][archId]
-			if !exists {
-				missing = true
-				break // at least one set was missing
-			}
-		}
-		if !missing {
-			archIds = append(archIds, archId)
-		}
-	}
-
-	return archIds
-}
-
-func getStorage[T any](e *archEngine) componentSliceStorage[T] {
+func getStorage[T any](e *archEngine) *componentSliceStorage[T] {
 	var val T
 	n := name(val)
-	// n := nameGen[T]()
-	ss, ok := e.compSliceStorage[n]
+	return getStorageByCompId[T](e, n)
+}
+
+// Note: This will panic if the wrong compId doesn't match the generic type
+func getStorageByCompId[T any](e *archEngine, compId componentId) *componentSliceStorage[T] {
+	ss, ok := e.compSliceStorage[compId]
 	if !ok {
 		// TODO - have write call this spot
-		ss = componentSliceStorage[T]{
+		ss = &componentSliceStorage[T]{
 			slice: make(map[archetypeId]*componentSlice[T]),
 		}
-		e.compSliceStorage[n] = ss
+		e.compSliceStorage[compId] = ss
 	}
-	storage := ss.(componentSliceStorage[T])
+	storage := ss.(*componentSliceStorage[T])
 
 	return storage
 }
 
-func (e *archEngine) addLookupIndex(archId archetypeId, id Id) int {
+func (e *archEngine) getOrAddLookupIndex(archId archetypeId, id Id) int {
 	lookup, ok := e.lookup[archId]
 	if !ok {
 		lookup = &lookupList{
@@ -313,7 +264,7 @@ func (e *archEngine) addLookupIndex(archId archetypeId, id Id) int {
 // Writes all of the components to the archetype
 func (e *archEngine) write(archId archetypeId, id Id, comp ...Component) {
 	// Add to lookup list
-	index := e.addLookupIndex(archId, id)
+	index := e.getOrAddLookupIndex(archId, id)
 
 	// Loop through all components and add them to individual component slices
 	for i := range comp {
@@ -321,17 +272,14 @@ func (e *archEngine) write(archId archetypeId, id Id, comp ...Component) {
 	}
 }
 
-func writeArch[T any](e *archEngine, archId archetypeId, index int, val T) {
-	// Get the componentSliceStorage
-	storage := getStorage[T](e)
-
+func writeArch[T any](e *archEngine, archId archetypeId, index int, store *componentSliceStorage[T], val T) {
 	// Get the underlying Archetype's componentSlice
-	cSlice, ok := storage.slice[archId]
+	cSlice, ok := store.slice[archId]
 	if !ok {
 		cSlice = &componentSlice[T]{
 			comp: make([]T, 0),
 		}
-		storage.slice[archId] = cSlice
+		store.slice[archId] = cSlice
 	}
 
 	cSlice.Write(index, val)
@@ -357,7 +305,7 @@ func readArch[T any](e *archEngine, archId archetypeId, id Id) (T, bool) {
 	}
 
 	// fmt.Printf("componentSliceStorage[T] type: %s != %s", name(ss), name(ret))
-	storage, ok := ss.(componentSliceStorage[T])
+	storage, ok := ss.(*componentSliceStorage[T])
 	if !ok {
 		panic(fmt.Sprintf("Wrong componentSliceStorage[T] type: %d != %d", name(ss), name(ret)))
 	}
@@ -391,7 +339,7 @@ func readPtrArch[T any](e *archEngine, archId archetypeId, id Id) *T {
 	}
 
 	// fmt.Printf("componentSliceStorage[T] type: %s != %s", name(ss), name(ret))
-	storage, ok := ss.(componentSliceStorage[T])
+	storage, ok := ss.(*componentSliceStorage[T])
 	if !ok {
 		panic(fmt.Sprintf("Wrong componentSliceStorage[T] type: %d != %d", name(ss), name(ret)))
 	}
@@ -412,7 +360,12 @@ func (e *archEngine) rewriteArch(archId archetypeId, id Id, comp ...Component) a
 
 	ent.Add(comp...)
 	combinedComps := ent.Comps()
-	newArchId := e.GetarchetypeId(combinedComps...)
+
+	compIds := make([]componentId, len(combinedComps))
+	for i, c := range combinedComps { // TODO: fix
+		compIds[i] = c.id()
+	}
+	newArchId := e.GetarchetypeId(compIds...)
 
 	if archId == newArchId {
 		// Case 1: Archetype stays the same.
@@ -464,63 +417,6 @@ func (e *archEngine) ReadRawEntity(archId archetypeId, id Id) *RawEntity {
 	}
 	return ent
 }
-
-// func (e *archEngine) DeleteAll(archId archetypeId, id Id) {
-// 	// Trim all holes off the end of the lookup list
-// 	e.trimHoles(archId)
-
-// 	lookup, ok := e.lookup[archId]
-// 	if !ok { panic("Archetype doesn't have lookup list") }
-
-// 	index, ok := lookup.index[id]
-// 	if !ok { panic("Archetype doesn't contain ID") }
-
-// 	if index == (len(lookup.id) - 1) {
-// 		// Edge Case: If index is already the last element, just slice the end
-// 		lookup.id = lookup.id[:len(lookup.id)-1]
-// 		// delete(lookup.index, id)
-// 		for n := range e.compSliceStorage {
-// 			e.compSliceStorage[n].Delete(archId, index)
-// 		}
-
-// 		return
-// 	}
-
-// 	// Swap last element with hole
-// 	lastId := lookup.id[len(lookup.id)-1]
-// 	fmt.Println("DeleteAll:", archId, id, index, lastId)
-// 	lookup.id[index] = lastId
-// 	lookup.id = lookup.id[:len(lookup.id)-1]
-
-// 	lookup.index[lastId] = index
-// 	// delete(lookup.index, id)
-
-// 	for n := range e.compSliceStorage {
-// 		e.compSliceStorage[n].Delete(archId, index)
-// 	}
-// }
-
-// func (e *archEngine) trimHoles(archId archetypeId) {
-// 	lookup, ok := e.lookup[archId]
-// 	if !ok { panic("Archetype doesn't have lookup list") }
-
-// 	// Trim the end until there are no holes there
-// 	for {
-// 		lastId := lookup.id[len(lookup.id)-1]
-// 		if lastId == InvalidEntity {
-// 			// If it's a hole, then slice it off and try again
-// 			lookup.id = lookup.id[:len(lookup.id)-1]
-// 			// delete(lookup.index, lastId) // No need to do this because lastId has already been deleted
-// 			for n := range e.compSliceStorage {
-// 				e.compSliceStorage[n].Delete(archId, len(lookup.id)-1)
-// 			}
-// 			continue
-// 		}
-
-// 		// If it wasn't a hole then proceed
-// 		break
-// 	}
-// }
 
 // This creates a "hole" in the archetype at the specified Id
 // Once we get enough holes, we can re-pack the entire slice

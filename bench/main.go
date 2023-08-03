@@ -4,6 +4,15 @@ package main
 // TODO - Disable GC: GOCG=-1 go run .
 // TODO - manual runtime.GC()
 
+// Baseline: 8/3/23
+// go run . ecs-slow 10000 1
+// Iter Time
+// 0 0.548914251
+// 1 0.563671395
+// 2 0.567264819
+// 3 0.576352863
+// 4 0.571570715
+
 import (
 	"fmt"
 	"log"
@@ -34,7 +43,7 @@ type Count struct {
 	Count int32
 }
 
-const iterations = 10
+const iterations = 5
 const maxPosition = 100.0
 const maxSpeed = 10.0
 const maxCollider = 1.0
