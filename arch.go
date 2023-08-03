@@ -186,7 +186,7 @@ func (e *archEngine) count(anything ...any) int {
 }
 
 func (e *archEngine) GetarchetypeId(comp ...componentId) archetypeId {
-	return e.dcr.GetarchetypeId(comp...)
+	return e.dcr.getArchetypeId(comp...)
 }
 
 // TODO - map might be slower than just having an array. I could probably do a big bitmask and then just do a logical OR

@@ -2,13 +2,17 @@ package ecs
 
 type Bundle[T any] struct {
 	compId componentId
+	storage *componentSliceStorage[T]
+	// world *ecs.World //Needed?
 }
 
 // Createst the boxed component type
-func NewBundle[T any]() Bundle[T] {
+func NewBundle[T any](world *World) Bundle[T] {
 	var t T
+	compId := name(t)
 	return Bundle[T]{
-		compId: name(t),
+		compId: compId,
+		storage: getStorageByCompId[T](world.engine, compId),
 	}
 }
 
@@ -16,7 +20,12 @@ func (c Bundle[T]) New(comp T) Box[T] {
 	return Box[T]{
 		Comp: comp,
 		compId: c.compId,
+		// storage: c.storage,
 	}
+}
+
+func (b Bundle[T]) write(engine *archEngine, archId archetypeId, index int, comp T) {
+	writeArch[T](engine, archId, index, b.storage, comp)
 }
 
 func (b Bundle[T]) id() componentId {
