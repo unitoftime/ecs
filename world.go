@@ -68,7 +68,7 @@ func (w *World) NewId() Id {
 }
 
 // func (w *World) Count(anything ...any) int {
-// 	return w.engine.Count(anything...)
+// 	return w.engine.count(anything...)
 // }
 
 // func (w *World) Print(amount int) {

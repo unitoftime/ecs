@@ -55,6 +55,27 @@ type lookupList struct {
 	holes []int      // List of indexes that have ben deleted
 }
 
+// Adds ourselves to the last available hole, else appends
+// Returns the index
+func (l *lookupList) addToEasiestHole(id Id) int {
+	if len(l.holes) > 0 {
+		lastHoleIndex := len(l.holes)-1
+		index := l.holes[lastHoleIndex]
+		l.id[index] = id
+		l.index[id] = index
+
+		l.holes = l.holes[:lastHoleIndex]
+		return index
+	} else {
+		// Because the Id hasn't been added to this arch, we need to append it to the end
+		l.id = append(l.id, id)
+		index := len(l.id) - 1
+		l.index[id] = index
+		return index
+	}
+}
+
+
 type storage interface {
 	ReadToEntity(*Entity, archetypeId, int) bool
 	ReadToRawEntity(*RawEntity, archetypeId, int) bool
@@ -276,16 +297,15 @@ func writeArch[T any](e *archEngine, archId archetypeId, id Id, val T) {
 	}
 
 	// Check if we want to cleanup holes
-	if len(lookup.holes) >= 1024 { // TODO - Hardcoded number, maybe make it percentage based on holes per total entities
+	// TODO: This is a defragmentation operation. I'm not really sure how to compute heuristically that we should repack our slices. Too big it causes a stall, too small it causes unecessary repacks. maybe make it percentage based on holes per total entities. Maybe repack one at a time. Currently this should only trigger if we delete more than 1024 of the same archetype
+	if len(lookup.holes) >= 1024 {
 		e.CleanupHoles(archId)
 	}
 
 	index, ok := lookup.index[id]
 	if !ok {
-		// Because the Id hasn't been added to this arch, we need to append it to the end
-		lookup.id = append(lookup.id, id)
-		index = len(lookup.id) - 1
-		lookup.index[id] = index
+		// Because the Id hasn't been added to this arch, we need to add it
+		index = lookup.addToEasiestHole(id)
 	}
 
 	// Get the componentSliceStorage
