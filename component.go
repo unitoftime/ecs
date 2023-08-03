@@ -8,7 +8,7 @@ import (
 type componentId uint16
 
 type Component interface {
-	write(*archEngine, archetypeId, Id)
+	write(*archEngine, archetypeId, int)
 	id() componentId
 }
 
@@ -25,8 +25,8 @@ func C[T any](comp T) Box[T] {
 		compId: name(comp),
 	}
 }
-func (c Box[T]) write(engine *archEngine, archId archetypeId, id Id) {
-	writeArch[T](engine, archId, id, c.Comp)
+func (c Box[T]) write(engine *archEngine, archId archetypeId, index int) {
+	writeArch[T](engine, archId, index, c.Comp)
 }
 func (c Box[T]) id() componentId {
 	if c.compId == invalidComponentId {
@@ -39,6 +39,7 @@ func (c Box[T]) Get() T {
 	return c.Comp
 }
 
+// TODO: You should move to this (ie archetype graph (or bitmask?). maintain the current archetype node, then traverse to nodes (and add new ones) based on which components are added): https://ajmmertens.medium.com/building-an-ecs-2-archetypes-and-vectorization-fe21690805f9
 // Dynamic component Registry
 type componentRegistry struct {
 	archCounter archetypeId

@@ -125,10 +125,7 @@ func (world *World) Write(id Id, comp ...Component) {
 		world.arch[id] = archId
 
 		// Write all components to that archetype
-		// TODO - Push this inward for efficiency?
-		for i := range comp {
-			comp[i].write(world.engine, archId, id)
-		}
+		world.engine.write(archId, id, comp...)
 	}
 }
 

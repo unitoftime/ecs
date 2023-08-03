@@ -285,7 +285,7 @@ func getStorage[T any](e *archEngine) componentSliceStorage[T] {
 	return storage
 }
 
-func writeArch[T any](e *archEngine, archId archetypeId, id Id, val T) {
+func (e *archEngine) addLookupIndex(archId archetypeId, id Id) int {
 	lookup, ok := e.lookup[archId]
 	if !ok {
 		lookup = &lookupList{
@@ -307,7 +307,21 @@ func writeArch[T any](e *archEngine, archId archetypeId, id Id, val T) {
 		// Because the Id hasn't been added to this arch, we need to add it
 		index = lookup.addToEasiestHole(id)
 	}
+	return index
+}
 
+// Writes all of the components to the archetype
+func (e *archEngine) write(archId archetypeId, id Id, comp ...Component) {
+	// Add to lookup list
+	index := e.addLookupIndex(archId, id)
+
+	// Loop through all components and add them to individual component slices
+	for i := range comp {
+		comp[i].write(e, archId, index)
+	}
+}
+
+func writeArch[T any](e *archEngine, archId archetypeId, index int, val T) {
 	// Get the componentSliceStorage
 	storage := getStorage[T](e)
 
@@ -394,40 +408,25 @@ func readPtrArch[T any](e *archEngine, archId archetypeId, id Id) *T {
 // TODO - Think: Is it better to read everything then push it into the new archetypeId? Or better to migrate everything in place?
 // Returns the archetypeId of where the entity ends up
 func (e *archEngine) rewriteArch(archId archetypeId, id Id, comp ...Component) archetypeId {
-	// fmt.Println("RewriteArch")
 	ent := e.ReadEntity(archId, id)
-
-	// currentComps := ent.Comps()
-	// fmt.Println("Current", currentComps)
 
 	ent.Add(comp...)
 	combinedComps := ent.Comps()
-	newarchetypeId := e.GetarchetypeId(combinedComps...)
+	newArchId := e.GetarchetypeId(combinedComps...)
 
-	// fmt.Println("archId == newarchetypeId", archId, newarchetypeId)
-	if archId == newarchetypeId {
-		// Case 1: Archetype stays the same
-		for i := range comp {
-			comp[i].write(e, archId, id)
-		}
+	if archId == newArchId {
+		// Case 1: Archetype stays the same.
+		// This means that we only need to write the newly added components because we wont be moving the base entity data
+		e.write(archId, id, comp...)
 	} else {
 		// Case 2: Archetype changes
 		// 1: Delete all components in old archetype
-		// e.DeleteAll(archId, id)
 		e.TagForDeletion(archId, id)
 
-		// 2: Write current entity to world
-		for _, c := range ent.comp {
-			c.write(e, newarchetypeId, id)
-		}
-		// 3: Write new components to world
-		for _, c := range comp {
-			c.write(e, newarchetypeId, id)
-		}
-
-		// 4: TODO - Write the new lookupList???
+		// 2: We need to write the entire list of combinedComps
+		e.write(newArchId, id, combinedComps...)
 	}
-	return newarchetypeId
+	return newArchId
 }
 
 func (e *archEngine) ReadEntity(archId archetypeId, id Id) *Entity {
