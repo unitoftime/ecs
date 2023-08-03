@@ -89,6 +89,27 @@ func TestCommandExecution(t *testing.T) {
 // BenchmarkAddEntityCommands-12      	    1131	   1108961 ns/op	  875865 B/op	   13068 allocs/op
 // BenchmarkAddEntityViaBundles-12    	    1909	    716650 ns/op	  740988 B/op	    6080 allocs/op
 
+// only add arch to archset if we just created it
+// BenchmarkAddEntityWrite-12         	    1580	    838312 ns/op	  759720 B/op	   10079 allocs/op
+// BenchmarkAddEntity-12              	    1542	    841495 ns/op	  772783 B/op	   10076 allocs/op
+// BenchmarkAddEntityCached-12        	    2550	    587830 ns/op	  567675 B/op	    2060 allocs/op
+// BenchmarkAddEntityCommands-12      	    1174	   1096164 ns/op	  944671 B/op	   13065 allocs/op
+// BenchmarkAddEntityViaBundles-12    	    2023	    694800 ns/op	  706566 B/op	    6076 allocs/op
+
+// preallocated array for archset holder
+// BenchmarkAddEntityWrite-12         	    1765	    767105 ns/op	  778658 B/op	   10087 allocs/op
+// BenchmarkAddEntity-12              	    1735	    755672 ns/op	  788496 B/op	   10088 allocs/op
+// BenchmarkAddEntityCached-12        	    3001	    527071 ns/op	  585524 B/op	    2073 allocs/op
+// BenchmarkAddEntityCommands-12      	    1272	    989622 ns/op	  897973 B/op	   13060 allocs/op
+// BenchmarkAddEntityViaBundles-12    	    2058	    611106 ns/op	  696776 B/op	    6074 allocs/op
+
+// filterlist now uses array instead of maps
+// BenchmarkAddEntityWrite-12         	    1838	    783168 ns/op	  844602 B/op	   10083 allocs/op
+// BenchmarkAddEntity-12              	    1726	    752888 ns/op	  791532 B/op	   10089 allocs/op
+// BenchmarkAddEntityCached-12        	    3126	    512635 ns/op	  563923 B/op	    2078 allocs/op
+// BenchmarkAddEntityCommands-12      	    1263	    989989 ns/op	  901981 B/op	   13060 allocs/op
+// BenchmarkAddEntityViaBundles-12    	    2281	    632377 ns/op	  744278 B/op	    6067 allocs/op
+
 var addEntSize = 1000
 func BenchmarkAddEntityWrite(b *testing.B) {
 	world := NewWorld()

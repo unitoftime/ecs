@@ -46,6 +46,7 @@ func (c Box[T]) Get() T {
 
 
 // TODO: I should have some kind of panic if you go over maximum component size
+const maxComponentId = 255
 // Supports maximum 256 unique component types
 type archetypeMask [4]uint64 // TODO: can/should I make this configurable?
 func buildArchMask(comp ...componentId) archetypeMask {
@@ -64,20 +65,27 @@ func buildArchMask(comp ...componentId) archetypeMask {
 // Dynamic component Registry
 type componentRegistry struct {
 	archCounter archetypeId
-	archSet     map[componentId]map[archetypeId]bool // Contains the set of archetypeIds that have this component
+	// archSet     []map[archetypeId]bool // Contains the set of archetypeIds that have this component
+	archSet     [][]archetypeId // Contains the set of archetypeIds that have this component
 	archMask    map[archetypeMask]archetypeId // Contains a mapping of archetype bitmasks to archetypeIds
-	trie        *node
+	// trie        *node
 	generation  int
 }
 
 func newComponentRegistry() *componentRegistry {
 	r := &componentRegistry{
 		archCounter: 0,
-		archSet:     make(map[componentId]map[archetypeId]bool),
+		// archSet:     make([]map[archetypeId]bool, maxComponentId + 1), // TODO: hardcoded to max component
+		archSet:     make([][]archetypeId, maxComponentId + 1), // TODO: hardcoded to max component
 		archMask:    make(map[archetypeMask]archetypeId),
 		generation:  1, // Start at 1 so that anyone with the default int value will always realize they are in the wrong generation
 	}
-	r.trie = newNode(r)
+	// r.trie = newNode(r)
+
+	for i := range r.archSet {
+		// r.archSet[i] = make(map[archetypeId]bool)
+		r.archSet[i] = make([]archetypeId, 0)
+	}
 	return r
 }
 
@@ -107,7 +115,7 @@ func (r *componentRegistry) newArchetypeId() archetypeId {
 func (r *componentRegistry) getArchetypeId(comp ...componentId) archetypeId {
 	list := make([]componentId, len(comp))
 	for i, compId := range comp {
-		r.Register(compId)
+		// r.Register(compId) // TODO: you used to register these dynamically when you had a map. Now you switched to an array and just pre-register every componentId
 		list[i] = compId
 	}
 
@@ -137,27 +145,28 @@ func (r *componentRegistry) getArchetypeId(comp ...componentId) archetypeId {
 	if !ok {
 		archId = r.newArchetypeId()
 		r.archMask[mask] = archId
-	}
 
-	// Add this archetypeId to every component's archList
-	for _, compId := range comp {
-		if !r.archSet[compId][archId] {
-			r.archSet[compId][archId] = true
+		// Add this archetypeId to every component's archList
+		for _, compId := range comp {
+			r.archSet[compId] = append(r.archSet[compId], archId)
+			// if !r.archSet[compId][archId] {
+			// 	r.archSet[compId][archId] = true
 
-			// If this was the first time we've associated this archetype to this component, then we need to bump the generation, so that all views get regenerated based on this update. This could maybe be moved to somewhere else.
-			r.generation++
+			// 	// // If this was the first time we've associated this archetype to this component, then we need to bump the generation, so that all views get regenerated based on this update. This could maybe be moved to somewhere else.
+			// 	// r.generation++
+			// }
 		}
 	}
 	return archId
 }
 
 // Registers the component
-func (r *componentRegistry) Register(compId componentId) {
-	_, ok := r.archSet[compId]
-	if !ok {
-		r.archSet[compId] = make(map[archetypeId]bool)
-	}
-}
+// func (r *componentRegistry) Register(compId componentId) {
+// 	_, ok := r.archSet[compId]
+// 	if !ok {
+// 		r.archSet[compId] = make(map[archetypeId]bool)
+// 	}
+// }
 
 type node struct {
 	archId archetypeId

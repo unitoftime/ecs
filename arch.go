@@ -128,18 +128,25 @@ func (s *componentSliceStorage[T]) print(amount int) {
 type archEngine struct {
 	lookup map[archetypeId]*lookupList
 	compSliceStorage map[componentId]storage
+	// lookup []*lookupList // Indexed by archetypeId
+	// compSliceStorage []storage // Indexed by componentId
 	dcr *componentRegistry
+
 
 	// TODO - using this makes things not thread safe inside the engine
 	filterLists []map[archetypeId]bool
+	archCount map[archetypeId]int
 }
 
 func newArchEngine() *archEngine {
 	return &archEngine{
 		lookup:           make(map[archetypeId]*lookupList),
 		compSliceStorage: make(map[componentId]storage),
+		// lookup:           make([]*lookupList),
+		// compSliceStorage: make([]storage),
 		dcr:              newComponentRegistry(),
 		filterLists:      make([]map[archetypeId]bool, 0),
+		archCount:        make(map[archetypeId]int),
 	}
 }
 
@@ -191,24 +198,56 @@ func (e *archEngine) GetarchetypeId(comp ...componentId) archetypeId {
 
 // TODO - map might be slower than just having an array. I could probably do a big bitmask and then just do a logical OR
 func (e *archEngine) FilterList(archIds []archetypeId, comp []componentId) []archetypeId {
-	e.filterLists = e.filterLists[:0]
+	// e.filterLists = e.filterLists[:0]
 
-	for _, compId := range comp {
-		e.filterLists = append(e.filterLists, e.dcr.archSet[compId])
+	// for _, compId := range comp {
+	// 	e.filterLists = append(e.filterLists, e.dcr.archSet[compId])
+	// }
+
+	// archIds = archIds[:0]
+	// for archId := range e.filterLists[0] {
+	// 	missing := false
+	// 	for i := range e.filterLists {
+	// 		_, exists := e.filterLists[i][archId]
+	// 		if !exists {
+	// 			missing = true
+	// 			break // at least one set was missing
+	// 		}
+	// 	}
+	// 	if !missing {
+	// 		archIds = append(archIds, archId)
+	// 	}
+	// }
+
+	// return archIds
+
+	// TODO: could I maybe do something more optimal with archetypeMask?
+	// New way: With archSets that are just slices
+	// Logic: Go thorugh and keep track of how many times we see each archetype. Then only keep the archetypes that we've seen an amount of times equal to the number of components. If we have 5 components and see 5 for a specific archId, it means that each component has that archId
+	// TODO: this may be more efficient to use a slice?
+
+	// Clearing Optimization: https://go.dev/doc/go1.11#performance-compiler
+	for k := range e.archCount {
+		delete(e.archCount, k)
 	}
 
-	archIds = archIds[:0]
-	for archId := range e.filterLists[0] {
-		missing := false
-		for i := range e.filterLists {
-			_, exists := e.filterLists[i][archId]
-			if !exists {
-				missing = true
-				break // at least one set was missing
-			}
+	for _, compId := range comp {
+		for _, archId := range e.dcr.archSet[compId] {
+			e.archCount[archId] = e.archCount[archId] + 1
 		}
-		if !missing {
+	}
+
+	numComponents := len(comp)
+
+	archIds = archIds[:0]
+	for archId, count := range e.archCount {
+		if count >= numComponents {
 			archIds = append(archIds, archId)
+
+			// TODO: How tight do I want my tolerances?
+			if count > numComponents {
+				panic("AAAA")
+			}
 		}
 	}
 
