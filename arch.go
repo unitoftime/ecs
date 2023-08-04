@@ -13,7 +13,7 @@ type Id uint32
 type archetypeId uint32
 
 var componentIdMutex sync.Mutex
-var registeredComponents = make(map[reflect.Type]componentId)
+var registeredComponents = make(map[reflect.Type]componentId, maxComponentId)
 var invalidComponentId componentId = 0
 var componentRegistryCounter componentId = 1
 
@@ -126,10 +126,13 @@ func (s *componentSliceStorage[T]) print(amount int) {
 
 // Provides generic storage for all archetypes
 type archEngine struct {
-	lookup map[archetypeId]*lookupList
-	compSliceStorage map[componentId]storage
-	// lookup []*lookupList // Indexed by archetypeId
-	// compSliceStorage []storage // Indexed by componentId
+	generation  int
+	// archCounter archetypeId
+
+	// lookup map[archetypeId]*lookupList
+	// compSliceStorage map[componentId]storage
+	lookup []*lookupList // Indexed by archetypeId
+	compSliceStorage []storage // Indexed by componentId
 	dcr *componentRegistry
 
 
@@ -140,18 +143,38 @@ type archEngine struct {
 
 func newArchEngine() *archEngine {
 	return &archEngine{
-		lookup:           make(map[archetypeId]*lookupList),
-		compSliceStorage: make(map[componentId]storage),
-		// lookup:           make([]*lookupList),
-		// compSliceStorage: make([]storage),
+		// archCounter: 0,
+		generation:  1, // Start at 1 so that anyone with the default int value will always realize they are in the wrong generation
+
+		// lookup:           make(map[archetypeId]*lookupList),
+		// compSliceStorage: make(map[componentId]storage),
+		lookup:           make([]*lookupList, 0, DefaultAllocation),
+		compSliceStorage: make([]storage, maxComponentId + 1),
 		dcr:              newComponentRegistry(),
 		filterLists:      make([]map[archetypeId]bool, 0),
 		archCount:        make(map[archetypeId]int),
 	}
 }
 
-func (e *archEngine) generation() int {
-	return e.dcr.generation
+func (e *archEngine) newArchetypeId() archetypeId {
+	e.generation++ // Increment the generation
+	// archId := e.archCounter
+	archId := archetypeId(len(e.lookup))
+	e.lookup = append(e.lookup,
+		&lookupList{
+			index: make(map[Id]int),
+			id:    make([]Id, 0, DefaultAllocation),
+			holes: make([]int, 0, DefaultAllocation),
+		},
+	)
+
+	// e.archCounter++
+	return archId
+}
+
+func (e *archEngine) getGeneration() int {
+	// return e.dcr.generation
+	return e.generation
 }
 
 // func (e *archEngine) Print(amount int) {
@@ -180,10 +203,15 @@ func (e *archEngine) count(anything ...any) int {
 
 	total := 0
 	for _, archId := range archIds {
-		lookup, ok := e.lookup[archId]
-		if !ok {
+		// lookup, ok := e.lookup[archId]
+		// if !ok {
+		// 	panic(fmt.Sprintf("Couldnt find archId in archEngine lookup table: %d", archId))
+		// }
+		lookup := e.lookup[archId]
+		if lookup == nil {
 			panic(fmt.Sprintf("Couldnt find archId in archEngine lookup table: %d", archId))
 		}
+
 
 		// Each id represents an entity that holds the requested component(s)
 		// Each hole represents a deleted entity that used to hold the requested component(s)
@@ -192,8 +220,8 @@ func (e *archEngine) count(anything ...any) int {
 	return total
 }
 
-func (e *archEngine) GetarchetypeId(comp ...componentId) archetypeId {
-	return e.dcr.getArchetypeId(comp...)
+func (e *archEngine) GetarchetypeId(comp ...Component) archetypeId {
+	return e.dcr.getArchetypeId(e, comp...)
 }
 
 // TODO - map might be slower than just having an array. I could probably do a big bitmask and then just do a logical OR
@@ -244,10 +272,10 @@ func (e *archEngine) FilterList(archIds []archetypeId, comp []componentId) []arc
 		if count >= numComponents {
 			archIds = append(archIds, archId)
 
-			// TODO: How tight do I want my tolerances?
-			if count > numComponents {
-				panic("AAAA")
-			}
+			// // TODO: How tight do I want my tolerances?
+			// if count > numComponents {
+			// 	panic("AAAA")
+			// }
 		}
 	}
 
@@ -262,29 +290,43 @@ func getStorage[T any](e *archEngine) *componentSliceStorage[T] {
 
 // Note: This will panic if the wrong compId doesn't match the generic type
 func getStorageByCompId[T any](e *archEngine, compId componentId) *componentSliceStorage[T] {
-	ss, ok := e.compSliceStorage[compId]
-	if !ok {
-		// TODO - have write call this spot
+	ss := e.compSliceStorage[compId]
+	if ss == nil {
 		ss = &componentSliceStorage[T]{
-			slice: make(map[archetypeId]*componentSlice[T]),
+			slice: make(map[archetypeId]*componentSlice[T], DefaultAllocation),
 		}
 		e.compSliceStorage[compId] = ss
 	}
 	storage := ss.(*componentSliceStorage[T])
 
 	return storage
+
+	// ss, ok := e.compSliceStorage[compId]
+	// if !ok {
+	// 	// TODO - have write call this spot
+	// 	ss = &componentSliceStorage[T]{
+	// 		slice: make(map[archetypeId]*componentSlice[T]),
+	// 	}
+	// 	e.compSliceStorage[compId] = ss
+	// }
+	// storage := ss.(*componentSliceStorage[T])
+
+	// return storage
 }
 
 func (e *archEngine) getOrAddLookupIndex(archId archetypeId, id Id) int {
-	lookup, ok := e.lookup[archId]
-	if !ok {
-		lookup = &lookupList{
-			index: make(map[Id]int),
-			id:    make([]Id, 0),
-			holes: make([]int, 0),
-		}
-		e.lookup[archId] = lookup
-	}
+
+	lookup := e.lookup[archId]
+
+	// lookup, ok := e.lookup[archId]
+	// if !ok {
+	// 	lookup = &lookupList{
+	// 		index: make(map[Id]int),
+	// 		id:    make([]Id, 0),
+	// 		holes: make([]int, 0),
+	// 	}
+	// 	e.lookup[archId] = lookup
+	// }
 
 	// Check if we want to cleanup holes
 	// TODO: This is a defragmentation operation. I'm not really sure how to compute heuristically that we should repack our slices. Too big it causes a stall, too small it causes unecessary repacks. maybe make it percentage based on holes per total entities. Maybe repack one at a time. Currently this should only trigger if we delete more than 1024 of the same archetype
@@ -316,7 +358,7 @@ func writeArch[T any](e *archEngine, archId archetypeId, index int, store *compo
 	cSlice, ok := store.slice[archId]
 	if !ok {
 		cSlice = &componentSlice[T]{
-			comp: make([]T, 0),
+			comp: make([]T, 0, DefaultAllocation),
 		}
 		store.slice[archId] = cSlice
 	}
@@ -326,10 +368,14 @@ func writeArch[T any](e *archEngine, archId archetypeId, index int, store *compo
 
 func readArch[T any](e *archEngine, archId archetypeId, id Id) (T, bool) {
 	var ret T
-	lookup, ok := e.lookup[archId]
-	if !ok {
-		return ret, false
+	lookup := e.lookup[archId]
+	if lookup == nil {
+		return ret, false // TODO: when could this possibly happen?
 	}
+	// lookup, ok := e.lookup[archId]
+	// if !ok {
+	// 	return ret, false
+	// }
 
 	index, ok := lookup.index[id]
 	if !ok {
@@ -338,10 +384,14 @@ func readArch[T any](e *archEngine, archId archetypeId, id Id) (T, bool) {
 
 	// Get the dynamic componentSliceStorage
 	n := name(ret)
-	ss, ok := e.compSliceStorage[n]
-	if !ok {
+	ss := e.compSliceStorage[n]
+	if ss == nil {
 		return ret, false
 	}
+	// ss, ok := e.compSliceStorage[n]
+	// if !ok {
+	// 	return ret, false
+	// }
 
 	// fmt.Printf("componentSliceStorage[T] type: %s != %s", name(ss), name(ret))
 	storage, ok := ss.(*componentSliceStorage[T])
@@ -360,10 +410,14 @@ func readArch[T any](e *archEngine, archId archetypeId, id Id) (T, bool) {
 
 func readPtrArch[T any](e *archEngine, archId archetypeId, id Id) *T {
 	var ret T
-	lookup, ok := e.lookup[archId]
-	if !ok {
+	lookup := e.lookup[archId]
+	if lookup == nil {
 		return nil
 	}
+	// lookup, ok := e.lookup[archId]
+	// if !ok {
+	// 	return nil
+	// }
 
 	index, ok := lookup.index[id]
 	if !ok {
@@ -372,10 +426,14 @@ func readPtrArch[T any](e *archEngine, archId archetypeId, id Id) *T {
 
 	// Get the dynamic componentSliceStorage
 	n := name(ret)
-	ss, ok := e.compSliceStorage[n]
-	if !ok {
+	ss := e.compSliceStorage[n]
+	if ss == nil {
 		return nil
 	}
+	// ss, ok := e.compSliceStorage[n]
+	// if !ok {
+	// 	return nil
+	// }
 
 	// fmt.Printf("componentSliceStorage[T] type: %s != %s", name(ss), name(ret))
 	storage, ok := ss.(*componentSliceStorage[T])
@@ -400,11 +458,11 @@ func (e *archEngine) rewriteArch(archId archetypeId, id Id, comp ...Component) a
 	ent.Add(comp...)
 	combinedComps := ent.Comps()
 
-	compIds := make([]componentId, len(combinedComps))
-	for i, c := range combinedComps { // TODO: fix
-		compIds[i] = c.id()
-	}
-	newArchId := e.GetarchetypeId(compIds...)
+	// compIds := make([]componentId, len(combinedComps))
+	// for i, c := range combinedComps { // TODO: fix
+	// 	compIds[i] = c.id()
+	// }
+	newArchId := e.GetarchetypeId(combinedComps...)
 
 	if archId == newArchId {
 		// Case 1: Archetype stays the same.
@@ -422,10 +480,14 @@ func (e *archEngine) rewriteArch(archId archetypeId, id Id, comp ...Component) a
 }
 
 func (e *archEngine) ReadEntity(archId archetypeId, id Id) *Entity {
-	lookup, ok := e.lookup[archId]
-	if !ok {
+	lookup := e.lookup[archId]
+	if lookup == nil {
 		panic("Archetype doesn't have lookup list")
 	}
+	// lookup, ok := e.lookup[archId]
+	// if !ok {
+	// 	panic("Archetype doesn't have lookup list")
+	// }
 
 	index, ok := lookup.index[id]
 	if !ok {
@@ -434,16 +496,22 @@ func (e *archEngine) ReadEntity(archId archetypeId, id Id) *Entity {
 
 	ent := NewEntity()
 	for n := range e.compSliceStorage {
-		e.compSliceStorage[n].ReadToEntity(ent, archId, index)
+		if e.compSliceStorage[n] != nil {
+			e.compSliceStorage[n].ReadToEntity(ent, archId, index)
+		}
 	}
 	return ent
 }
 
 func (e *archEngine) ReadRawEntity(archId archetypeId, id Id) *RawEntity {
-	lookup, ok := e.lookup[archId]
-	if !ok {
+	lookup := e.lookup[archId]
+	if lookup == nil {
 		panic("Archetype doesn't have lookup list")
 	}
+	// lookup, ok := e.lookup[archId]
+	// if !ok {
+	// 	panic("Archetype doesn't have lookup list")
+	// }
 
 	index, ok := lookup.index[id]
 	if !ok {
@@ -452,7 +520,9 @@ func (e *archEngine) ReadRawEntity(archId archetypeId, id Id) *RawEntity {
 
 	ent := NewRawEntity()
 	for n := range e.compSliceStorage {
-		e.compSliceStorage[n].ReadToRawEntity(ent, archId, index)
+		if e.compSliceStorage[n] != nil {
+			e.compSliceStorage[n].ReadToRawEntity(ent, archId, index)
+		}
 	}
 	return ent
 }
@@ -461,10 +531,14 @@ func (e *archEngine) ReadRawEntity(archId archetypeId, id Id) *RawEntity {
 // Once we get enough holes, we can re-pack the entire slice
 // TODO - How many holes before we repack? How many holes to pack at a time?
 func (e *archEngine) TagForDeletion(archId archetypeId, id Id) {
-	lookup, ok := e.lookup[archId]
-	if !ok {
+	lookup := e.lookup[archId]
+	if lookup == nil {
 		panic("Archetype doesn't have lookup list")
 	}
+	// lookup, ok := e.lookup[archId]
+	// if !ok {
+	// 	panic("Archetype doesn't have lookup list")
+	// }
 
 	index, ok := lookup.index[id]
 	if !ok {
@@ -480,10 +554,14 @@ func (e *archEngine) TagForDeletion(archId archetypeId, id Id) {
 }
 
 func (e *archEngine) CleanupHoles(archId archetypeId) {
-	lookup, ok := e.lookup[archId]
-	if !ok {
+	lookup := e.lookup[archId]
+	if lookup == nil {
 		panic("Archetype doesn't have lookup list")
 	}
+	// lookup, ok := e.lookup[archId]
+	// if !ok {
+	// 	panic("Archetype doesn't have lookup list")
+	// }
 	// fmt.Println("Cleaning Holes: ", len(lookup.holes))
 	for _, index := range lookup.holes {
 		// e.DeleteAll(archId, id)
@@ -499,7 +577,9 @@ func (e *archEngine) CleanupHoles(archId archetypeId) {
 				// If the last id is a hole, then slice it off
 				lookup.id = lookup.id[:lastIndex]
 				for n := range e.compSliceStorage {
-					e.compSliceStorage[n].Delete(archId, lastIndex)
+					if e.compSliceStorage[n] != nil {
+						e.compSliceStorage[n].Delete(archId, lastIndex)
+					}
 				}
 
 				continue // Try again
@@ -524,7 +604,9 @@ func (e *archEngine) CleanupHoles(archId archetypeId) {
 		lookup.id = lookup.id[:lastIndex]
 		lookup.index[lastId] = index
 		for n := range e.compSliceStorage {
-			e.compSliceStorage[n].Delete(archId, index)
+			if e.compSliceStorage[n] != nil {
+				e.compSliceStorage[n].Delete(archId, index)
+			}
 		}
 	}
 

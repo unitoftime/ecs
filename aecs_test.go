@@ -15,8 +15,9 @@ type Vel struct {
 
 func TestArchEngine(t *testing.T) {
 	engine := newArchEngine()
-	engine.write(archetypeId(1), Id(1), C(Pos{1, 1, 1}))
-	pos, ok := readArch[Pos](engine, archetypeId(1), Id(1))
+	archId := engine.newArchetypeId()
+	engine.write(archId, Id(1), C(Pos{1, 1, 1}))
+	pos, ok := readArch[Pos](engine, archId, Id(1))
 	fmt.Println(pos, ok)
 	fmt.Println(engine)
 }

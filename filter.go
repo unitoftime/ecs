@@ -108,9 +108,9 @@ func newFilterList(comps []componentId, filters ...Filter) filterList {
 	}
 }
 func (f *filterList) regenerate(world *World) {
-	if world.engine.generation() != f.cachedArchetypeGeneration {
+	if world.engine.getGeneration() != f.cachedArchetypeGeneration {
 		f.archIds = world.engine.FilterList(f.archIds, f.comps)
-		f.cachedArchetypeGeneration = world.engine.generation()
+		f.cachedArchetypeGeneration = world.engine.getGeneration()
 	}
 }
 

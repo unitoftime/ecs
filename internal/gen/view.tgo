@@ -54,10 +54,14 @@ func (v *View{{len $element}}[{{join $element ","}}]) Read(id Id) (*{{join $elem
 	if !ok {
 		return {{with len $element}}{{nils .}}{{end}}
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return {{with len $element}}{{nils .}}{{end}}
@@ -89,8 +93,10 @@ func (v *View{{len $element}}[{{join $element ","}}]) MapId(lambda func(id Id, {
 		{{range $ii, $arg := $element}}
 		slice{{$arg}}, _ = v.storage{{$arg}}.slice[archId]{{end}}
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -177,8 +183,10 @@ func (v *View{{len $element}}[{{join $element ","}}]) MapSlices(lambda func(id [
 		slice{{$arg}}, ok := v.storage{{$arg}}.slice[archId]
 		if !ok { continue }{{end}}
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		{{range $ii, $arg := $element}}

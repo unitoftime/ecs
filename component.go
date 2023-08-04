@@ -45,14 +45,16 @@ func (c Box[T]) Get() T {
 }
 
 
+// Note: you can increase max component size by increasing maxComponentId and archetypeMask
 // TODO: I should have some kind of panic if you go over maximum component size
 const maxComponentId = 255
 // Supports maximum 256 unique component types
 type archetypeMask [4]uint64 // TODO: can/should I make this configurable?
-func buildArchMask(comp ...componentId) archetypeMask {
+func buildArchMask(comps ...Component) archetypeMask {
 	var mask archetypeMask
-	for _, c := range comp {
+	for _, comp := range comps {
 		// Ranges: [0, 64), [64, 128), [128, 192), [192, 256)
+		c := comp.id()
 		idx := c / 64
 		offset := c - (64 * idx)
 		mask[idx] |= (1<<offset)
@@ -64,34 +66,34 @@ func buildArchMask(comp ...componentId) archetypeMask {
 // TODO: You should move to this (ie archetype graph (or bitmask?). maintain the current archetype node, then traverse to nodes (and add new ones) based on which components are added): https://ajmmertens.medium.com/building-an-ecs-2-archetypes-and-vectorization-fe21690805f9
 // Dynamic component Registry
 type componentRegistry struct {
-	archCounter archetypeId
+	// archCounter archetypeId
 	// archSet     []map[archetypeId]bool // Contains the set of archetypeIds that have this component
 	archSet     [][]archetypeId // Contains the set of archetypeIds that have this component
 	archMask    map[archetypeMask]archetypeId // Contains a mapping of archetype bitmasks to archetypeIds
 	// trie        *node
-	generation  int
+	// generation  int
 }
 
 func newComponentRegistry() *componentRegistry {
 	r := &componentRegistry{
-		archCounter: 0,
+		// archCounter: 0,
 		// archSet:     make([]map[archetypeId]bool, maxComponentId + 1), // TODO: hardcoded to max component
 		archSet:     make([][]archetypeId, maxComponentId + 1), // TODO: hardcoded to max component
 		archMask:    make(map[archetypeMask]archetypeId),
-		generation:  1, // Start at 1 so that anyone with the default int value will always realize they are in the wrong generation
+		// generation:  1, // Start at 1 so that anyone with the default int value will always realize they are in the wrong generation
 	}
 	// r.trie = newNode(r)
 
-	for i := range r.archSet {
-		// r.archSet[i] = make(map[archetypeId]bool)
-		r.archSet[i] = make([]archetypeId, 0)
-	}
+	// for i := range r.archSet {
+	// 	// r.archSet[i] = make(map[archetypeId]bool)
+	// 	r.archSet[i] = make([]archetypeId, 0)
+	// }
 	return r
 }
 
 func (r *componentRegistry) print() {
 	fmt.Println("--- componentRegistry ---")
-	fmt.Println("archCounter", r.archCounter)
+	// fmt.Println("archCounter", r.archCounter)
 	fmt.Println("-- archSet --")
 	for name, set := range r.archSet {
 		fmt.Printf("name(%d): archId: [ ", name)
@@ -102,22 +104,22 @@ func (r *componentRegistry) print() {
 	}
 }
 
-func (r *componentRegistry) newArchetypeId() archetypeId {
-	r.generation++ // Increment the generation
-	archId := r.archCounter
-	r.archCounter++
-	return archId
-}
+// func (r *componentRegistry) newArchetypeId() archetypeId {
+// 	r.generation++ // Increment the generation
+// 	archId := r.archCounter
+// 	r.archCounter++
+// 	return archId
+// }
 
 // 1. Map all components to their component Id
 // 2. Sort all component ids so that we can index the prefix tree
 // 3. Walk the prefix tree to find the archetypeId
-func (r *componentRegistry) getArchetypeId(comp ...componentId) archetypeId {
-	list := make([]componentId, len(comp))
-	for i, compId := range comp {
-		// r.Register(compId) // TODO: you used to register these dynamically when you had a map. Now you switched to an array and just pre-register every componentId
-		list[i] = compId
-	}
+func (r *componentRegistry) getArchetypeId(engine *archEngine, comps ...Component) archetypeId {
+	// list := make([]componentId, len(comps))
+	// for i, comp := range comps {
+	// 	// r.Register(compId) // TODO: you used to register these dynamically when you had a map. Now you switched to an array and just pre-register every componentId
+	// 	list[i] = comp.id()
+	// }
 
 	// sort.Slice(list, func(i, j int) bool {
 	// 	return list[i] < list[j]
@@ -140,14 +142,15 @@ func (r *componentRegistry) getArchetypeId(comp ...componentId) archetypeId {
 	// return cur.archId
 
 	// New way: using archetypeMask
-	mask := buildArchMask(comp...)
+	mask := buildArchMask(comps...)
 	archId, ok := r.archMask[mask]
 	if !ok {
-		archId = r.newArchetypeId()
+		archId = engine.newArchetypeId()
 		r.archMask[mask] = archId
 
 		// Add this archetypeId to every component's archList
-		for _, compId := range comp {
+		for _, comp := range comps {
+			compId := comp.id()
 			r.archSet[compId] = append(r.archSet[compId], archId)
 			// if !r.archSet[compId][archId] {
 			// 	r.archSet[compId][archId] = true
@@ -168,30 +171,30 @@ func (r *componentRegistry) getArchetypeId(comp ...componentId) archetypeId {
 // 	}
 // }
 
-type node struct {
-	archId archetypeId
-	child  []*node
-}
+// type node struct {
+// 	archId archetypeId
+// 	child  []*node
+// }
 
-func newNode(r *componentRegistry) *node {
-	return &node{
-		archId: r.newArchetypeId(),
-		child:  make([]*node, 0),
-	}
-}
+// func newNode(r *componentRegistry) *node {
+// 	return &node{
+// 		archId: r.newArchetypeId(),
+// 		child:  make([]*node, 0),
+// 	}
+// }
 
-func (n *node) Get(r *componentRegistry, id componentId) *node {
-	if id < componentId(len(n.child)) {
-		if n.child[id] == nil {
-			n.child[id] = newNode(r)
-		}
-		return n.child[id]
-	}
+// func (n *node) Get(r *componentRegistry, id componentId) *node {
+// 	if id < componentId(len(n.child)) {
+// 		if n.child[id] == nil {
+// 			n.child[id] = newNode(r)
+// 		}
+// 		return n.child[id]
+// 	}
 
-	// Expand the slice to hold all required children
-	n.child = append(n.child, make([]*node, 1+int(id)-len(n.child))...)
-	if n.child[id] == nil {
-		n.child[id] = newNode(r)
-	}
-	return n.child[id]
-}
+// 	// Expand the slice to hold all required children
+// 	n.child = append(n.child, make([]*node, 1+int(id)-len(n.child))...)
+// 	if n.child[id] == nil {
+// 		n.child[id] = newNode(r)
+// 	}
+// 	return n.child[id]
+// }

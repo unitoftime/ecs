@@ -110,6 +110,20 @@ func TestCommandExecution(t *testing.T) {
 // BenchmarkAddEntityCommands-12      	    1263	    989989 ns/op	  901981 B/op	   13060 allocs/op
 // BenchmarkAddEntityViaBundles-12    	    2281	    632377 ns/op	  744278 B/op	    6067 allocs/op
 
+// replaced more things with arrays instead of maps
+// BenchmarkAddEntityWrite-12         	    1960	    740365 ns/op	  805078 B/op	   10078 allocs/op
+// BenchmarkAddEntity-12              	    1909	    735657 ns/op	  820935 B/op	   10080 allocs/op
+// BenchmarkAddEntityCached-12        	    3496	    453399 ns/op	  583412 B/op	    2088 allocs/op
+// BenchmarkAddEntityCommands-12      	    1384	    927160 ns/op	  868407 B/op	   13065 allocs/op
+// BenchmarkAddEntityViaBundles-12    	    2748	    518987 ns/op	  655500 B/op	    6064 allocs/op
+
+// BenchmarkAddEntityWrite-12          	    2101	    667549 ns/op	  758943 B/op	    8073 allocs/op
+// BenchmarkAddEntity-12               	    2080	    672744 ns/op	  764670 B/op	    8073 allocs/op
+// BenchmarkAddEntityCached-12         	    3726	    437371 ns/op	  617807 B/op	      82 allocs/op
+// BenchmarkAddEntityCommands-12       	    1417	    894351 ns/op	  840387 B/op	   11067 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    2832	    505260 ns/op	  714083 B/op	    4067 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    3770	    448083 ns/op	  610571 B/op	      81 allocs/op
+
 var addEntSize = 1000
 func BenchmarkAddEntityWrite(b *testing.B) {
 	world := NewWorld()
@@ -212,21 +226,43 @@ func BenchmarkAddEntityViaBundles(b *testing.B) {
 	}
 }
 
-// func BenchmarkAddEntityViaBundles2(b *testing.B) {
-// 	world := NewWorld()
+func BenchmarkAddEntityViaBundles2(b *testing.B) {
+	world := NewWorld()
 
-// 	b.ResetTimer()
+	b.ResetTimer()
 
-// 	bundle := NewBundle4[postion, velocity, acceleration, radius](world)
+	bundle := NewBundle4[position, velocity, acceleration, radius]()
 
-// 	for n := 0; n < b.N; n++ {
-// 		for i := 0; i < addEntSize; i++ {
-// 			bundle.Write(id,
-// 				position{1, 2, 3},
-// 				velocity{4, 5, 6},
-// 				acceleration{7, 8, 9},
-// 				radius{10},
-// 			)
-// 		}
-// 	}
-// }
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < addEntSize; i++ {
+			id := world.NewId()
+			bundle.Write(world, id,
+				position{1, 2, 3},
+				velocity{4, 5, 6},
+				acceleration{7, 8, 9},
+				radius{10},
+			)
+		}
+	}
+}
+
+// BenchmarkAddEntityViaBundles-12     	    2988	    496709 ns/op	  699920 B/op	    6072 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    3024	    501376 ns/op	  666834 B/op	    6074 allocs/op
+
+// BenchmarkAddEntityViaBundles-12     	    3012	    506969 ns/op	  695520 B/op	    6073 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    3589	    447601 ns/op	  657292 B/op	    2085 allocs/op
+
+// BenchmarkAddEntityViaBundles-12     	    2862	    504393 ns/op	  723965 B/op	    6068 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    3552	    444953 ns/op	  663962 B/op	    2086 allocs/op
+
+// Removed []componentId and just use component
+// BenchmarkAddEntityViaBundles-12     	    3325	    463634 ns/op	  643600 B/op	    4086 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    3982	    424222 ns/op	  578243 B/op	      77 allocs/op
+
+
+// increased default allocation to 10k
+// BenchmarkAddEntityViaBundles-12     	    3020	    479307 ns/op	  678231 B/op	    4074 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    3673	    446787 ns/op	  626812 B/op	      83 allocs/op
+
+// BenchmarkAddEntityViaBundles-12     	    2922	    484760 ns/op	  645464 B/op	    4070 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    3890	    453437 ns/op	  633719 B/op	      79 allocs/op

@@ -6,6 +6,10 @@ import (
 	"reflect" // For resourceName
 )
 
+var (
+	DefaultAllocation = 0
+)
+
 const (
 	InvalidEntity Id = 0 // Represents the default entity Id, which is invalid
 	firstEntity   Id = 1
@@ -27,7 +31,7 @@ func NewWorld() *World {
 		nextId: firstEntity + 1,
 		minId:  firstEntity + 1,
 		maxId:  MaxEntity,
-		arch:   make(map[Id]archetypeId),
+		arch:   make(map[Id]archetypeId, DefaultAllocation),
 		engine: newArchEngine(),
 
 		resources: make(map[reflect.Type]any),
@@ -121,12 +125,12 @@ func (world *World) Write(id Id, comp ...Component) {
 		world.arch[id] = newarchetypeId
 	} else {
 		// Id does not yet exist, we need to add it for the first time
-		compIds := make([]componentId, len(comp))
-		for i, c := range comp { // TODO: fix
-			compIds[i] = c.id()
-		}
+		// compIds := make([]componentId, len(comp))
+		// for i, c := range comp { // TODO: fix
+		// 	compIds[i] = c.id()
+		// }
 
-		archId = world.engine.GetarchetypeId(compIds...)
+		archId = world.engine.GetarchetypeId(comp...)
 		world.arch[id] = archId
 
 		// Write all components to that archetype

@@ -54,10 +54,14 @@ func (v *View1[A]) Read(id Id) (*A) {
 	if !ok {
 		return nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil
@@ -89,8 +93,10 @@ func (v *View1[A]) MapId(lambda func(id Id, a *A)) {
 		
 		sliceA, _ = v.storageA.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -177,8 +183,10 @@ func (v *View1[A]) MapSlices(lambda func(id []Id, a []A)) {
 		sliceA, ok := v.storageA.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -248,10 +256,14 @@ func (v *View2[A,B]) Read(id Id) (*A,*B) {
 	if !ok {
 		return nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil
@@ -293,8 +305,10 @@ func (v *View2[A,B]) MapId(lambda func(id Id, a *A, b *B)) {
 		sliceA, _ = v.storageA.slice[archId]
 		sliceB, _ = v.storageB.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -390,8 +404,10 @@ func (v *View2[A,B]) MapSlices(lambda func(id []Id, a []A, b []B)) {
 		sliceB, ok := v.storageB.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -467,10 +483,14 @@ func (v *View3[A,B,C]) Read(id Id) (*A,*B,*C) {
 	if !ok {
 		return nil, nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil, nil
@@ -522,8 +542,10 @@ func (v *View3[A,B,C]) MapId(lambda func(id Id, a *A, b *B, c *C)) {
 		sliceB, _ = v.storageB.slice[archId]
 		sliceC, _ = v.storageC.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -628,8 +650,10 @@ func (v *View3[A,B,C]) MapSlices(lambda func(id []Id, a []A, b []B, c []C)) {
 		sliceC, ok := v.storageC.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -711,10 +735,14 @@ func (v *View4[A,B,C,D]) Read(id Id) (*A,*B,*C,*D) {
 	if !ok {
 		return nil, nil, nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil, nil, nil
@@ -776,8 +804,10 @@ func (v *View4[A,B,C,D]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D)) {
 		sliceC, _ = v.storageC.slice[archId]
 		sliceD, _ = v.storageD.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -891,8 +921,10 @@ func (v *View4[A,B,C,D]) MapSlices(lambda func(id []Id, a []A, b []B, c []C, d [
 		sliceD, ok := v.storageD.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -980,10 +1012,14 @@ func (v *View5[A,B,C,D,E]) Read(id Id) (*A,*B,*C,*D,*E) {
 	if !ok {
 		return nil, nil, nil, nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil, nil, nil, nil
@@ -1055,8 +1091,10 @@ func (v *View5[A,B,C,D,E]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E
 		sliceD, _ = v.storageD.slice[archId]
 		sliceE, _ = v.storageE.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -1179,8 +1217,10 @@ func (v *View5[A,B,C,D,E]) MapSlices(lambda func(id []Id, a []A, b []B, c []C, d
 		sliceE, ok := v.storageE.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -1274,10 +1314,14 @@ func (v *View6[A,B,C,D,E,F]) Read(id Id) (*A,*B,*C,*D,*E,*F) {
 	if !ok {
 		return nil, nil, nil, nil, nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil, nil, nil, nil, nil
@@ -1359,8 +1403,10 @@ func (v *View6[A,B,C,D,E,F]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e 
 		sliceE, _ = v.storageE.slice[archId]
 		sliceF, _ = v.storageF.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -1492,8 +1538,10 @@ func (v *View6[A,B,C,D,E,F]) MapSlices(lambda func(id []Id, a []A, b []B, c []C,
 		sliceF, ok := v.storageF.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -1593,10 +1641,14 @@ func (v *View7[A,B,C,D,E,F,G]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G) {
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil
@@ -1688,8 +1740,10 @@ func (v *View7[A,B,C,D,E,F,G]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, 
 		sliceF, _ = v.storageF.slice[archId]
 		sliceG, _ = v.storageG.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -1830,8 +1884,10 @@ func (v *View7[A,B,C,D,E,F,G]) MapSlices(lambda func(id []Id, a []A, b []B, c []
 		sliceG, ok := v.storageG.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -1937,10 +1993,14 @@ func (v *View8[A,B,C,D,E,F,G,H]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H) {
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil
@@ -2042,8 +2102,10 @@ func (v *View8[A,B,C,D,E,F,G,H]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D
 		sliceG, _ = v.storageG.slice[archId]
 		sliceH, _ = v.storageH.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -2193,8 +2255,10 @@ func (v *View8[A,B,C,D,E,F,G,H]) MapSlices(lambda func(id []Id, a []A, b []B, c 
 		sliceH, ok := v.storageH.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -2306,10 +2370,14 @@ func (v *View9[A,B,C,D,E,F,G,H,I]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I) {
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
@@ -2421,8 +2489,10 @@ func (v *View9[A,B,C,D,E,F,G,H,I]) MapId(lambda func(id Id, a *A, b *B, c *C, d 
 		sliceH, _ = v.storageH.slice[archId]
 		sliceI, _ = v.storageI.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -2581,8 +2651,10 @@ func (v *View9[A,B,C,D,E,F,G,H,I]) MapSlices(lambda func(id []Id, a []A, b []B, 
 		sliceI, ok := v.storageI.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -2700,10 +2772,14 @@ func (v *View10[A,B,C,D,E,F,G,H,I,J]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I,*J
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
@@ -2825,8 +2901,10 @@ func (v *View10[A,B,C,D,E,F,G,H,I,J]) MapId(lambda func(id Id, a *A, b *B, c *C,
 		sliceI, _ = v.storageI.slice[archId]
 		sliceJ, _ = v.storageJ.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -2994,8 +3072,10 @@ func (v *View10[A,B,C,D,E,F,G,H,I,J]) MapSlices(lambda func(id []Id, a []A, b []
 		sliceJ, ok := v.storageJ.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -3119,10 +3199,14 @@ func (v *View11[A,B,C,D,E,F,G,H,I,J,K]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I,
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
@@ -3254,8 +3338,10 @@ func (v *View11[A,B,C,D,E,F,G,H,I,J,K]) MapId(lambda func(id Id, a *A, b *B, c *
 		sliceJ, _ = v.storageJ.slice[archId]
 		sliceK, _ = v.storageK.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -3432,8 +3518,10 @@ func (v *View11[A,B,C,D,E,F,G,H,I,J,K]) MapSlices(lambda func(id []Id, a []A, b 
 		sliceK, ok := v.storageK.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
@@ -3563,10 +3651,14 @@ func (v *View12[A,B,C,D,E,F,G,H,I,J,K,L]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup, ok := v.world.engine.lookup[archId]
-	if !ok {
+	lookup := v.world.engine.lookup[archId]
+	if lookup == nil {
 		panic("LookupList is missing!")
 	}
+	// lookup, ok := v.world.engine.lookup[archId]
+	// if !ok {
+	// 	panic("LookupList is missing!")
+	// }
 	index, ok := lookup.index[id]
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
@@ -3708,8 +3800,10 @@ func (v *View12[A,B,C,D,E,F,G,H,I,J,K,L]) MapId(lambda func(id Id, a *A, b *B, c
 		sliceK, _ = v.storageK.slice[archId]
 		sliceL, _ = v.storageL.slice[archId]
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 		ids := lookup.id
 
 
@@ -3895,8 +3989,10 @@ func (v *View12[A,B,C,D,E,F,G,H,I,J,K,L]) MapSlices(lambda func(id []Id, a []A, 
 		sliceL, ok := v.storageL.slice[archId]
 		if !ok { continue }
 
-		lookup, ok := v.world.engine.lookup[archId]
-		if !ok { panic("LookupList is missing!") }
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+		// lookup, ok := v.world.engine.lookup[archId]
+		// if !ok { panic("LookupList is missing!") }
 
 		id = append(id, lookup.id)
 		
