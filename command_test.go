@@ -266,3 +266,24 @@ func BenchmarkAddEntityViaBundles2(b *testing.B) {
 
 // BenchmarkAddEntityViaBundles-12     	    2922	    484760 ns/op	  645464 B/op	    4070 allocs/op
 // BenchmarkAddEntityViaBundles2-12    	    3890	    453437 ns/op	  633719 B/op	      79 allocs/op
+
+// Tests writing the same entity multiple times
+func BenchmarkAddEntitySameCached(b *testing.B) {
+	world := NewWorld()
+
+	b.ResetTimer()
+
+	ent := NewEntity(
+		C(position{1, 2, 3}),
+		C(velocity{4, 5, 6}),
+		C(acceleration{7, 8, 9}),
+		C(radius{10}),
+	)
+	id := world.NewId()
+
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < addEntSize; i++ {
+			ent.Write(world, id)
+		}
+	}
+}

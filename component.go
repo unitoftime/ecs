@@ -58,6 +58,13 @@ func buildArchMask(comps ...Component) archetypeMask {
 	return mask
 }
 
+// Performs a bitwise or on the base mask `m` with the added mask `a`
+func (m archetypeMask) bitwiseOr(a archetypeMask) archetypeMask {
+	for i := range m {
+		m[i] = m[i] | a[i]
+	}
+	return m
+}
 
 // TODO: You should move to this (ie archetype graph (or bitmask?). maintain the current archetype node, then traverse to nodes (and add new ones) based on which components are added): https://ajmmertens.medium.com/building-an-ecs-2-archetypes-and-vectorization-fe21690805f9
 // Dynamic component Registry
@@ -90,7 +97,7 @@ func (r *componentRegistry) getArchetypeId(engine *archEngine, comps ...Componen
 	mask := buildArchMask(comps...)
 	archId, ok := r.archMask[mask]
 	if !ok {
-		archId = engine.newArchetypeId()
+		archId = engine.newArchetypeId(mask)
 		r.archMask[mask] = archId
 
 		// Add this archetypeId to every component's archList

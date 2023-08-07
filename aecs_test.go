@@ -1,38 +1,38 @@
 package ecs
 
-import (
-	"fmt"
-	"testing"
-)
+// import (
+// 	"fmt"
+// 	"testing"
+// )
 
-type Pos struct {
-	X, Y, Z float64
-}
+// type Pos struct {
+// 	X, Y, Z float64
+// }
 
-type Vel struct {
-	X, Y, Z float64
-}
+// type Vel struct {
+// 	X, Y, Z float64
+// }
 
-func TestArchEngine(t *testing.T) {
-	engine := newArchEngine()
-	archId := engine.newArchetypeId()
-	engine.write(archId, Id(1), C(Pos{1, 1, 1}))
-	pos, ok := readArch[Pos](engine, archId, Id(1))
-	fmt.Println(pos, ok)
-	fmt.Println(engine)
-}
+// func TestArchEngine(t *testing.T) {
+// 	engine := newArchEngine()
+// 	archId := engine.newArchetypeId()
+// 	engine.write(archId, Id(1), C(Pos{1, 1, 1}))
+// 	pos, ok := readArch[Pos](engine, archId, Id(1))
+// 	fmt.Println(pos, ok)
+// 	fmt.Println(engine)
+// }
 
-type d1 struct {
-	value int
-}
+// type d1 struct {
+// 	value int
+// }
 
-type d2 struct {
-	value int
-}
+// type d2 struct {
+// 	value int
+// }
 
-type d3 struct {
-	value int
-}
+// type d3 struct {
+// 	value int
+// }
 
 // func TestBuildEntitiesGeneric(t *testing.T) {
 // 	SetRegistry(&ComponentRegistry2{})

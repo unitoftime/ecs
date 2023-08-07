@@ -49,10 +49,12 @@ func (s *componentSlice[T]) Write(index int, val T) {
 	}
 }
 
+// TODO: Rename, this is kind of like an archetype header
 type lookupList struct {
 	index map[Id]int // A mapping from entity ids to array indices
 	id    []Id       // An array of every id in the arch list (essentially a reverse mapping from index to Id)
 	holes []int      // List of indexes that have ben deleted
+	mask archetypeMask
 }
 
 // Adds ourselves to the last available hole, else appends
@@ -148,7 +150,7 @@ func newArchEngine() *archEngine {
 	}
 }
 
-func (e *archEngine) newArchetypeId() archetypeId {
+func (e *archEngine) newArchetypeId(archMask archetypeMask) archetypeId {
 	e.generation++ // Increment the generation
 
 	archId := archetypeId(len(e.lookup))
@@ -157,6 +159,7 @@ func (e *archEngine) newArchetypeId() archetypeId {
 			index: make(map[Id]int),
 			id:    make([]Id, 0, DefaultAllocation),
 			holes: make([]int, 0, DefaultAllocation),
+			mask: archMask,
 		},
 	)
 
@@ -205,7 +208,7 @@ func (e *archEngine) count(anything ...any) int {
 	return total
 }
 
-func (e *archEngine) GetarchetypeId(comp ...Component) archetypeId {
+func (e *archEngine) getArchetypeId(comp ...Component) archetypeId {
 	return e.dcr.getArchetypeId(e, comp...)
 }
 
@@ -376,26 +379,32 @@ func readPtrArch[T any](e *archEngine, archId archetypeId, id Id) *T {
 // TODO - Think: Is it better to read everything then push it into the new archetypeId? Or better to migrate everything in place?
 // Returns the archetypeId of where the entity ends up
 func (e *archEngine) rewriteArch(archId archetypeId, id Id, comp ...Component) archetypeId {
-	ent := e.ReadEntity(archId, id)
+	// Calculate the new mask based on the bitwise or of the old and added masks
+	lookup := e.lookup[archId]
+	oldMask := lookup.mask
+	addMask := buildArchMask(comp...)
+	newMask := oldMask.bitwiseOr(addMask)
 
-	ent.Add(comp...)
-	combinedComps := ent.Comps()
-
-	newArchId := e.GetarchetypeId(combinedComps...)
-
-	if archId == newArchId {
+	if oldMask == newMask {
 		// Case 1: Archetype stays the same.
 		// This means that we only need to write the newly added components because we wont be moving the base entity data
 		e.write(archId, id, comp...)
+		return archId
 	} else {
+		ent := e.ReadEntity(archId, id)
+		ent.Add(comp...)
+		combinedComps := ent.Comps()
+		// Note (maybe TODO): Right now we don't know if the new archtypeId exists for this, so we have to go through the normal code path to potentially create it (even though we currently have the new archtypeMask)
+		newArchId := e.getArchetypeId(combinedComps...)
+
 		// Case 2: Archetype changes
 		// 1: Delete all components in old archetype
 		e.TagForDeletion(archId, id)
 
 		// 2: We need to write the entire list of combinedComps
 		e.write(newArchId, id, combinedComps...)
+		return newArchId
 	}
-	return newArchId
 }
 
 func (e *archEngine) ReadEntity(archId archetypeId, id Id) *Entity {
