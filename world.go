@@ -62,9 +62,7 @@ func (w *World) NewId() Id {
 	for {
 		val := w.idCounter.Load()
 		if w.idCounter.CompareAndSwap(val, val+1) {
-			ret := (Id(val) % (w.maxId-w.minId)) + w.minId
-			println(ret)
-			return ret
+			return (Id(val) % (w.maxId-w.minId)) + w.minId
 		}
 	}
 
