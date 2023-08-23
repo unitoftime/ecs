@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"math"
+	"sync/atomic"
 
 	"reflect" // For resourceName
 )
@@ -18,6 +19,7 @@ const (
 
 // World is the main data-holder. You usually pass it to other functions to do things.
 type World struct {
+	idCounter atomic.Uint64
 	nextId       Id
 	minId, maxId Id // This is the range of Ids returned by NewId
 	arch         map[Id]archetypeId
@@ -55,20 +57,30 @@ func (w *World) SetIdRange(min, max Id) {
 	w.maxId = max
 }
 
-// Creates a new Id which can then be used to create an entity
+// Creates a new Id which can then be used to create an entity. This is threadsafe
 func (w *World) NewId() Id {
-	if w.nextId < w.minId {
-		w.nextId = w.minId
+	for {
+		val := w.idCounter.Load()
+		if w.idCounter.CompareAndSwap(val, val+1) {
+			ret := (Id(val) % (w.maxId-w.minId)) + w.minId
+			println(ret)
+			return ret
+		}
 	}
 
-	id := w.nextId
 
-	if w.nextId == w.maxId {
-		w.nextId = w.minId
-	} else {
-		w.nextId++
-	}
-	return id
+	// if w.nextId < w.minId {
+	// 	w.nextId = w.minId
+	// }
+
+	// id := w.nextId
+
+	// if w.nextId == w.maxId {
+	// 	w.nextId = w.minId
+	// } else {
+	// 	w.nextId++
+	// }
+	// return id
 }
 
 // func (w *World) Count(anything ...any) int {
