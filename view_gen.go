@@ -50,7 +50,7 @@ func (v *View1[A]) Read(id Id) (*A) {
 		return nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil
 	}
@@ -62,7 +62,7 @@ func (v *View1[A]) Read(id Id) (*A) {
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil
 	}
@@ -252,7 +252,7 @@ func (v *View2[A,B]) Read(id Id) (*A,*B) {
 		return nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil
 	}
@@ -264,7 +264,7 @@ func (v *View2[A,B]) Read(id Id) (*A,*B) {
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil
 	}
@@ -479,7 +479,7 @@ func (v *View3[A,B,C]) Read(id Id) (*A,*B,*C) {
 		return nil, nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil
 	}
@@ -491,7 +491,7 @@ func (v *View3[A,B,C]) Read(id Id) (*A,*B,*C) {
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil, nil
 	}
@@ -731,7 +731,7 @@ func (v *View4[A,B,C,D]) Read(id Id) (*A,*B,*C,*D) {
 		return nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil
 	}
@@ -743,7 +743,7 @@ func (v *View4[A,B,C,D]) Read(id Id) (*A,*B,*C,*D) {
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil, nil, nil
 	}
@@ -1008,7 +1008,7 @@ func (v *View5[A,B,C,D,E]) Read(id Id) (*A,*B,*C,*D,*E) {
 		return nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil
 	}
@@ -1020,7 +1020,7 @@ func (v *View5[A,B,C,D,E]) Read(id Id) (*A,*B,*C,*D,*E) {
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil
 	}
@@ -1310,7 +1310,7 @@ func (v *View6[A,B,C,D,E,F]) Read(id Id) (*A,*B,*C,*D,*E,*F) {
 		return nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil
 	}
@@ -1322,7 +1322,7 @@ func (v *View6[A,B,C,D,E,F]) Read(id Id) (*A,*B,*C,*D,*E,*F) {
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil
 	}
@@ -1637,7 +1637,7 @@ func (v *View7[A,B,C,D,E,F,G]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G) {
 		return nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil
 	}
@@ -1649,7 +1649,7 @@ func (v *View7[A,B,C,D,E,F,G]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G) {
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil
 	}
@@ -1989,7 +1989,7 @@ func (v *View8[A,B,C,D,E,F,G,H]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H) {
 		return nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil
 	}
@@ -2001,7 +2001,7 @@ func (v *View8[A,B,C,D,E,F,G,H]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H) {
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil
 	}
@@ -2366,7 +2366,7 @@ func (v *View9[A,B,C,D,E,F,G,H,I]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I) {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
@@ -2378,7 +2378,7 @@ func (v *View9[A,B,C,D,E,F,G,H,I]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I) {
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
@@ -2768,7 +2768,7 @@ func (v *View10[A,B,C,D,E,F,G,H,I,J]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I,*J
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
@@ -2780,7 +2780,7 @@ func (v *View10[A,B,C,D,E,F,G,H,I,J]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I,*J
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
@@ -3195,7 +3195,7 @@ func (v *View11[A,B,C,D,E,F,G,H,I,J,K]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I,
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
@@ -3207,7 +3207,7 @@ func (v *View11[A,B,C,D,E,F,G,H,I,J,K]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I,
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
@@ -3647,7 +3647,7 @@ func (v *View12[A,B,C,D,E,F,G,H,I,J,K,L]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
@@ -3659,7 +3659,7 @@ func (v *View12[A,B,C,D,E,F,G,H,I,J,K,L]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}

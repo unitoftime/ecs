@@ -13,6 +13,14 @@ package main
 // 3 0.576352863
 // 4 0.571570715
 
+// Baseline: 9/2/23 (intmap replacement)
+// Iter Time
+// 0 0.478192213
+// 1 0.447929508
+// 2 0.449512679
+// 3 0.45052541
+// 4 0.453497259
+
 import (
 	"fmt"
 	"log"
@@ -80,7 +88,7 @@ func main() {
 	switch program {
 	case "native":
 		benchNativeComponents(size, collisionLimit)
-	case "nativeSplit":
+	case "native-split":
 		benchNativeSplit(size, collisionLimit)
 	case "ecs-slow":
 		benchPhysicsAlt(size, collisionLimit)
@@ -244,8 +252,9 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 		fmt.Println(iterCount, dt.Seconds())
 	}
 
-	// ecs.Map(world, func(id ecs.Id, collider *Collider) {
-	// 	fmt.Println(id, collider.Count)
+	// query := ecs.Query1[Count](world)
+	// query.MapId(func(id ecs.Id, count *Count) {
+	// 	fmt.Println(id, count.Count)
 	// })
 }
 
@@ -437,8 +446,9 @@ func benchPhysicsAlt(size int, collisionLimit int32) {
 		fmt.Println(i, dt.Seconds())
 	}
 
-	// ecs.Map(world, func(id ecs.Id, collider *Collider) {
-	// 	fmt.Println(id, collider.Count)
+	// query := ecs.Query1[Count](world)
+	// query.MapId(func(id ecs.Id, count *Count) {
+	// 	fmt.Println(id, count.Count)
 	// })
 }
 
@@ -722,7 +732,7 @@ func benchNativeComponents(size int, collisionLimit int32) {
 	}
 
 	// for i := range ids {
-	// 	fmt.Println(ids[i], col[i].Count)
+	// 	fmt.Println(ids[i], cnt[i].Count)
 	// }
 }
 
@@ -839,4 +849,3 @@ func benchNativeSplit(size int, collisionLimit int32) {
 // [ pos, pos, pos ]
 // [ vel, vel,     ]
 // [ col, col, col ]
-

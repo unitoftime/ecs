@@ -164,6 +164,28 @@ func BenchmarkAddEntity(b *testing.B) {
 	}
 }
 
+func BenchmarkAddEntityMemCached(b *testing.B) {
+	world := NewWorld()
+
+	b.ResetTimer()
+
+	ent := NewEntity()
+
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < addEntSize; i++ {
+			ent.Clear()
+			ent.Add(
+				C(position{1, 2, 3}),
+				C(velocity{4, 5, 6}),
+				C(acceleration{7, 8, 9}),
+				C(radius{10}),
+			)
+			id := world.NewId()
+			ent.Write(world, id)
+		}
+	}
+}
+
 func BenchmarkAddEntityCached(b *testing.B) {
 	world := NewWorld()
 
@@ -246,6 +268,33 @@ func BenchmarkAddEntityViaBundles2(b *testing.B) {
 	}
 }
 
+func BenchmarkAddEntityViaBundles3(b *testing.B) {
+	world := NewWorld()
+
+	b.ResetTimer()
+
+	command := NewCommand(world)
+	BundleOne := NewBundle2[position, velocity]()
+	BundleTwo := NewBundle2[acceleration, radius]()
+
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < addEntSize; i++ {
+			command.Spawn(
+				BundleOne.With(
+					position{1, 2, 3},
+					velocity{4, 5, 6},
+				),
+				BundleTwo.With(
+					acceleration{7, 8, 9},
+					radius{10},
+				),
+			)
+
+			// command.Execute()
+		}
+	}
+}
+
 // BenchmarkAddEntityViaBundles-12     	    2988	    496709 ns/op	  699920 B/op	    6072 allocs/op
 // BenchmarkAddEntityViaBundles2-12    	    3024	    501376 ns/op	  666834 B/op	    6074 allocs/op
 
@@ -287,3 +336,74 @@ func BenchmarkAddEntitySameCached(b *testing.B) {
 		}
 	}
 }
+
+// Swissmap1: inside component slice lookuplist
+// BenchmarkAddEntityWrite-12          	    2535	    554449 ns/op	  654120 B/op	    4018 allocs/op
+// BenchmarkAddEntity-12               	    2352	    572987 ns/op	  696081 B/op	    4020 allocs/op
+// BenchmarkAddEntityCached-12         	    4146	    445121 ns/op	  554724 B/op	      22 allocs/op
+// BenchmarkAddEntityCommands-12       	    1718	    778746 ns/op	  776313 B/op	    7027 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    2992	    473943 ns/op	  670642 B/op	    4026 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    4311	    443715 ns/op	  533557 B/op	      22 allocs/op
+// BenchmarkAddEntityViaBundles3-12    	    2792	    525603 ns/op	  730906 B/op	    6022 allocs/op
+// BenchmarkAddEntitySameCached-12     	   15274	     78000 ns/op	       0 B/op	       0 allocs/op
+
+// Swissmap 2: main world arch map + lookuplist
+// BenchmarkAddEntityWrite-12          	    2691	    508476 ns/op	  629258 B/op	    4000 allocs/op
+// BenchmarkAddEntity-12               	    2451	    517719 ns/op	  663984 B/op	    4000 allocs/op
+// BenchmarkAddEntityCached-12         	    4018	    446250 ns/op	  546891 B/op	       0 allocs/op
+// BenchmarkAddEntityCommands-12       	    1696	    704253 ns/op	  749053 B/op	    7000 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    3045	    436831 ns/op	  652619 B/op	    4000 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    4462	    440346 ns/op	  595200 B/op	       0 allocs/op
+// BenchmarkAddEntityViaBundles3-12    	    2875	    499738 ns/op	  796589 B/op	    6000 allocs/op
+// BenchmarkAddEntitySameCached-12     	   12859	     92020 ns/op	       0 B/op	       0 allocs/op
+
+// Using intmap
+// BenchmarkAddEntityWrite-12          	    2724	    496733 ns/op	  619912 B/op	    4000 allocs/op
+// BenchmarkAddEntity-12               	    2511	    544596 ns/op	  647454 B/op	    4000 allocs/op
+// BenchmarkAddEntityCached-12         	    3640	    368577 ns/op	  569115 B/op	       0 allocs/op
+// BenchmarkAddEntityCommands-12       	    1692	    725601 ns/op	  767593 B/op	    7000 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    3399	    427582 ns/op	  627948 B/op	    4000 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    4722	    391206 ns/op	  558876 B/op	       0 allocs/op
+// BenchmarkAddEntityViaBundles3-12    	    2938	    498754 ns/op	  804297 B/op	    6000 allocs/op
+// BenchmarkAddEntitySameCached-12     	   15183	     75826 ns/op	       3 B/op	       0 allocs/op
+
+// BenchmarkAddEntityWrite-12          	    2593	    486711 ns/op	  650183 B/op	    4000 allocs/op
+// BenchmarkAddEntity-12               	    2510	    488575 ns/op	  657692 B/op	    4000 allocs/op
+// BenchmarkAddEntityCached-12         	    5149	    346940 ns/op	  532104 B/op	       0 allocs/op
+// BenchmarkAddEntityCommands-12       	    1767	    731716 ns/op	  790303 B/op	    7000 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    3566	    428045 ns/op	  737624 B/op	    4000 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    5036	    328989 ns/op	  534023 B/op	       0 allocs/op
+// BenchmarkAddEntityViaBundles3-12    	    3046	    490770 ns/op	  836045 B/op	    6000 allocs/op
+// BenchmarkAddEntitySameCached-12     	   17461	     68760 ns/op	       0 B/op	       0 allocs/op
+
+// Default map
+// BenchmarkAddEntityWrite-12          	    2552	    574152 ns/op	  660288 B/op	    4037 allocs/op
+// BenchmarkAddEntity-12               	    2239	    590225 ns/op	  645485 B/op	    4042 allocs/op
+// BenchmarkAddEntityCached-12         	    4203	    434851 ns/op	  558904 B/op	      45 allocs/op
+// BenchmarkAddEntityCommands-12       	    1645	    836026 ns/op	  832556 B/op	    7057 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    3070	    491333 ns/op	  667152 B/op	    4056 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    4210	    438253 ns/op	  557990 B/op	      45 allocs/op
+// BenchmarkAddEntityViaBundles3-12    	    2757	    556359 ns/op	  747118 B/op	    6043 allocs/op
+// BenchmarkAddEntitySameCached-12     	   16693	     72033 ns/op	       3 B/op	       0 allocs/op
+
+
+// Swissmap
+// BenchmarkAddEntityWrite-12          	    2650	    581867 ns/op	  637261 B/op	    4000 allocs/op
+// BenchmarkAddEntity-12               	    2648	    540628 ns/op	  637654 B/op	    4000 allocs/op
+// BenchmarkAddEntityCached-12         	    4462	    508153 ns/op	  595204 B/op	       0 allocs/op
+// BenchmarkAddEntityCommands-12       	    1676	    744876 ns/op	  750089 B/op	    7000 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    3346	    455147 ns/op	  618570 B/op	    4000 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    4434	    479402 ns/op	  598962 B/op	       0 allocs/op
+// BenchmarkAddEntityViaBundles3-12    	    2858	    522964 ns/op	  799992 B/op	    6000 allocs/op
+// BenchmarkAddEntitySameCached-12     	   12530	    106595 ns/op	       1 B/op	       0 allocs/op
+
+// Adapted internal intmap with simplified hash function
+// BenchmarkAddEntityWrite-12          	    3116	    349783 ns/op	  710300 B/op	    4000 allocs/op
+// BenchmarkAddEntity-12               	    3478	    348030 ns/op	  662060 B/op	    4000 allocs/op
+// BenchmarkAddEntityCached-12         	    6510	    246756 ns/op	  577626 B/op	       0 allocs/op
+// BenchmarkAddEntityCommands-12       	    1892	    582171 ns/op	  839947 B/op	    7000 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    4527	    264847 ns/op	  706068 B/op	    4000 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    6100	    186840 ns/op	  600819 B/op	       0 allocs/op
+// BenchmarkAddEntityViaBundles3-12    	    3715	    317135 ns/op	  824529 B/op	    6000 allocs/op
+// BenchmarkAddEntitySameCached-12     	   17976	     68139 ns/op	       3 B/op	       0 allocs/op
+

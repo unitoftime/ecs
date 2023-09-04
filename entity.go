@@ -101,7 +101,7 @@ func (ent *Entity) Write(world *World, id Id) {
 
 // Reads the entire entity out of the world and into an *Entity object. Returns nil if the entity doesn't exist
 func ReadEntity(world *World, id Id) *Entity {
-	archId, ok := world.arch[id]
+	archId, ok := world.arch.Get(id)
 	if !ok {
 		return nil
 	}
@@ -214,7 +214,7 @@ func (e *RawEntity) Comps() []any {
 
 // Reads the entire entity out of the world and into an *RawEntity object. Returns nil if the entity doesn't exist. RawEntity is lik
 func ReadRawEntity(world *World, id Id) *RawEntity {
-	archId, ok := world.arch[id]
+	archId, ok := world.arch.Get(id)
 	if !ok {
 		return nil
 	}

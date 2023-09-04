@@ -51,7 +51,7 @@ func (s *componentSlice[T]) Write(index int, val T) {
 
 // TODO: Rename, this is kind of like an archetype header
 type lookupList struct {
-	index map[Id]int // A mapping from entity ids to array indices
+	index *internalMap[Id,int] // A mapping from entity ids to array indices
 	id    []Id       // An array of every id in the arch list (essentially a reverse mapping from index to Id)
 	holes []int      // List of indexes that have ben deleted
 	mask archetypeMask
@@ -64,7 +64,7 @@ func (l *lookupList) addToEasiestHole(id Id) int {
 		lastHoleIndex := len(l.holes)-1
 		index := l.holes[lastHoleIndex]
 		l.id[index] = id
-		l.index[id] = index
+		l.index.Put(id, index)
 
 		l.holes = l.holes[:lastHoleIndex]
 		return index
@@ -72,7 +72,7 @@ func (l *lookupList) addToEasiestHole(id Id) int {
 		// Because the Id hasn't been added to this arch, we need to append it to the end
 		l.id = append(l.id, id)
 		index := len(l.id) - 1
-		l.index[id] = index
+		l.index.Put(id, index)
 		return index
 	}
 }
@@ -156,7 +156,7 @@ func (e *archEngine) newArchetypeId(archMask archetypeMask) archetypeId {
 	archId := archetypeId(len(e.lookup))
 	e.lookup = append(e.lookup,
 		&lookupList{
-			index: make(map[Id]int),
+			index: newMap[Id,int](0),
 			id:    make([]Id, 0, DefaultAllocation),
 			holes: make([]int, 0, DefaultAllocation),
 			mask: archMask,
@@ -277,7 +277,7 @@ func (e *archEngine) getOrAddLookupIndex(archId archetypeId, id Id) int {
 		e.CleanupHoles(archId)
 	}
 
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		// Because the Id hasn't been added to this arch, we need to add it
 		index = lookup.addToEasiestHole(id)
@@ -316,7 +316,7 @@ func readArch[T any](e *archEngine, archId archetypeId, id Id) (T, bool) {
 		return ret, false // TODO: when could this possibly happen?
 	}
 
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return ret, false
 	}
@@ -350,7 +350,7 @@ func readPtrArch[T any](e *archEngine, archId archetypeId, id Id) *T {
 		return nil
 	}
 
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return nil
 	}
@@ -413,7 +413,7 @@ func (e *archEngine) ReadEntity(archId archetypeId, id Id) *Entity {
 		panic("Archetype doesn't have lookup list")
 	}
 
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		panic("Archetype doesn't contain ID")
 	}
@@ -433,7 +433,7 @@ func (e *archEngine) ReadRawEntity(archId archetypeId, id Id) *RawEntity {
 		panic("Archetype doesn't have lookup list")
 	}
 
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		panic("Archetype doesn't contain ID")
 	}
@@ -456,14 +456,14 @@ func (e *archEngine) TagForDeletion(archId archetypeId, id Id) {
 		panic("Archetype doesn't have lookup list")
 	}
 
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		panic("Archetype doesn't contain ID")
 	}
 
 	// This indicates that the index needs to be cleaned up and should be skipped in any list processing
 	lookup.id[index] = InvalidEntity
-	delete(lookup.index, id)
+	lookup.index.Delete(id)
 
 	// This is used to track the current list of indices that need to be cleaned
 	lookup.holes = append(lookup.holes, index)
@@ -512,7 +512,7 @@ func (e *archEngine) CleanupHoles(archId archetypeId) {
 
 		lookup.id[index] = lastId
 		lookup.id = lookup.id[:lastIndex]
-		lookup.index[lastId] = index
+		lookup.index.Put(lastId, index)
 		for n := range e.compSliceStorage {
 			if e.compSliceStorage[n] != nil {
 				e.compSliceStorage[n].Delete(archId, index)

@@ -11,3 +11,6 @@ benchmark:
 
 coverage:
 	go tool cover -html=coverage.out
+
+bench2:
+	go test -run=nothingplease -bench=BenchmarkAddEntity -benchmem -memprofile mem.pprof -cpuprofile cpu.pprof

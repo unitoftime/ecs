@@ -50,7 +50,7 @@ func (v *View{{len $element}}[{{join $element ","}}]) Read(id Id) (*{{join $elem
 		return {{with len $element}}{{nils .}}{{end}}
 	}
 
-	archId, ok := v.world.arch[id]
+	archId, ok := v.world.arch.Get(id)
 	if !ok {
 		return {{with len $element}}{{nils .}}{{end}}
 	}
@@ -62,7 +62,7 @@ func (v *View{{len $element}}[{{join $element ","}}]) Read(id Id) (*{{join $elem
 	// if !ok {
 	// 	panic("LookupList is missing!")
 	// }
-	index, ok := lookup.index[id]
+	index, ok := lookup.index.Get(id)
 	if !ok {
 		return {{with len $element}}{{nils .}}{{end}}
 	}

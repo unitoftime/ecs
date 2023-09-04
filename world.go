@@ -22,7 +22,7 @@ type World struct {
 	idCounter atomic.Uint64
 	nextId       Id
 	minId, maxId Id // This is the range of Ids returned by NewId
-	arch         map[Id]archetypeId
+	arch         *internalMap[Id, archetypeId]
 	engine       *archEngine
 	resources    map[reflect.Type]any
 }
@@ -33,7 +33,7 @@ func NewWorld() *World {
 		nextId: firstEntity + 1,
 		minId:  firstEntity + 1,
 		maxId:  MaxEntity,
-		arch:   make(map[Id]archetypeId, DefaultAllocation),
+		arch:   newMap[Id, archetypeId](DefaultAllocation),
 		engine: newArchEngine(),
 
 		resources: make(map[reflect.Type]any),
@@ -129,14 +129,14 @@ func Write(world *World, id Id, comp ...Component) {
 func (world *World) Write(id Id, comp ...Component) {
 	if len(comp) <= 0 { return } // Do nothing if there are no components
 
-	archId, ok := world.arch[id]
+	archId, ok := world.arch.Get(id)
 	if ok {
 		newarchetypeId := world.engine.rewriteArch(archId, id, comp...)
-		world.arch[id] = newarchetypeId
+		world.arch.Put(id, newarchetypeId)
 	} else {
 		// Id does not yet exist, we need to add it for the first time
 		archId = world.engine.getArchetypeId(comp...)
-		world.arch[id] = archId
+		world.arch.Put(id, archId)
 
 		// Write all components to that archetype
 		world.engine.write(archId, id, comp...)
@@ -148,7 +148,7 @@ func (world *World) Write(id Id, comp ...Component) {
 // Deprecated: This API is tentative, I'm trying to improve the QueryN construct so that it can capture this usecase.
 func Read[T any](world *World, id Id) (T, bool) {
 	var ret T
-	archId, ok := world.arch[id]
+	archId, ok := world.arch.Get(id)
 	if !ok {
 		return ret, false
 	}
@@ -161,7 +161,7 @@ func Read[T any](world *World, id Id) (T, bool) {
 // This pointer is short lived and can become invalid if any other entity changes in the world
 // Deprecated: This API is tentative, I'm trying to improve the QueryN construct so that it can capture this usecase.
 func ReadPtr[T any](world *World, id Id) *T {
-	archId, ok := world.arch[id]
+	archId, ok := world.arch.Get(id)
 	if !ok {
 		return nil
 	}
@@ -178,12 +178,12 @@ func ReadPtr[T any](world *World, id Id) *T {
 // This can be called inside maps and loops, it will delete the entity immediately.
 // Returns true if the entity exists and was actually deleted, else returns false
 func Delete(world *World, id Id) bool {
-	archId, ok := world.arch[id]
+	archId, ok := world.arch.Get(id)
 	if !ok {
 		return false
 	}
 
-	delete(world.arch, id)
+	world.arch.Delete(id)
 
 	world.engine.TagForDeletion(archId, id)
 	// Note: This was the old, more direct way, but isn't loop safe
@@ -193,8 +193,7 @@ func Delete(world *World, id Id) bool {
 
 // Returns true if the entity exists in the world else it returns false
 func (world *World) Exists(id Id) bool {
-	_, ok := world.arch[id]
-	return ok
+	return world.arch.Has(id)
 }
 
 

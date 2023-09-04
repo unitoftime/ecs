@@ -30,6 +30,20 @@ func NewSystem(lambda func(dt time.Duration)) System {
 	}
 }
 
+// func NewSystem1[A Initer](world *World, lambda func(dt time.Duration, a *A)) System {
+// 	var a A
+// 	a.Init(world)
+
+// 	return System{
+// 		Name: "TODO - Use Reflection",
+// 		Func: func(dt time.Duration) {
+// 			// aPointer.Lock()
+// 			// defer aPointer.Unlock()
+// 			lambda(dt, a)
+// 		},
+// 	}
+// }
+
 // TODO - how to support filters?
 // type Initializer interface {
 // 	Initialize(*World)
