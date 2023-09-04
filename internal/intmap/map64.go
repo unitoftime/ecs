@@ -20,7 +20,9 @@ const fillFactor64 = 0.7
 // Hashing Reference: https://gist.github.com/badboy/6267743
 func phiMix64(x int) int {
 	// Note: With this, we are only just a bit faster than swissmap
-	h := x * int(0x9E3779B9)
+	// h := x * int(0x9E3779B9)
+	// h := x * 0x9E3779B9
+	h := x * (-1_640_531_527) // This is just the int32 version of the 0x9E3779B9
 	return h ^ (h >> 16)
 
 	// TODO: track collision counts and compare before enabling this
