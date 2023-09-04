@@ -16,6 +16,13 @@ type View1[A any] struct {
 	storageA *componentSliceStorage[A]
 }
 
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View1[A]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query1[A](world)
+}
+
+
 // Creates a View for the specified world with the specified component filters.
 func Query1[A any](world *World, filters ...Filter) *View1[A] {
 
@@ -213,6 +220,13 @@ type View2[A,B any] struct {
 	storageA *componentSliceStorage[A]
 	storageB *componentSliceStorage[B]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View2[A,B]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query2[A,B](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query2[A,B any](world *World, filters ...Filter) *View2[A,B] {
@@ -436,6 +450,13 @@ type View3[A,B,C any] struct {
 	storageB *componentSliceStorage[B]
 	storageC *componentSliceStorage[C]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View3[A,B,C]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query3[A,B,C](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query3[A,B,C any](world *World, filters ...Filter) *View3[A,B,C] {
@@ -684,6 +705,13 @@ type View4[A,B,C,D any] struct {
 	storageC *componentSliceStorage[C]
 	storageD *componentSliceStorage[D]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View4[A,B,C,D]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query4[A,B,C,D](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query4[A,B,C,D any](world *World, filters ...Filter) *View4[A,B,C,D] {
@@ -957,6 +985,13 @@ type View5[A,B,C,D,E any] struct {
 	storageD *componentSliceStorage[D]
 	storageE *componentSliceStorage[E]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View5[A,B,C,D,E]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query5[A,B,C,D,E](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query5[A,B,C,D,E any](world *World, filters ...Filter) *View5[A,B,C,D,E] {
@@ -1255,6 +1290,13 @@ type View6[A,B,C,D,E,F any] struct {
 	storageE *componentSliceStorage[E]
 	storageF *componentSliceStorage[F]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View6[A,B,C,D,E,F]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query6[A,B,C,D,E,F](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query6[A,B,C,D,E,F any](world *World, filters ...Filter) *View6[A,B,C,D,E,F] {
@@ -1578,6 +1620,13 @@ type View7[A,B,C,D,E,F,G any] struct {
 	storageF *componentSliceStorage[F]
 	storageG *componentSliceStorage[G]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View7[A,B,C,D,E,F,G]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query7[A,B,C,D,E,F,G](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query7[A,B,C,D,E,F,G any](world *World, filters ...Filter) *View7[A,B,C,D,E,F,G] {
@@ -1926,6 +1975,13 @@ type View8[A,B,C,D,E,F,G,H any] struct {
 	storageG *componentSliceStorage[G]
 	storageH *componentSliceStorage[H]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View8[A,B,C,D,E,F,G,H]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query8[A,B,C,D,E,F,G,H](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query8[A,B,C,D,E,F,G,H any](world *World, filters ...Filter) *View8[A,B,C,D,E,F,G,H] {
@@ -2299,6 +2355,13 @@ type View9[A,B,C,D,E,F,G,H,I any] struct {
 	storageH *componentSliceStorage[H]
 	storageI *componentSliceStorage[I]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View9[A,B,C,D,E,F,G,H,I]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query9[A,B,C,D,E,F,G,H,I](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query9[A,B,C,D,E,F,G,H,I any](world *World, filters ...Filter) *View9[A,B,C,D,E,F,G,H,I] {
@@ -2697,6 +2760,13 @@ type View10[A,B,C,D,E,F,G,H,I,J any] struct {
 	storageI *componentSliceStorage[I]
 	storageJ *componentSliceStorage[J]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View10[A,B,C,D,E,F,G,H,I,J]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query10[A,B,C,D,E,F,G,H,I,J](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query10[A,B,C,D,E,F,G,H,I,J any](world *World, filters ...Filter) *View10[A,B,C,D,E,F,G,H,I,J] {
@@ -3120,6 +3190,13 @@ type View11[A,B,C,D,E,F,G,H,I,J,K any] struct {
 	storageJ *componentSliceStorage[J]
 	storageK *componentSliceStorage[K]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View11[A,B,C,D,E,F,G,H,I,J,K]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query11[A,B,C,D,E,F,G,H,I,J,K](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query11[A,B,C,D,E,F,G,H,I,J,K any](world *World, filters ...Filter) *View11[A,B,C,D,E,F,G,H,I,J,K] {
@@ -3568,6 +3645,13 @@ type View12[A,B,C,D,E,F,G,H,I,J,K,L any] struct {
 	storageK *componentSliceStorage[K]
 	storageL *componentSliceStorage[L]
 }
+
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View12[A,B,C,D,E,F,G,H,I,J,K,L]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query12[A,B,C,D,E,F,G,H,I,J,K,L](world)
+}
+
 
 // Creates a View for the specified world with the specified component filters.
 func Query12[A,B,C,D,E,F,G,H,I,J,K,L any](world *World, filters ...Filter) *View12[A,B,C,D,E,F,G,H,I,J,K,L] {

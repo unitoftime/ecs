@@ -16,6 +16,13 @@ type View{{len $element}}[{{join $element ","}} any] struct {
 	storage{{$arg}} *componentSliceStorage[{{$arg}}]{{end}}
 }
 
+// implement the intializer interface so that it can be automatically created and injected into systems
+func (v *View{{len $element}}[{{join $element ","}}]) initialize(world *World) any {
+	// TODO: filters need to be a part of the query type
+	return Query{{len $element}}[{{join $element ","}}](world)
+}
+
+
 // Creates a View for the specified world with the specified component filters.
 func Query{{len $element}}[{{join $element ","}} any](world *World, filters ...Filter) *View{{len $element}}[{{join $element ","}}] {
 {{range $ii, $arg := $element}}

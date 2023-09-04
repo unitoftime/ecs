@@ -30,16 +30,20 @@ func NewSystem(lambda func(dt time.Duration)) System {
 	}
 }
 
-// func NewSystem1[A Initer](world *World, lambda func(dt time.Duration, a *A)) System {
+// type Initializer interface {
+// 	initialize(*World) any
+// }
+
+// func NewSystem1[A Initializer](world *World, lambda func(dt time.Duration, a A)) System {
 // 	var a A
-// 	a.Init(world)
+// 	aRes := a.initialize(world).(A)
 
 // 	return System{
-// 		Name: "TODO - Use Reflection",
+// 		Name: "TODO - Use Reflection, lambda function name?",
 // 		Func: func(dt time.Duration) {
 // 			// aPointer.Lock()
 // 			// defer aPointer.Unlock()
-// 			lambda(dt, a)
+// 			lambda(dt, aRes)
 // 		},
 // 	}
 // }
