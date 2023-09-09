@@ -2,8 +2,6 @@ package ecs
 
 import (
 	"fmt"
-	"sync"
-	"reflect"
 )
 
 // This is the identifier for entities in the world
@@ -11,27 +9,6 @@ import (
 type Id uint32
 
 type archetypeId uint32
-
-var componentIdMutex sync.Mutex
-var registeredComponents = make(map[reflect.Type]componentId, maxComponentId)
-var invalidComponentId componentId = 0
-var componentRegistryCounter componentId = 1
-
-func name(t any) componentId {
-	// Note: We have to lock here in case there are multiple worlds
-	// TODO!! - This probably causes some performance penalty
-	componentIdMutex.Lock()
-	defer componentIdMutex.Unlock()
-
-	typeof := reflect.TypeOf(t)
-	compId, ok := registeredComponents[typeof]
-	if !ok {
-		compId = componentRegistryCounter
-		registeredComponents[typeof] = compId
-		componentRegistryCounter++
-	}
-	return compId
-}
 
 type componentSlice[T any] struct {
 	comp []T

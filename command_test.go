@@ -407,3 +407,25 @@ func BenchmarkAddEntitySameCached(b *testing.B) {
 // BenchmarkAddEntityViaBundles3-12    	    3715	    317135 ns/op	  824529 B/op	    6000 allocs/op
 // BenchmarkAddEntitySameCached-12     	   17976	     68139 ns/op	       3 B/op	       0 allocs/op
 
+// With Reflection
+// BenchmarkAddEntityWrite-12          	    2588	    486795 ns/op	  651222 B/op	    4000 allocs/op
+// BenchmarkAddEntity-12               	    2587	    486373 ns/op	  651431 B/op	    4000 allocs/op
+// BenchmarkAddEntityMemCached-12      	    2534	    537192 ns/op	  652525 B/op	    4000 allocs/op
+// BenchmarkAddEntityCached-12         	    5383	    323072 ns/op	  513768 B/op	       0 allocs/op
+// BenchmarkAddEntityCommands-12       	    1773	    733919 ns/op	  788452 B/op	    7000 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    3232	    429839 ns/op	  698811 B/op	    4000 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    5034	    334947 ns/op	  534235 B/op	       0 allocs/op
+// BenchmarkAddEntityViaBundles3-12    	    3075	    490386 ns/op	  830276 B/op	    6000 allocs/op
+// BenchmarkAddEntitySameCached-12     	   17659	     66830 ns/op	       3 B/op	       0 allocs/op
+
+// Reflection Elimination
+// BenchmarkAddEntityWrite-12          	    2990	    487903 ns/op	  735514 B/op	    4000 allocs/op
+// BenchmarkAddEntity-12               	    2934	    469310 ns/op	  678795 B/op	    4000 allocs/op
+// BenchmarkAddEntityMemCached-12      	    2702	    499574 ns/op	  633361 B/op	    4000 allocs/op
+// BenchmarkAddEntityCached-12         	    5054	    318631 ns/op	  542102 B/op	       0 allocs/op
+// BenchmarkAddEntityCommands-12       	    1791	    700002 ns/op	  782936 B/op	    7000 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    3489	    416354 ns/op	  660322 B/op	    4000 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    5064	    331580 ns/op	  541033 B/op	       0 allocs/op
+// BenchmarkAddEntityViaBundles3-12    	    3040	    485595 ns/op	  837256 B/op	    6000 allocs/op
+// BenchmarkAddEntitySameCached-12     	   17451	     68978 ns/op	       3 B/op	       0 allocs/op
+
