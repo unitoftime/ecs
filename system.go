@@ -2,7 +2,7 @@ package ecs
 
 import (
 	"fmt"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"runtime"
@@ -105,24 +105,24 @@ func (s *SystemLog) String() string {
 	return fmt.Sprintf("%s: %s", s.Name, s.Time)
 }
 
-// TODO - Just use an atomic here?
-type signal struct {
-	mu    sync.Mutex
-	value bool
-}
+// // TODO - Just use an atomic here?
+// type signal struct {
+// 	mu    sync.Mutex
+// 	value bool
+// }
 
-func (s *signal) Set(val bool) {
-	s.mu.Lock()
-	s.value = val
-	s.mu.Unlock()
-}
+// func (s *signal) Set(val bool) {
+// 	s.mu.Lock()
+// 	s.value = val
+// 	s.mu.Unlock()
+// }
 
-func (s *signal) Get() bool {
-	s.mu.Lock()
-	ret := s.value
-	s.mu.Unlock()
-	return ret
-}
+// func (s *signal) Get() bool {
+// 	s.mu.Lock()
+// 	ret := s.value
+// 	s.mu.Unlock()
+// 	return ret
+// }
 
 // Scheduler is a place to put your systems and have them run.
 // There are two types of systems: Fixed time systems and dynamic time systems
@@ -139,8 +139,8 @@ type Scheduler struct {
 	fixedTimeStep                     time.Duration
 	accumulator                       time.Duration
 	// gameSpeed                         int64
-	quit                              signal
-	pauseRender                       signal
+	quit                              atomic.Bool
+	pauseRender                       atomic.Bool
 	maxLoopCount                      int
 }
 
@@ -169,13 +169,18 @@ func NewScheduler() *Scheduler {
 
 // Tells the scheduler to exit. Scheduler will finish executing its remaining tick before closing.
 func (s *Scheduler) SetQuit(value bool) {
-	s.quit.Set(true)
+	s.quit.Store(true)
+}
+
+// Returns the quit value of the scheduler
+func (s *Scheduler) Quit() bool {
+	return s.quit.Load()
 }
 
 // Pauses the set of render systems (ie they will be skipped).
 // Deprecated: This API is tentatitive
 func (s *Scheduler) PauseRender(value bool) {
-	s.pauseRender.Set(value)
+	s.pauseRender.Store(value)
 }
 
 // Sets the amount of time required before the fixed time systems will execute
@@ -220,6 +225,30 @@ func (s *Scheduler) GetRenderInterp() float64 {
 	return s.accumulator.Seconds() / s.fixedTimeStep.Seconds()
 }
 
+// //Separates physics loop from render loop
+// func (s *Scheduler) Run2() {
+// 	var worldMu sync.Mutex
+
+// 	frameStart := time.Now()
+// 	dt := s.fixedTimeStep
+// 	// var accumulator time.Duration
+// 	s.accumulator = 0
+// 	maxLoopCount := time.Duration(s.maxLoopCount)
+
+// 	physicsTicker := time.NewTicker(s.fixedTimeStep)
+// 	defer physicsTicker.Stop()
+// 	go func() {
+// 		for {
+// 			phyTime, more <-physicsTicker.C
+// 			if !more { break } // Exit early, ticker channel is closed
+// 			fmt.Println(phyTime)
+// 		}
+// 	}
+
+// 	for !s.quit.Get() {
+// 	}
+// }
+
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 func (s *Scheduler) Run() {
@@ -245,7 +274,7 @@ func (s *Scheduler) Run() {
 	// }()
 
 
-	for !s.quit.Get() {
+	for !s.quit.Load() {
 		{
 			tmpSysLog := s.sysLogFront
 			s.sysLogFront = s.sysLogBack
@@ -290,7 +319,7 @@ func (s *Scheduler) Run() {
 		}
 
 		// Render Systems
-		if !s.pauseRender.Get() {
+		if !s.pauseRender.Load() {
 			for _, sys := range s.render {
 				sysTime := sys.Run(dt)
 
