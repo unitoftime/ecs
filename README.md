@@ -68,7 +68,7 @@ ecs.MapN(world, func(id ecs.Id, a *ComponentA, /*... */, n *ComponentN) {
 })
 ```
 
-### Advanced queries
+#### Advanced queries
 You can also filter your queries for more advanced usage:
 ```
 // Returns a view of Position and Velocity, but only if the entity also has the `Rotation` component.
@@ -77,6 +77,67 @@ query := ecs.Query2[Position, Velocity](world, ecs.With(Rotation))
 // Returns a view of Position and Velocity, but if velocity is missing on the entity, will just return nil during the `MapId(...)`. You must do nil checks for all components included in the `Optional()`!
 query := ecs.Query2[Position, Velocity](world, ecs.Optional(Velocity))
 ```
+
+### Systems
+There are several types of systems:
+    1. Realtime - should be runned as fast as possible (without any deplays). Usefull for Rendering or collecting inputs from user.
+    2. Fixed - should be runned ones a specified period of time. Usefull for physics.
+    3. Step - can only be runned by manually triggering. Usefull for simulations, like stable updates in P2P games.
+
+To create system, implement one of the interfaces `RealtimeSystem`, `FixedSystem`, `StepSystem`:
+```
+type Position struct {
+    X, Y float64
+}
+type Velocity struct {
+    X, Y float64
+}
+
+// --- world initialization here ---
+
+type movementSystem struct {}
+
+func (s *movementSystem) GetName() {
+    return "physics::movement"
+}
+
+func (s *movementSystem) RunFixed(delta time.Duration) {
+    query := ecs.Query2[Position, Velocity](world)
+    query.MapId(func(id ecs.Id, pos *Position, vel *Velocity) {
+        // No need to adjust here to delta time between updates, because
+        // physics steps should always be the same. Delta time is still available to systems, where
+        // it can be important (f.e. if we want to detect "throttling")
+        pos.X += vel.X
+        pos.Y += vel.Y
+
+        // Add some drag
+        vel.X *= 0.9
+        vel.Y *= 0.9
+    })
+}
+```
+
+To shedule the system, we need to have a system group of one of the types `RealtimeGroup`, `FixedGroup`, `StepGroup`. There are several rules regarding system groups:
+1. One system cant belong to multiple groups.
+2. Groups are running in parallel and there is no synchronization between them. 
+3. All the systems in the group can be automatically runned in parallel.
+4. Groups share lock to the components on the systems level, so there will be no race conditions while accessing components data.
+5. Group can only contain systems with theirs type.
+
+```
+componentsGuard = group.NewComponentsGuard()
+physics = group.NewFixedGroup("physics", 50*time.Millisecond, componentsGuard)
+physics.AddSystem(&movementSystem{})
+physics.StartFixed()
+defer physics.StopFixed()
+```
+
+#### Order
+You can specify systems order by implementing `system.RunBeforeSystem` or/and `system.RunAfterSystem` interface for the system. You cant implement order between systems from multiple groups.
+
+#### Automatic parallelism
+In order for sheduler to understand which systems can be runed in parallel, you have to specify components used by systems. By default, if component will not be specified, system will be marked as `exclusive` and will only be runned by locking entire ECS world.
+You can do this by implementing `system.ReadComponentsSystem` or/and `system.WriteComponentsSystem` interface for the system. Make sure to use `system.ReadComponentsSystem` as much as possible, because with read access, multiple systems can be runned at the same time.
 
 ### Commands
 

@@ -5,6 +5,7 @@ import (
 )
 
 // This is the identifier for entities in the world
+//
 //cod:struct
 type Id uint32
 
@@ -28,17 +29,17 @@ func (s *componentSlice[T]) Write(index int, val T) {
 
 // TODO: Rename, this is kind of like an archetype header
 type lookupList struct {
-	index *internalMap[Id,int] // A mapping from entity ids to array indices
-	id    []Id       // An array of every id in the arch list (essentially a reverse mapping from index to Id)
-	holes []int      // List of indexes that have ben deleted
-	mask archetypeMask
+	index *internalMap[Id, int] // A mapping from entity ids to array indices
+	id    []Id                  // An array of every id in the arch list (essentially a reverse mapping from index to Id)
+	holes []int                 // List of indexes that have ben deleted
+	mask  archetypeMask
 }
 
 // Adds ourselves to the last available hole, else appends
 // Returns the index
 func (l *lookupList) addToEasiestHole(id Id) int {
 	if len(l.holes) > 0 {
-		lastHoleIndex := len(l.holes)-1
+		lastHoleIndex := len(l.holes) - 1
 		index := l.holes[lastHoleIndex]
 		l.id[index] = id
 		l.index.Put(id, index)
@@ -53,7 +54,6 @@ func (l *lookupList) addToEasiestHole(id Id) int {
 		return index
 	}
 }
-
 
 type storage interface {
 	ReadToEntity(*Entity, archetypeId, int) bool
@@ -105,12 +105,12 @@ func (s *componentSliceStorage[T]) print(amount int) {
 
 // Provides generic storage for all archetypes
 type archEngine struct {
-	generation  int
+	generation int
 	// archCounter archetypeId
 
-	lookup []*lookupList // Indexed by archetypeId
-	compSliceStorage []storage // Indexed by componentId
-	dcr *componentRegistry
+	lookup           []*lookupList // Indexed by archetypeId
+	compSliceStorage []storage     // Indexed by componentId
+	dcr              *componentRegistry
 
 	// TODO - using this makes things not thread safe inside the engine
 	archCount map[archetypeId]int
@@ -118,10 +118,10 @@ type archEngine struct {
 
 func newArchEngine() *archEngine {
 	return &archEngine{
-		generation:  1, // Start at 1 so that anyone with the default int value will always realize they are in the wrong generation
+		generation: 1, // Start at 1 so that anyone with the default int value will always realize they are in the wrong generation
 
 		lookup:           make([]*lookupList, 0, DefaultAllocation),
-		compSliceStorage: make([]storage, maxComponentId + 1),
+		compSliceStorage: make([]storage, maxComponentId+1),
 		dcr:              newComponentRegistry(),
 		archCount:        make(map[archetypeId]int),
 	}
@@ -133,10 +133,10 @@ func (e *archEngine) newArchetypeId(archMask archetypeMask) archetypeId {
 	archId := archetypeId(len(e.lookup))
 	e.lookup = append(e.lookup,
 		&lookupList{
-			index: newMap[Id,int](0),
+			index: newMap[Id, int](0),
 			id:    make([]Id, 0, DefaultAllocation),
 			holes: make([]int, 0, DefaultAllocation),
-			mask: archMask,
+			mask:  archMask,
 		},
 	)
 
@@ -163,7 +163,7 @@ func (e *archEngine) getGeneration() int {
 // }
 
 func (e *archEngine) count(anything ...any) int {
-	comps := make([]componentId, len(anything))
+	comps := make([]ComponentId, len(anything))
 	for i, c := range anything {
 		comps[i] = name(c)
 	}
@@ -190,7 +190,7 @@ func (e *archEngine) getArchetypeId(comp ...Component) archetypeId {
 }
 
 // TODO - map might be slower than just having an array. I could probably do a big bitmask and then just do a logical OR
-func (e *archEngine) FilterList(archIds []archetypeId, comp []componentId) []archetypeId {
+func (e *archEngine) FilterList(archIds []archetypeId, comp []ComponentId) []archetypeId {
 	// TODO: could I maybe do something more optimal with archetypeMask?
 	// New way: With archSets that are just slices
 	// Logic: Go thorugh and keep track of how many times we see each archetype. Then only keep the archetypes that we've seen an amount of times equal to the number of components. If we have 5 components and see 5 for a specific archId, it means that each component has that archId
@@ -231,7 +231,7 @@ func getStorage[T any](e *archEngine) *componentSliceStorage[T] {
 }
 
 // Note: This will panic if the wrong compId doesn't match the generic type
-func getStorageByCompId[T any](e *archEngine, compId componentId) *componentSliceStorage[T] {
+func getStorageByCompId[T any](e *archEngine, compId ComponentId) *componentSliceStorage[T] {
 	ss := e.compSliceStorage[compId]
 	if ss == nil {
 		ss = &componentSliceStorage[T]{

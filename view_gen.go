@@ -32,7 +32,7 @@ func Query1[A any](world *World, filters ...Filter) *View1[A] {
 
 	var AA A
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 	}
@@ -328,7 +328,7 @@ func Query2[A, B any](world *World, filters ...Filter) *View2[A, B] {
 	var AA A
 	var BB B
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),
@@ -666,7 +666,7 @@ func Query3[A, B, C any](world *World, filters ...Filter) *View3[A, B, C] {
 	var BB B
 	var CC C
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),
@@ -1046,7 +1046,7 @@ func Query4[A, B, C, D any](world *World, filters ...Filter) *View4[A, B, C, D] 
 	var CC C
 	var DD D
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),
@@ -1468,7 +1468,7 @@ func Query5[A, B, C, D, E any](world *World, filters ...Filter) *View5[A, B, C, 
 	var DD D
 	var EE E
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),
@@ -1932,7 +1932,7 @@ func Query6[A, B, C, D, E, F any](world *World, filters ...Filter) *View6[A, B, 
 	var EE E
 	var FF F
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),
@@ -2438,7 +2438,7 @@ func Query7[A, B, C, D, E, F, G any](world *World, filters ...Filter) *View7[A, 
 	var FF F
 	var GG G
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),
@@ -2986,7 +2986,7 @@ func Query8[A, B, C, D, E, F, G, H any](world *World, filters ...Filter) *View8[
 	var GG G
 	var HH H
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),
@@ -3576,7 +3576,7 @@ func Query9[A, B, C, D, E, F, G, H, I any](world *World, filters ...Filter) *Vie
 	var HH H
 	var II I
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),
@@ -4208,7 +4208,7 @@ func Query10[A, B, C, D, E, F, G, H, I, J any](world *World, filters ...Filter) 
 	var II I
 	var JJ J
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),
@@ -4882,7 +4882,7 @@ func Query11[A, B, C, D, E, F, G, H, I, J, K any](world *World, filters ...Filte
 	var JJ J
 	var KK K
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),
@@ -5598,7 +5598,7 @@ func Query12[A, B, C, D, E, F, G, H, I, J, K, L any](world *World, filters ...Fi
 	var KK K
 	var LL L
 
-	comps := []componentId{
+	comps := []ComponentId{
 
 		name(AA),
 		name(BB),

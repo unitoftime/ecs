@@ -5,17 +5,17 @@ import (
 	// "sort"
 )
 
-type componentId uint16
+type ComponentId uint16
 
 type Component interface {
 	write(*archEngine, archetypeId, int)
-	id() componentId
+	Id() ComponentId
 }
 
 // This type is used to box a component with all of its type info so that it implements the component interface. I would like to get rid of this and simplify the APIs
 type Box[T any] struct {
 	Comp   T
-	compId componentId
+	compId ComponentId
 }
 
 // Createst the boxed component type
@@ -26,10 +26,10 @@ func C[T any](comp T) Box[T] {
 	}
 }
 func (c Box[T]) write(engine *archEngine, archId archetypeId, index int) {
-	store := getStorageByCompId[T](engine, c.id())
+	store := getStorageByCompId[T](engine, c.Id())
 	writeArch[T](engine, archId, index, store, c.Comp)
 }
-func (c Box[T]) id() componentId {
+func (c Box[T]) Id() ComponentId {
 	if c.compId == invalidComponentId {
 		c.compId = name(c.Comp)
 	}
@@ -40,20 +40,20 @@ func (c Box[T]) Get() T {
 	return c.Comp
 }
 
-
 // Note: you can increase max component size by increasing maxComponentId and archetypeMask
 // TODO: I should have some kind of panic if you go over maximum component size
 const maxComponentId = 255
+
 // Supports maximum 256 unique component types
 type archetypeMask [4]uint64 // TODO: can/should I make this configurable?
 func buildArchMask(comps ...Component) archetypeMask {
 	var mask archetypeMask
 	for _, comp := range comps {
 		// Ranges: [0, 64), [64, 128), [128, 192), [192, 256)
-		c := comp.id()
+		c := comp.Id()
 		idx := c / 64
 		offset := c - (64 * idx)
-		mask[idx] |= (1<<offset)
+		mask[idx] |= (1 << offset)
 	}
 	return mask
 }
@@ -69,14 +69,14 @@ func (m archetypeMask) bitwiseOr(a archetypeMask) archetypeMask {
 // TODO: You should move to this (ie archetype graph (or bitmask?). maintain the current archetype node, then traverse to nodes (and add new ones) based on which components are added): https://ajmmertens.medium.com/building-an-ecs-2-archetypes-and-vectorization-fe21690805f9
 // Dynamic component Registry
 type componentRegistry struct {
-	archSet     [][]archetypeId // Contains the set of archetypeIds that have this component
-	archMask    map[archetypeMask]archetypeId // Contains a mapping of archetype bitmasks to archetypeIds
+	archSet  [][]archetypeId               // Contains the set of archetypeIds that have this component
+	archMask map[archetypeMask]archetypeId // Contains a mapping of archetype bitmasks to archetypeIds
 }
 
 func newComponentRegistry() *componentRegistry {
 	r := &componentRegistry{
-		archSet:     make([][]archetypeId, maxComponentId + 1), // TODO: hardcoded to max component
-		archMask:    make(map[archetypeMask]archetypeId),
+		archSet:  make([][]archetypeId, maxComponentId+1), // TODO: hardcoded to max component
+		archMask: make(map[archetypeMask]archetypeId),
 	}
 	return r
 }
@@ -102,7 +102,7 @@ func (r *componentRegistry) getArchetypeId(engine *archEngine, comps ...Componen
 
 		// Add this archetypeId to every component's archList
 		for _, comp := range comps {
-			compId := comp.id()
+			compId := comp.Id()
 			r.archSet[compId] = append(r.archSet[compId], archId)
 		}
 	}

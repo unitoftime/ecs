@@ -1,16 +1,16 @@
 package ecs
 
 import (
-	"sync"
 	"reflect"
+	"sync"
 )
 
 var componentIdMutex sync.Mutex
-var registeredComponents = make(map[reflect.Type]componentId, maxComponentId)
-var invalidComponentId componentId = 0
-var componentRegistryCounter componentId = 1
+var registeredComponents = make(map[reflect.Type]ComponentId, maxComponentId)
+var invalidComponentId ComponentId = 0
+var componentRegistryCounter ComponentId = 1
 
-func name(t any) componentId {
+func name(t any) ComponentId {
 	// Note: We have to lock here in case there are multiple worlds
 	// TODO!! - This probably causes some performance penalty
 	componentIdMutex.Lock()

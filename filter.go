@@ -24,7 +24,7 @@ package ecs
 // With - Lets you add additional components that must be present
 // Without - Lets you add additional components that must not be present
 type Filter interface {
-	Filter([]componentId) []componentId
+	Filter([]ComponentId) []ComponentId
 }
 
 // type without struct {
@@ -40,12 +40,12 @@ type Filter interface {
 // }
 
 type with struct {
-	comps []componentId
+	comps []ComponentId
 }
 
 // Creates a filter to ensure that entities have the specified components
 func With(comps ...any) with {
-	ids := make([]componentId, len(comps))
+	ids := make([]ComponentId, len(comps))
 	for i := range comps {
 		ids[i] = name(comps[i])
 	}
@@ -54,17 +54,17 @@ func With(comps ...any) with {
 	}
 }
 
-func (w with) Filter(list []componentId) []componentId {
+func (w with) Filter(list []ComponentId) []ComponentId {
 	return append(list, w.comps...)
 }
 
 type optional struct {
-	comps []componentId
+	comps []ComponentId
 }
 
 // Creates a filter to make the query still iterate even if a specific component is missing, in which case you'll get nil if the component isn't there when accessed
 func Optional(comps ...any) optional {
-	ids := make([]componentId, len(comps))
+	ids := make([]ComponentId, len(comps))
 	for i := range comps {
 		ids[i] = name(comps[i])
 	}
@@ -74,7 +74,7 @@ func Optional(comps ...any) optional {
 	}
 }
 
-func (f optional) Filter(list []componentId) []componentId {
+func (f optional) Filter(list []ComponentId) []ComponentId {
 	for i := 0; i < len(list); i++ {
 		for j := range f.comps {
 			if list[i] == f.comps[j] {
@@ -92,12 +92,12 @@ func (f optional) Filter(list []componentId) []componentId {
 }
 
 type filterList struct {
-	comps                     []componentId
+	comps                     []ComponentId
 	cachedArchetypeGeneration int // Denotes the world's archetype generation that was used to create the list of archIds. If the world has a new generation, we should probably regenerate
 	archIds                   []archetypeId
 }
 
-func newFilterList(comps []componentId, filters ...Filter) filterList {
+func newFilterList(comps []ComponentId, filters ...Filter) filterList {
 	for _, f := range filters {
 		comps = f.Filter(comps)
 	}

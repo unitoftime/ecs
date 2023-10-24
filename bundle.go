@@ -1,7 +1,7 @@
 package ecs
 
 type Bundle[T any] struct {
-	compId componentId
+	compId  ComponentId
 	storage *componentSliceStorage[T]
 	// world *ecs.World //Needed?
 }
@@ -11,14 +11,14 @@ func NewBundle[T any](world *World) Bundle[T] {
 	var t T
 	compId := name(t)
 	return Bundle[T]{
-		compId: compId,
+		compId:  compId,
 		storage: getStorageByCompId[T](world.engine, compId),
 	}
 }
 
 func (c Bundle[T]) New(comp T) Box[T] {
 	return Box[T]{
-		Comp: comp,
+		Comp:   comp,
 		compId: c.compId,
 		// storage: c.storage,
 	}
@@ -28,17 +28,17 @@ func (b Bundle[T]) write(engine *archEngine, archId archetypeId, index int, comp
 	writeArch[T](engine, archId, index, b.storage, comp)
 }
 
-func (b Bundle[T]) id() componentId {
+func (b Bundle[T]) id() ComponentId {
 	return b.compId
 }
 
 type Bundle4[A, B, C, D any] struct {
-	compId componentId
-	boxA *Box[A]
-	boxB *Box[B]
-	boxC *Box[C]
-	boxD *Box[D]
-	comps []Component
+	compId ComponentId
+	boxA   *Box[A]
+	boxB   *Box[B]
+	boxC   *Box[C]
+	boxD   *Box[D]
+	comps  []Component
 }
 
 // Createst the boxed component type
@@ -56,16 +56,15 @@ func NewBundle4[A, B, C, D any]() Bundle4[A, B, C, D] {
 	}
 
 	return Bundle4[A, B, C, D]{
-		boxA: boxA,
-		boxB: boxB,
-		boxC: boxC,
-		boxD: boxD,
+		boxA:  boxA,
+		boxB:  boxB,
+		boxC:  boxC,
+		boxD:  boxD,
 		comps: comps,
 	}
 }
 
-
-func (bun Bundle4[A,B,C,D]) Write(world *World, id Id, a A, b B, c C, d D) {
+func (bun Bundle4[A, B, C, D]) Write(world *World, id Id, a A, b B, c C, d D) {
 	// bun.boxA.Comp = a
 	// bun.boxB.Comp = b
 	// bun.boxC.Comp = c
@@ -86,7 +85,6 @@ func (bun Bundle4[A,B,C,D]) Write(world *World, id Id, a A, b B, c C, d D) {
 	bun.boxD.Comp = d
 
 	Write(world, id,
-		bun.comps...
+		bun.comps...,
 	)
 }
-

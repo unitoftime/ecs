@@ -1,2 +1,4 @@
 github.com/unitoftime/cod v0.0.0-20230616173404-085cf4fe3918 h1:C1W4LPOwKCBq0cAzb81508ePBIfAR9ecP9GBR5zi/AI=
 github.com/unitoftime/cod v0.0.0-20230616173404-085cf4fe3918/go.mod h1:Iufibv9gn5GJb4Qzkf8e8xaXOV77OgkrB5kkBZTEN+M=
+golang.org/x/sync v0.4.0 h1:zxkM55ReGkDlKSM+Fu41A+zmbZuaPVbGMzvvdUPznYQ=
+golang.org/x/sync v0.4.0/go.mod h1:FU7BRWz2tNW+3quACPkgCx/L+uEAv1htQ0V83Z9Rj+Y=
