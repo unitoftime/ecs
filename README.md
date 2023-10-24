@@ -151,7 +151,7 @@ cmd.Execute()
 
 ### Still In Progress
 - [ ] Improving iterator performance: See: https://github.com/golang/go/discussions/54245
-- [ ] Automatic multithreading
+- [+] Automatic multithreading
 - [ ] Without() filter
 
 ### Videos
