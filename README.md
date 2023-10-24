@@ -111,8 +111,8 @@ func (s *movementSystem) RunFixed(delta time.Duration) {
         pos.Y += vel.Y
 
         // Add some drag
-        vel.X *= 0.9
-        vel.Y *= 0.9
+        vel.X *= 0.99
+        vel.Y *= 0.99
     })
 }
 ```
