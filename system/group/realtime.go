@@ -13,6 +13,7 @@ type RealtimeUpdateEventHandler func(delta time.Duration)
 type RealtimeGroup interface {
 	Group
 
+	RunRealtime(delta time.Duration)
 	StartRealtime()
 	StopRealtime()
 
@@ -41,6 +42,72 @@ func NewRealtimeGroup(name string, componentsGuard ComponentsGuard) RealtimeGrou
 	}
 }
 
+func (g *realtimeSystemGroup) RunRealtime(delta time.Duration) {
+	beforeUpdateHandlersStartedTime := time.Now()
+	for _, handler := range g.onBeforeUpdateHandlers {
+		handler(delta)
+	}
+	beforeUpdateHandlersEndedTime := time.Now()
+
+	g.orderGuard.Reset()
+
+	systemsUpdatesStatistics := []SystemStatistics{}
+	systemsUpdatesStatisticsLock := sync.Mutex{}
+
+	systemsCompleted := sync.WaitGroup{}
+	for _, system := range g.systems {
+		systemsCompleted.Add(1)
+
+		go func(runnedSystem s.RealtimeSystem) {
+			// Handle panics of the running system
+			defer func() {
+				if err := recover(); err != nil {
+					g.notifyError(err.(error), runnedSystem.(s.System))
+				}
+			}()
+
+			defer systemsCompleted.Done()
+
+			waitingForOrderStartedTime := time.Now()
+			g.orderGuard.Lock(runnedSystem.(s.System))
+			defer g.orderGuard.Release(runnedSystem.(s.System))
+			waitingForComponentsAccessTime := time.Now()
+			g.componentsGuard.Lock(runnedSystem.(s.System))
+			defer g.componentsGuard.Release(runnedSystem.(s.System))
+
+			executionStartedTime := time.Now()
+			runnedSystem.RunRealtime(delta)
+			executionEndedTime := time.Now()
+
+			systemsUpdatesStatisticsLock.Lock()
+			defer systemsUpdatesStatisticsLock.Unlock()
+			systemsUpdatesStatistics = append(systemsUpdatesStatistics, SystemStatistics{
+				Name:                              runnedSystem.(s.System).GetName(),
+				WaitingForOrderStarted:            waitingForOrderStartedTime,
+				WaitingForComponentsAccessStarted: waitingForComponentsAccessTime,
+				ExecutionStarted:                  executionStartedTime,
+				ExecutionEnded:                    executionEndedTime,
+			})
+		}(system.(s.RealtimeSystem))
+	}
+
+	systemsCompleted.Wait()
+
+	afterUpdateHandlersStartedTime := time.Now()
+	for _, handler := range g.onAfterUpdateHandlers {
+		handler(delta)
+	}
+	afterUpdateHandlersEndedTime := time.Now()
+
+	g.statistics.pushUpdate(UpdateStatistics{
+		BeforeUpdateHandlersStarted: beforeUpdateHandlersStartedTime,
+		BeforeUpdateHandlersEnded:   beforeUpdateHandlersEndedTime,
+		SystemsStatistics:           systemsUpdatesStatistics,
+		AfterUpdateHandlersStarted:  afterUpdateHandlersStartedTime,
+		AfterUpdateHandlersEnded:    afterUpdateHandlersEndedTime,
+	})
+}
+
 func (g *realtimeSystemGroup) runner(ctx context.Context) {
 	defer g.runnerDoneWait.Done()
 	lastRunTime := time.Now()
@@ -62,69 +129,7 @@ func (g *realtimeSystemGroup) runner(ctx context.Context) {
 		delta := time.Duration(newRunTime.UnixNano() - lastRunTime.UnixNano())
 		lastRunTime = newRunTime
 
-		beforeUpdateHandlersStartedTime := time.Now()
-		for _, handler := range g.onBeforeUpdateHandlers {
-			handler(delta)
-		}
-		beforeUpdateHandlersEndedTime := time.Now()
-
-		g.orderGuard.Reset()
-
-		systemsUpdatesStatistics := []SystemStatistics{}
-		systemsUpdatesStatisticsLock := sync.Mutex{}
-
-		systemsCompleted := sync.WaitGroup{}
-		for _, system := range g.systems {
-			systemsCompleted.Add(1)
-
-			go func(runnedSystem s.RealtimeSystem) {
-				// Handle panics of the running system
-				defer func() {
-					if err := recover(); err != nil {
-						g.notifyError(err.(error), runnedSystem.(s.System))
-					}
-				}()
-
-				defer systemsCompleted.Done()
-
-				waitingForOrderStartedTime := time.Now()
-				g.orderGuard.Lock(runnedSystem.(s.System))
-				defer g.orderGuard.Release(runnedSystem.(s.System))
-				waitingForComponentsAccessTime := time.Now()
-				g.componentsGuard.Lock(runnedSystem.(s.System))
-				defer g.componentsGuard.Release(runnedSystem.(s.System))
-
-				executionStartedTime := time.Now()
-				runnedSystem.RunRealtime(delta)
-				executionEndedTime := time.Now()
-
-				systemsUpdatesStatisticsLock.Lock()
-				defer systemsUpdatesStatisticsLock.Unlock()
-				systemsUpdatesStatistics = append(systemsUpdatesStatistics, SystemStatistics{
-					Name:                              runnedSystem.(s.System).GetName(),
-					WaitingForOrderStarted:            waitingForOrderStartedTime,
-					WaitingForComponentsAccessStarted: waitingForComponentsAccessTime,
-					ExecutionStarted:                  executionStartedTime,
-					ExecutionEnded:                    executionEndedTime,
-				})
-			}(system.(s.RealtimeSystem))
-		}
-
-		systemsCompleted.Wait()
-
-		afterUpdateHandlersStartedTime := time.Now()
-		for _, handler := range g.onAfterUpdateHandlers {
-			handler(delta)
-		}
-		afterUpdateHandlersEndedTime := time.Now()
-
-		g.statistics.pushUpdate(UpdateStatistics{
-			BeforeUpdateHandlersStarted: beforeUpdateHandlersStartedTime,
-			BeforeUpdateHandlersEnded:   beforeUpdateHandlersEndedTime,
-			SystemsStatistics:           systemsUpdatesStatistics,
-			AfterUpdateHandlersStarted:  afterUpdateHandlersStartedTime,
-			AfterUpdateHandlersEnded:    afterUpdateHandlersEndedTime,
-		})
+		g.RunRealtime(delta)
 	}
 }
 

@@ -128,6 +128,7 @@ To shedule the system, we need to have a system group of one of the types `Realt
 componentsGuard = group.NewComponentsGuard()
 physics = group.NewFixedGroup("physics", 50*time.Millisecond, componentsGuard)
 physics.AddSystem(&movementSystem{})
+physics.Build()
 physics.StartFixed()
 defer physics.StopFixed()
 ```

@@ -65,6 +65,9 @@ func newOrderGuard(systems []system.System) orderGuard {
 
 func (g *orderGuard) Reset() {
 	for systemName, initialCount := range g.initialWaitersCount {
+		if _, ok := g.runAfterWait[systemName]; !ok {
+			g.runAfterWait[systemName] = &sync.WaitGroup{}
+		}
 		g.runAfterWait[systemName].Add(initialCount)
 	}
 }

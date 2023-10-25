@@ -90,7 +90,7 @@ func (g *fixedSystemGroup) runner(ctx context.Context) {
 		for _, system := range g.systems {
 			systemsCompleted.Add(1)
 
-			go func(runnedSystem s.RealtimeSystem) {
+			go func(runnedSystem s.FixedSystem) {
 				// Handle panics of the running system
 				defer func() {
 					if err := recover(); err != nil {
@@ -108,7 +108,7 @@ func (g *fixedSystemGroup) runner(ctx context.Context) {
 				defer g.componentsGuard.Release(runnedSystem.(s.System))
 
 				executionStartedTime := time.Now()
-				runnedSystem.RunRealtime(delta)
+				runnedSystem.RunFixed(delta)
 				executionEndedTime := time.Now()
 
 				systemsUpdatesStatisticsLock.Lock()
@@ -120,7 +120,7 @@ func (g *fixedSystemGroup) runner(ctx context.Context) {
 					ExecutionStarted:                  executionStartedTime,
 					ExecutionEnded:                    executionEndedTime,
 				})
-			}(system.(s.RealtimeSystem))
+			}(system.(s.FixedSystem))
 		}
 
 		systemsCompleted.Wait()

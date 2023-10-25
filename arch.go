@@ -111,9 +111,6 @@ type archEngine struct {
 	lookup           []*lookupList // Indexed by archetypeId
 	compSliceStorage []storage     // Indexed by componentId
 	dcr              *componentRegistry
-
-	// TODO - using this makes things not thread safe inside the engine
-	archCount map[archetypeId]int
 }
 
 func newArchEngine() *archEngine {
@@ -123,7 +120,6 @@ func newArchEngine() *archEngine {
 		lookup:           make([]*lookupList, 0, DefaultAllocation),
 		compSliceStorage: make([]storage, maxComponentId+1),
 		dcr:              newComponentRegistry(),
-		archCount:        make(map[archetypeId]int),
 	}
 }
 
@@ -194,25 +190,20 @@ func (e *archEngine) FilterList(archIds []archetypeId, comp []ComponentId) []arc
 	// TODO: could I maybe do something more optimal with archetypeMask?
 	// New way: With archSets that are just slices
 	// Logic: Go thorugh and keep track of how many times we see each archetype. Then only keep the archetypes that we've seen an amount of times equal to the number of components. If we have 5 components and see 5 for a specific archId, it means that each component has that archId
-	// TODO: this may be more efficient to use a slice?
 
-	// Clearing Optimization: https://go.dev/doc/go1.11#performance-compiler
-	for k := range e.archCount {
-		delete(e.archCount, k)
-	}
-
+	archCount := make([]int, len(e.lookup))
 	for _, compId := range comp {
 		for _, archId := range e.dcr.archSet[compId] {
-			e.archCount[archId] = e.archCount[archId] + 1
+			archCount[archId]++
 		}
 	}
 
 	numComponents := len(comp)
 
 	archIds = archIds[:0]
-	for archId, count := range e.archCount {
+	for archId, count := range archCount {
 		if count >= numComponents {
-			archIds = append(archIds, archId)
+			archIds = append(archIds, archetypeId(archId))
 
 			// // TODO: How tight do I want my tolerances?
 			// if count > numComponents {
