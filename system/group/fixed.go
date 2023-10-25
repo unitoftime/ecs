@@ -56,7 +56,7 @@ func (g *fixedSystemGroup) runner(ctx context.Context) {
 	}()
 
 	for {
-		timeToWait := time.Now().UnixNano() - lastRunTime.UnixNano() - int64(g.fixedTimeStep)
+		timeToWait := g.fixedTimeStep.Nanoseconds() + time.Now().UnixNano() - lastRunTime.UnixNano()
 		if timeToWait > 0 {
 			select {
 			case <-ctx.Done():

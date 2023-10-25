@@ -12,8 +12,9 @@ const SpacialCellSize = 2.0
 const SpacialSystemName system.SystemName = "physics::spacial"
 
 type SpacialCellObject struct {
-	X float64
-	Y float64
+	Entity ecs.Id
+	X      float64
+	Y      float64
 }
 
 type SpacialSystem struct {
@@ -50,8 +51,9 @@ func (s *SpacialSystem) RunFixed(delta time.Duration) {
 
 		cell := s.SpacialHash[cellId]
 		cell = append(cell, SpacialCellObject{
-			X: pos.X,
-			Y: pos.Y,
+			Entity: id,
+			X:      pos.X,
+			Y:      pos.Y,
 		})
 		s.SpacialHash[cellId] = cell
 	})

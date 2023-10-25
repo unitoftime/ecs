@@ -43,10 +43,17 @@ func (s *CollisionSystem) RunFixed(delta time.Duration) {
 		for _, object := range objects {
 			solveCollision := func(otherCell IntVector2) {
 				if otherObjects, ok := s.SpacialHash[otherCell]; ok {
-					speed := math.Sqrt(math.Pow(object.X, 2) + math.Pow(object.Y, 2))
+					speed := math.Sqrt(math.Pow(vel.X, 2) + math.Pow(vel.Y, 2))
 
 					for _, otherObject := range otherObjects {
+						if otherObject.Entity == id {
+							continue
+						}
+
 						distance := math.Sqrt(math.Pow(otherObject.X-object.X, 2) + math.Pow(otherObject.Y-object.Y, 2))
+						if distance < 0.001 {
+							continue //TODO: fix this bug
+						}
 						if distance < 2 {
 							vel.X = (object.X - otherObject.X) / distance * speed
 							vel.Y = (object.Y - otherObject.Y) / distance * speed

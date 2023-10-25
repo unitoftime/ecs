@@ -25,6 +25,6 @@ func (s *RenderSystem) GetReadComponents() []ecs.Component {
 func (s *RenderSystem) RunRealtime(delta time.Duration) {
 	query := ecs.Query1[RenderPosition](s.World)
 	query.MapId(func(id ecs.Id, pos *RenderPosition) {
-		rl.DrawCircle(int32(pos.X*100), int32(pos.Y*100), 100, rl.Blue)
+		rl.DrawCircle(int32(pos.X*10), int32(pos.Y*10), 10, rl.Blue)
 	})
 }

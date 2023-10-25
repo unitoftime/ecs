@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -10,19 +11,25 @@ import (
 )
 
 func main() {
-	rl.InitWindow(800, 450, "ECS balls example")
+	rl.InitWindow(500, 500, "ECS balls example")
 	defer rl.CloseWindow()
 	rl.SetTargetFPS(60)
 
 	world := ecs.NewWorld()
-	id := world.NewId()
-	ecs.Write(
-		world,
-		id,
-		ecs.C(ballESC.Position{X: 0, Y: 0}),
-		ecs.C(ballESC.Velocity{X: 0, Y: 0}),
-		ecs.C(ballESC.RenderPosition{X: 0, Y: 0}),
-	)
+
+	for i := 0; i < 200; i++ {
+		posX := rand.Float64() * 50
+		posY := rand.Float64() * 50
+
+		id := world.NewId()
+		ecs.Write(
+			world,
+			id,
+			ecs.C(ballESC.Position{X: posX, Y: posY}),
+			ecs.C(ballESC.Velocity{X: rand.Float64()/2 - 0.5, Y: rand.Float64()/2 - 0.5}),
+			ecs.C(ballESC.RenderPosition{X: posX, Y: posY}),
+		)
+	}
 
 	componentsGuard := group.NewComponentsGuard()
 
@@ -38,6 +45,9 @@ func main() {
 		World:       world,
 		SpacialHash: sharedPhysicsSpacialHash,
 	})
+	physics.AddSystem(&ballESC.BoundarySystem{
+		World: world,
+	})
 	physics.Build()
 	physics.StartFixed()
 	defer physics.StopFixed()
@@ -47,11 +57,12 @@ func main() {
 	render.OnBeforeUpdate(func(delta time.Duration) {
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.RayWhite)
-		rl.DrawText("Collision!", 190, 200, 20, rl.LightGray)
 	})
 	render.OnAfterUpdate(func(delta time.Duration) {
+		rl.DrawText("Collision!", 180, 225, 40, rl.Black)
 		rl.EndDrawing()
 	})
+	render.AddSystem(&ballESC.UpdateRenderPositionSystem{World: world})
 	render.AddSystem(&ballESC.RenderSystem{World: world})
 	render.Build()
 
