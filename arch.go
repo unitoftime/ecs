@@ -34,6 +34,10 @@ type lookupList struct {
 	mask archetypeMask
 }
 
+func (l *lookupList) Len() int {
+	return l.index.Len()
+}
+
 // Adds ourselves to the last available hole, else appends
 // Returns the index
 func (l *lookupList) addToEasiestHole(id Id) int {

@@ -26,6 +26,10 @@ func newMap[K,V intkey](size int) *internalMap[K,V] {
 		intmap.New[K, V](0),
 	}
 }
+func (m *internalMap[K,V]) Len() int {
+	return m.inner.Len()
+}
+
 func (m *internalMap[K,V]) Get(k K) (V, bool) {
 	// v,ok := m.inner[k]
 	// return v, ok

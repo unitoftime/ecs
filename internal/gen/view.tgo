@@ -86,6 +86,20 @@ func (v *View{{len $element}}[{{join $element ","}}]) Read(id Id) (*{{join $elem
 	return {{retlist $element}}
 }
 
+// Counts the number of entities that match this query
+func (v *View{{len $element}}[{{join $element ","}}]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
+}
+
 // Maps the lambda function across every entity which matched the specified filters.
 func (v *View{{len $element}}[{{join $element ","}}]) MapId(lambda func(id Id, {{lambdaArgs $element}})) {
 	v.filter.regenerate(v.world)

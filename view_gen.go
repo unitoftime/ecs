@@ -86,6 +86,20 @@ func (v *View1[A]) Read(id Id) (*A) {
 	return retA
 }
 
+// Counts the number of entities that match this query
+func (v *View1[A]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
+}
+
 // Maps the lambda function across every entity which matched the specified filters.
 func (v *View1[A]) MapId(lambda func(id Id, a *A)) {
 	v.filter.regenerate(v.world)
@@ -298,6 +312,20 @@ func (v *View2[A,B]) Read(id Id) (*A,*B) {
 	
 
 	return retA, retB
+}
+
+// Counts the number of entities that match this query
+func (v *View2[A,B]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
@@ -537,6 +565,20 @@ func (v *View3[A,B,C]) Read(id Id) (*A,*B,*C) {
 	
 
 	return retA, retB, retC
+}
+
+// Counts the number of entities that match this query
+func (v *View3[A,B,C]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
@@ -801,6 +843,20 @@ func (v *View4[A,B,C,D]) Read(id Id) (*A,*B,*C,*D) {
 	
 
 	return retA, retB, retC, retD
+}
+
+// Counts the number of entities that match this query
+func (v *View4[A,B,C,D]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
@@ -1090,6 +1146,20 @@ func (v *View5[A,B,C,D,E]) Read(id Id) (*A,*B,*C,*D,*E) {
 	
 
 	return retA, retB, retC, retD, retE
+}
+
+// Counts the number of entities that match this query
+func (v *View5[A,B,C,D,E]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
@@ -1404,6 +1474,20 @@ func (v *View6[A,B,C,D,E,F]) Read(id Id) (*A,*B,*C,*D,*E,*F) {
 	
 
 	return retA, retB, retC, retD, retE, retF
+}
+
+// Counts the number of entities that match this query
+func (v *View6[A,B,C,D,E,F]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
@@ -1743,6 +1827,20 @@ func (v *View7[A,B,C,D,E,F,G]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G) {
 	
 
 	return retA, retB, retC, retD, retE, retF, retG
+}
+
+// Counts the number of entities that match this query
+func (v *View7[A,B,C,D,E,F,G]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
@@ -2107,6 +2205,20 @@ func (v *View8[A,B,C,D,E,F,G,H]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H) {
 	
 
 	return retA, retB, retC, retD, retE, retF, retG, retH
+}
+
+// Counts the number of entities that match this query
+func (v *View8[A,B,C,D,E,F,G,H]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
@@ -2496,6 +2608,20 @@ func (v *View9[A,B,C,D,E,F,G,H,I]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I) {
 	
 
 	return retA, retB, retC, retD, retE, retF, retG, retH, retI
+}
+
+// Counts the number of entities that match this query
+func (v *View9[A,B,C,D,E,F,G,H,I]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
@@ -2910,6 +3036,20 @@ func (v *View10[A,B,C,D,E,F,G,H,I,J]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I,*J
 	
 
 	return retA, retB, retC, retD, retE, retF, retG, retH, retI, retJ
+}
+
+// Counts the number of entities that match this query
+func (v *View10[A,B,C,D,E,F,G,H,I,J]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
@@ -3349,6 +3489,20 @@ func (v *View11[A,B,C,D,E,F,G,H,I,J,K]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*I,
 	
 
 	return retA, retB, retC, retD, retE, retF, retG, retH, retI, retJ, retK
+}
+
+// Counts the number of entities that match this query
+func (v *View11[A,B,C,D,E,F,G,H,I,J,K]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
@@ -3813,6 +3967,20 @@ func (v *View12[A,B,C,D,E,F,G,H,I,J,K,L]) Read(id Id) (*A,*B,*C,*D,*E,*F,*G,*H,*
 	
 
 	return retA, retB, retC, retD, retE, retF, retG, retH, retI, retJ, retK, retL
+}
+
+// Counts the number of entities that match this query
+func (v *View12[A,B,C,D,E,F,G,H,I,J,K,L]) Count() int {
+	v.filter.regenerate(v.world)
+
+	total := 0
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil { panic("LookupList is missing!") }
+
+		total += lookup.Len()
+	}
+	return total
 }
 
 // Maps the lambda function across every entity which matched the specified filters.
