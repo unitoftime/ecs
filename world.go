@@ -191,6 +191,29 @@ func Delete(world *World, id Id) bool {
 	return true
 }
 
+// Deletes specific components from an entity in the world
+// Skips all work if the entity doesn't exist
+// Skips deleting components that the entity doesn't have
+// If no components remain after the delete, the entity will be completely removed
+func DeleteComponent(world *World, id Id, comp ...Component) {
+	archId, ok := world.arch.Get(id)
+	if !ok {
+		return
+	}
+
+	ent := world.engine.ReadEntity(archId, id)
+	for i := range comp {
+		ent.Delete(comp[i])
+	}
+
+	world.arch.Delete(id)
+	world.engine.TagForDeletion(archId, id)
+
+	if len(ent.comp) > 0 {
+		world.Write(id, ent.comp...)
+	}
+}
+
 // Returns true if the entity exists in the world else it returns false
 func (world *World) Exists(id Id) bool {
 	return world.arch.Has(id)
