@@ -186,7 +186,7 @@ func TestWorldWriteDelete(t *testing.T) {
 func TestWorldDeleteComponent(t *testing.T) {
 	world := NewWorld()
 	ids := make([]Id, 0)
-	for i := 0; i < 1e2; i++ {
+	for i := 0; i < 1e6; i++ {
 		id := world.NewId()
 		v := float64(id)
 		pos := position{v, v, v}
