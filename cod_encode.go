@@ -4,6 +4,10 @@ import (
 	"github.com/unitoftime/cod/backend"
 )
 
+func (t Id) CodEquals(tt Id) bool {
+	return t == tt
+}
+
 func (t Id) EncodeCod(bs []byte) []byte {
 
 	{
