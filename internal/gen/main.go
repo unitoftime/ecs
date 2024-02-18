@@ -1,12 +1,11 @@
 package main
 
 import (
+	_ "embed"
 	"os"
 	"strings"
-  "text/template"
-	_ "embed"
+	"text/template"
 )
-
 
 //go:embed view.tgo
 var viewTemplate string
@@ -35,6 +34,9 @@ func main() {
 	}
 	funcs := template.FuncMap{
 		"join": strings.Join,
+		"lower": func(val string) string {
+			return strings.ToLower(val)
+		},
 		"nils": func(n int) string {
 			val := make([]string, 0)
 			for i := 0; i < n; i++ {
@@ -63,9 +65,23 @@ func main() {
 			}
 			return strings.Join(ret, ", ")
 		},
+		"parallelLambdaStructArgs": func(val []string) string {
+			ret := make([]string, len(val))
+			for i := range val {
+				ret[i] = strings.ToLower(val[i]) + " []" + val[i]
+			}
+			return strings.Join(ret, "; ")
+		},
+		"parallelLambdaArgsFromStruct": func(val []string) string {
+			ret := make([]string, len(val))
+			for i := range val {
+				ret[i] = "param" + val[i]
+			}
+			return strings.Join(ret, ", ")
+		},
 	}
 
-  t := template.Must(template.New("ViewTemplate").Funcs(funcs).Parse(viewTemplate))
+	t := template.Must(template.New("ViewTemplate").Funcs(funcs).Parse(viewTemplate))
 
 	viewFile, err := os.OpenFile("view_gen.go", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
@@ -73,5 +89,5 @@ func main() {
 	}
 	defer viewFile.Close()
 
-  t.Execute(viewFile, data)
+	t.Execute(viewFile, data)
 }
