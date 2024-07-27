@@ -138,7 +138,7 @@ type Scheduler struct {
 	sysLogBackFixed, sysLogFrontFixed []SystemLog
 	fixedTimeStep                     time.Duration
 	accumulator                       time.Duration
-	// gameSpeed                         int64
+	gameSpeed                         float64
 	quit                              atomic.Bool
 	pauseRender                       atomic.Bool
 	maxLoopCount                      int
@@ -156,16 +156,16 @@ func NewScheduler() *Scheduler {
 		sysLogBackFixed:  make([]SystemLog, 0),
 		fixedTimeStep:    16 * time.Millisecond,
 		accumulator:      0,
-		// gameSpeed:        1,
+		gameSpeed:        1,
 	}
 }
 
 // TODO make SetGameSpeed and SetFixedTimeStep thread safe.
 
 // Sets the rate at which time accumulates. Also, you want them to only change at the end of a frame, else you might get some inconsistencies. Just use a mutex and a single temporary variable
-// func (s *Scheduler) SetGameSpeed(speed int64) {
-// 	s.gameSpeed = speed
-// }
+func (s *Scheduler) SetGameSpeed(speed float64) {
+	s.gameSpeed = speed
+}
 
 // Tells the scheduler to exit. Scheduler will finish executing its remaining tick before closing.
 func (s *Scheduler) SetQuit(value bool) {
@@ -201,6 +201,21 @@ func (s *Scheduler) AppendPhysics(systems ...System) {
 // Adds a system to the list of render systems
 func (s *Scheduler) AppendRender(systems ...System) {
 	s.render = append(s.render, systems...)
+}
+
+// Adds a system to the list of physics systems
+func (s *Scheduler) SetInput(systems ...System) {
+	s.input = systems
+}
+
+// Adds a system to the list of physics systems
+func (s *Scheduler) SetPhysics(systems ...System) {
+	s.physics = systems
+}
+
+// Adds a system to the list of render systems
+func (s *Scheduler) SetRender(systems ...System) {
+	s.render = systems
 }
 
 // func (s *Scheduler) AppendCleanup(systems ...System) {
@@ -339,10 +354,10 @@ func (s *Scheduler) Run() {
 		// dt = time.Since(frameStart)
 		// frameStart = time.Now()
 
-		s.accumulator += dt
+		// s.accumulator += dt
 
-		// scaledDt := dt.Nanoseconds() * s.gameSpeed
-		// s.accumulator += time.Duration(scaledDt)
+		scaledDt := float64(dt.Nanoseconds()) * s.gameSpeed
+		s.accumulator += time.Duration(scaledDt)
 
 		// s.accumulator += 16667 * time.Microsecond
 		// fmt.Println(dt, s.accumulator)
