@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
+	"go/format"
+	"io/fs"
 	"os"
 	"strings"
 	"text/template"
@@ -83,11 +86,24 @@ func main() {
 
 	t := template.Must(template.New("ViewTemplate").Funcs(funcs).Parse(viewTemplate))
 
-	viewFile, err := os.OpenFile("view_gen.go", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	buf := bytes.NewBuffer([]byte{})
+
+	t.Execute(buf, data)
+
+	filename := "view_gen.go"
+
+	// Attempt to write the file as formatted, falling back to writing it normally
+	formatted, err := format.Source(buf.Bytes())
+	if err != nil {
+		err = os.WriteFile(filename, buf.Bytes(), fs.ModePerm)
+		if err != nil {
+			panic(err)
+		}
+		panic(err)
+	}
+
+	err = os.WriteFile(filename, formatted, fs.ModePerm)
 	if err != nil {
 		panic(err)
 	}
-	defer viewFile.Close()
-
-	t.Execute(viewFile, data)
 }

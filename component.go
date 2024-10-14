@@ -124,8 +124,8 @@ type componentRegistry struct {
 
 func newComponentRegistry() *componentRegistry {
 	r := &componentRegistry{
-		archSet:  make([][]archetypeId, maxComponentId+1), // TODO: hardcoded to max component
-		archMask: make(map[archetypeMask]archetypeId),
+		archSet:     make([][]archetypeId, maxComponentId+1), // TODO: hardcoded to max component
+		archMask:    make(map[archetypeMask]archetypeId),
 		revArchMask: make([]archetypeMask, 0),
 	}
 	return r
