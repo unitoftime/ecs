@@ -34,6 +34,9 @@ func main() {
 	}
 	funcs := template.FuncMap{
 		"join": strings.Join,
+		"lower": func(val string) string {
+			return strings.ToLower(val)
+		},
 		"nils": func(n int) string {
 			val := make([]string, 0)
 			for i := 0; i < n; i++ {
@@ -59,6 +62,20 @@ func main() {
 			ret := make([]string, len(val))
 			for i := range val {
 				ret[i] = strings.ToLower(val[i]) + " []" + val[i]
+			}
+			return strings.Join(ret, ", ")
+		},
+		"parallelLambdaStructArgs": func(val []string) string {
+			ret := make([]string, len(val))
+			for i := range val {
+				ret[i] = strings.ToLower(val[i]) + " []" + val[i]
+			}
+			return strings.Join(ret, "; ")
+		},
+		"parallelLambdaArgsFromStruct": func(val []string) string {
+			ret := make([]string, len(val))
+			for i := range val {
+				ret[i] = "param" + val[i]
 			}
 			return strings.Join(ret, ", ")
 		},
