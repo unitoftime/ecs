@@ -2,8 +2,8 @@ package ecs
 
 // Represents a list of commands that need to be executed on the world
 type Command struct {
-	world *World
-	list  map[Id]*writeCmd // TODO - Note to self: if you ever add deletion inside of commands, then the packing commands into a map based on entity Id assumption wont hold, because you'll need some amount of specific ordering
+	world         *World
+	list          map[Id]*writeCmd // TODO - Note to self: if you ever add deletion inside of commands, then the packing commands into a map based on entity Id assumption wont hold, because you'll need some amount of specific ordering
 	dynamicBundle dynamicBundle
 }
 
@@ -68,7 +68,7 @@ func (w *World) Spawn() Ent {
 }
 
 type Ent struct {
-	id Id
+	id    Id
 	comps []Component
 }
 
@@ -99,6 +99,7 @@ func (c *Command) Spawn(bundles ...unbundler) Id {
 type dynamicBundle struct {
 	comps []Component
 }
+
 func (b *dynamicBundle) unbundleInto(d *dynamicBundle) {
 	d.comps = append(d.comps, b.comps...)
 }
@@ -111,17 +112,18 @@ type Bundle2[A, B any] struct {
 	wa Box[A]
 	wb Box[B]
 }
-func NewBundle2[A, B any]() *Bundle2[A,B] {
+
+func NewBundle2[A, B any]() *Bundle2[A, B] {
 	var a A
 	var b B
-	return &Bundle2[A,B]{
+	return &Bundle2[A, B]{
 		wa: C(a),
 		wb: C(b),
 	}
 }
 
-func (bun *Bundle2[A,B]) With(a A, b B) *Bundle2[A, B] {
-	ret := &Bundle2[A,B]{
+func (bun *Bundle2[A, B]) With(a A, b B) *Bundle2[A, B] {
+	ret := &Bundle2[A, B]{
 		wa: bun.wa,
 		wb: bun.wb,
 	}
@@ -130,6 +132,6 @@ func (bun *Bundle2[A,B]) With(a A, b B) *Bundle2[A, B] {
 	return ret
 }
 
-func (b *Bundle2[A,B]) unbundleInto(d *dynamicBundle) {
+func (b *Bundle2[A, B]) unbundleInto(d *dynamicBundle) {
 	d.comps = append(d.comps, b.wa, b.wb)
 }

@@ -1,8 +1,8 @@
 package ecs
 
 import (
-	"sync"
 	"reflect"
+	"sync"
 )
 
 var componentIdMutex sync.Mutex

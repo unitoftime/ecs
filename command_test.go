@@ -74,7 +74,6 @@ func TestCommandExecution(t *testing.T) {
 // BenchmarkAddEntityCommands-12      	     913	   1382452 ns/op	 1007375 B/op	   15084 allocs/op
 // BenchmarkAddEntityViaBundles-12    	    1388	    924249 ns/op	  771132 B/op	    8065 allocs/op
 
-
 // Refactor 2: replacing archId trie with a bitmap
 // BenchmarkAddEntityWrite-12         	    1519	    865592 ns/op	  780596 B/op	   10074 allocs/op
 // BenchmarkAddEntity-12              	    1044	   1192381 ns/op	 1057146 B/op	   14073 allocs/op
@@ -125,6 +124,7 @@ func TestCommandExecution(t *testing.T) {
 // BenchmarkAddEntityViaBundles2-12    	    3770	    448083 ns/op	  610571 B/op	      81 allocs/op
 
 var addEntSize = 1000
+
 func BenchmarkAddEntityWrite(b *testing.B) {
 	world := NewWorld()
 
@@ -308,7 +308,6 @@ func BenchmarkAddEntityViaBundles3(b *testing.B) {
 // BenchmarkAddEntityViaBundles-12     	    3325	    463634 ns/op	  643600 B/op	    4086 allocs/op
 // BenchmarkAddEntityViaBundles2-12    	    3982	    424222 ns/op	  578243 B/op	      77 allocs/op
 
-
 // increased default allocation to 10k
 // BenchmarkAddEntityViaBundles-12     	    3020	    479307 ns/op	  678231 B/op	    4074 allocs/op
 // BenchmarkAddEntityViaBundles2-12    	    3673	    446787 ns/op	  626812 B/op	      83 allocs/op
@@ -386,7 +385,6 @@ func BenchmarkAddEntitySameCached(b *testing.B) {
 // BenchmarkAddEntityViaBundles3-12    	    2757	    556359 ns/op	  747118 B/op	    6043 allocs/op
 // BenchmarkAddEntitySameCached-12     	   16693	     72033 ns/op	       3 B/op	       0 allocs/op
 
-
 // Swissmap
 // BenchmarkAddEntityWrite-12          	    2650	    581867 ns/op	  637261 B/op	    4000 allocs/op
 // BenchmarkAddEntity-12               	    2648	    540628 ns/op	  637654 B/op	    4000 allocs/op
@@ -428,4 +426,3 @@ func BenchmarkAddEntitySameCached(b *testing.B) {
 // BenchmarkAddEntityViaBundles2-12    	    5064	    331580 ns/op	  541033 B/op	       0 allocs/op
 // BenchmarkAddEntityViaBundles3-12    	    3040	    485595 ns/op	  837256 B/op	    6000 allocs/op
 // BenchmarkAddEntitySameCached-12     	   17451	     68978 ns/op	       3 B/op	       0 allocs/op
-

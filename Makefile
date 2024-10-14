@@ -1,9 +1,12 @@
-all: build test benchmark
+all: fmt build test benchmark
 
-build:
+fmt:
+	go fmt ./...
+
+build: fmt
 	go build -v ./...
 
-test:
+test: fmt
 #	go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 	go test -v -coverprofile=coverage.out -covermode=count ./...
 

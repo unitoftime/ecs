@@ -113,7 +113,9 @@ func ReadEntity(world *World, id Id) *Entity {
 func (e *Entity) Delete(c Component) {
 	compId := c.id()
 	idx := e.findIndex(compId)
-	if idx < 0 { return }
+	if idx < 0 {
+		return
+	}
 
 	// If index does exist, then cut it out
 	e.comp[idx] = e.comp[len(e.comp)-1]
@@ -152,7 +154,6 @@ func (e *Entity) Clear() {
 // 	}
 // 	return copy
 // }
-
 
 // A RawEntity is like an Entity, but every component is actually a pointer to the underlying component. I mostly use this to build inspector UIs that can directly modify an entity
 // Deprecated: This type and its corresponding methods are tentative and might be replaced by something else.

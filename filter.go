@@ -1,23 +1,8 @@
 package ecs
 
-// import "fmt"
-
-// type without struct {
-// 	fields []any
-// }
-// func Without(fields ...any) without {
-// 	return without{fields}
-// }
-// extractedFilters := make([]any, 0)
-// for _, f := range filters {
-// 	switch t := f.(type) {
-// 	case without:
-// 	}
-// }
-
-// type buildQuery interface {
-// 	build(world)
-// }
+import (
+	"slices"
+)
 
 // TODO - Filter types:
 // Optional - Lets you view even if component is missing (func will return nil)
@@ -27,17 +12,20 @@ type Filter interface {
 	Filter([]componentId) []componentId
 }
 
-// type without struct {
-// 	comps []any
-// }
+type without struct {
+	mask archetypeMask
+}
 
-// TODO - figure out how to implement
-// // Creates a filter to ensure that entities will not have the specified components
-// func Without(comps ...any) without {
-// 	return without{
-// 		comps: comps,
-// 	}
-// }
+// Creates a filter to ensure that entities will not have the specified components
+func Without(comps ...any) without {
+	return without{
+		mask: buildArchMaskFromAny(comps...),
+	}
+}
+func (w without) Filter(list []componentId) []componentId {
+	return list // Dont filter anything. We need to exclude later on
+	// return append(list, w.comps...)
+}
 
 type with struct {
 	comps []componentId
@@ -93,23 +81,38 @@ func (f optional) Filter(list []componentId) []componentId {
 
 type filterList struct {
 	comps                     []componentId
+	withoutArchMask           archetypeMask
 	cachedArchetypeGeneration int // Denotes the world's archetype generation that was used to create the list of archIds. If the world has a new generation, we should probably regenerate
 	archIds                   []archetypeId
 }
 
 func newFilterList(comps []componentId, filters ...Filter) filterList {
+	var withoutArchMask archetypeMask
 	for _, f := range filters {
-		comps = f.Filter(comps)
+		withoutFilter, isWithout := f.(without)
+		if isWithout {
+			withoutArchMask = withoutFilter.mask
+		} else {
+			comps = f.Filter(comps)
+		}
 	}
 
 	return filterList{
-		comps:   comps,
-		archIds: make([]archetypeId, 0),
+		comps:           comps,
+		withoutArchMask: withoutArchMask,
+		archIds:         make([]archetypeId, 0),
 	}
 }
 func (f *filterList) regenerate(world *World) {
 	if world.engine.getGeneration() != f.cachedArchetypeGeneration {
 		f.archIds = world.engine.FilterList(f.archIds, f.comps)
+
+		if f.withoutArchMask != blankArchMask {
+			f.archIds = slices.DeleteFunc(f.archIds, func(archId archetypeId) bool {
+				return world.engine.dcr.archIdOverlapsMask(archId, f.withoutArchMask)
+			})
+		}
+
 		f.cachedArchetypeGeneration = world.engine.getGeneration()
 	}
 }

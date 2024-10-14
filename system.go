@@ -138,7 +138,7 @@ type Scheduler struct {
 	sysLogBackFixed, sysLogFrontFixed []SystemLog
 	fixedTimeStep                     time.Duration
 	accumulator                       time.Duration
-	// gameSpeed                         int64
+	gameSpeed                         float64
 	quit                              atomic.Bool
 	pauseRender                       atomic.Bool
 	maxLoopCount                      int
@@ -156,16 +156,16 @@ func NewScheduler() *Scheduler {
 		sysLogBackFixed:  make([]SystemLog, 0),
 		fixedTimeStep:    16 * time.Millisecond,
 		accumulator:      0,
-		// gameSpeed:        1,
+		gameSpeed:        1,
 	}
 }
 
 // TODO make SetGameSpeed and SetFixedTimeStep thread safe.
 
 // Sets the rate at which time accumulates. Also, you want them to only change at the end of a frame, else you might get some inconsistencies. Just use a mutex and a single temporary variable
-// func (s *Scheduler) SetGameSpeed(speed int64) {
-// 	s.gameSpeed = speed
-// }
+func (s *Scheduler) SetGameSpeed(speed float64) {
+	s.gameSpeed = speed
+}
 
 // Tells the scheduler to exit. Scheduler will finish executing its remaining tick before closing.
 func (s *Scheduler) SetQuit(value bool) {
@@ -203,6 +203,25 @@ func (s *Scheduler) AppendRender(systems ...System) {
 	s.render = append(s.render, systems...)
 }
 
+// Adds a system to the list of physics systems
+func (s *Scheduler) SetInput(systems ...System) {
+	s.input = systems
+}
+
+// Adds a system to the list of physics systems
+func (s *Scheduler) SetPhysics(systems ...System) {
+	s.physics = systems
+}
+
+// Adds a system to the list of render systems
+func (s *Scheduler) SetRender(systems ...System) {
+	s.render = systems
+}
+
+// func (s *Scheduler) AppendCleanup(systems ...System) {
+// 	s.cleanup = append(s.cleanup, systems...)
+// }
+
 // Sets the accumulator maximum point so that if the accumulator gets way to big, we will reset it and continue on, dropping all physics ticks that would have been executed. This is useful in a runtime like WASM where the browser may not let us run as frequently as we may need (for example, when the tab is hidden or minimized).
 // Note: This must be set before you call scheduler.Run()
 // Note: The default value is 0, which will force every physics tick to run. I highly recommend setting this to something if you plan to build for WASM!
@@ -225,30 +244,6 @@ func (s *Scheduler) GetRenderInterp() float64 {
 	return s.accumulator.Seconds() / s.fixedTimeStep.Seconds()
 }
 
-// //Separates physics loop from render loop
-// func (s *Scheduler) Run2() {
-// 	var worldMu sync.Mutex
-
-// 	frameStart := time.Now()
-// 	dt := s.fixedTimeStep
-// 	// var accumulator time.Duration
-// 	s.accumulator = 0
-// 	maxLoopCount := time.Duration(s.maxLoopCount)
-
-// 	physicsTicker := time.NewTicker(s.fixedTimeStep)
-// 	defer physicsTicker.Stop()
-// 	go func() {
-// 		for {
-// 			phyTime, more <-physicsTicker.C
-// 			if !more { break } // Exit early, ticker channel is closed
-// 			fmt.Println(phyTime)
-// 		}
-// 	}
-
-// 	for !s.quit.Get() {
-// 	}
-// }
-
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 func (s *Scheduler) Run() {
@@ -258,6 +253,18 @@ func (s *Scheduler) Run() {
 	s.accumulator = 0
 	maxLoopCount := time.Duration(s.maxLoopCount)
 
+	// TODO: Cleanup systems?
+	// defer func() {
+	// 	for _, sys := range s.cleanup {
+	// 		sys.Run(dt)
+
+	// 		// TODO: Track syslog time?
+	// 		// s.sysLogBack = append(s.sysLogBack, SystemLog{
+	// 		// 	Name: sys.Name,
+	// 		// 	Time: sysTime,
+	// 		// })
+	// 	}
+	// }()
 
 	// go func() {
 	// 	for {
@@ -272,7 +279,6 @@ func (s *Scheduler) Run() {
 	// 		}
 	// 	}
 	// }()
-
 
 	for !s.quit.Load() {
 		{
@@ -344,50 +350,76 @@ func (s *Scheduler) Run() {
 		// dt = time.Since(frameStart)
 		// frameStart = time.Now()
 
-		s.accumulator += dt
+		// s.accumulator += dt
 
-		// scaledDt := dt.Nanoseconds() * s.gameSpeed
-		// s.accumulator += time.Duration(scaledDt)
+		scaledDt := float64(dt.Nanoseconds()) * s.gameSpeed
+		s.accumulator += time.Duration(scaledDt)
 
 		// s.accumulator += 16667 * time.Microsecond
 		// fmt.Println(dt, s.accumulator)
 	}
 }
 
-// // TODO! - Helpful starting point of commands? Maybe pass a commandlist to systems with dt as they execute. Maybe wrap dt and commandlist inside some general thing that gets passed to systems
-// type Command struct {
-// 	Id ecs.Id // If Id is ecs.InvalidEntity, we will spawn this as a new entity
-// 	Entity *ecs.Entity
-// }
+// //Separates physics loop from render loop
+// func (s *Scheduler) Run2() {
+// 	var worldMu sync.Mutex
 
-// type CommandList struct {
-// 	world *ecs.World
-// 	list []Command
-// }
-// func NewCommandList(world *ecs.World) *CommandList {
-// 	return &CommandList{
-// 		world: world,
-// 		list: make([]Command, 0),
-// 	}
-// }
+// 	frameStart := time.Now()
+// 	dt := s.fixedTimeStep
+// 	// var accumulator time.Duration
+// 	s.accumulator = 0
+// 	maxLoopCount := time.Duration(s.maxLoopCount)
 
-// func (l *CommandList) Add(c Command) {
-// 	l.list = append(l.list, c)
-// }
+// 	// physicsTicker := time.NewTicker(s.fixedTimeStep)
+// 	// defer physicsTicker.Stop()
+// 	go func() {
+// 		// for {
+// 		// 	_, more := <-physicsTicker.C
+// 		// 	if !more { break } // Exit early, ticker channel is closed
+// 		// 	// fmt.Println(phyTime)
+// 		// 	worldMu.Lock()
+// 		// 	for _, sys := range s.physics {
+// 		// 		sys.Run(s.fixedTimeStep)
+// 		// 	}
+// 		// 	worldMu.Unlock()
+// 		// }
 
-// func (l *CommandList) Map(lambda func(c *Command)) {
-// 	for i := range l.list {
-// 		lambda(&l.list[i])
-// 	}
-// }
+// 		for !s.quit.Load() {
+// 			worldMu.Lock()
+// 			if maxLoopCount > 0 {
+// 				if s.accumulator > (maxLoopCount * s.fixedTimeStep) {
+// 					s.accumulator = s.fixedTimeStep // Just run one loop
+// 				}
+// 			}
+// 			for s.accumulator >= s.fixedTimeStep {
+// 				for _, sys := range s.physics {
+// 					sys.Run(s.fixedTimeStep)
+// 				}
+// 				s.accumulator -= s.fixedTimeStep
+// 			}
 
-// func (l *CommandList) Execute() {
-// 	for _, c := range l.list {
-// 		id := c.Id
-// 		if id == ecs.InvalidEntity {
-// 			id = l.world.NewId()
+// 			worldMu.Unlock()
+// 			time.Sleep(s.fixedTimeStep - s.accumulator)
+// 		}
+// 	}()
+
+// 	for !s.quit.Load() {
+// 		worldMu.Lock()
+
+// 		for _, sys := range s.render {
+// 			sys.Run(dt)
 // 		}
 
-// 		ecs.WriteEntity(l.world, id, c.Entity)
+// 		for _, sys := range s.input {
+// 			sys.Run(dt)
+// 		}
+
+// 		// Capture Frame time
+// 		now := time.Now()
+// 		dt = now.Sub(frameStart)
+// 		frameStart = now
+
+// 		s.accumulator += dt
+// 		worldMu.Unlock()
 // 	}
 // }

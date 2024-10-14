@@ -183,6 +183,89 @@ func TestWorldWriteDelete(t *testing.T) {
 	}
 }
 
+func TestWorldDeleteComponent(t *testing.T) {
+	world := NewWorld()
+	ids := make([]Id, 0)
+	for i := 0; i < 1e6; i++ {
+		id := world.NewId()
+		v := float64(id)
+		pos := position{v, v, v}
+		vel := velocity{v, v, v}
+		Write(world, id, C(pos), C(vel))
+		ids = append(ids, id)
+	}
+
+	// Verify they are all correct
+	for _, id := range ids {
+		expected := float64(id)
+
+		posOut, ok := Read[position](world, id)
+		check(t, ok)
+		compare(t, posOut, position{expected, expected, expected})
+
+		velOut, ok := Read[velocity](world, id)
+		check(t, ok)
+		compare(t, velOut, velocity{expected, expected, expected})
+	}
+
+	// different deletes for different modulos
+	for i, id := range ids {
+		if i%2 == 0 {
+			DeleteComponent(world, id, C(position{}))
+		} else if i%3 == 0 {
+			DeleteComponent(world, id, C(velocity{}))
+		} else if i%5 == 0 {
+			DeleteComponent(world, id, C(position{}), C(velocity{}))
+		} else if i%7 == 0 {
+			DeleteComponent(world, id, C(velocity{}))
+			DeleteComponent(world, id, C(position{}))
+		} else if i%13 == 0 {
+			DeleteComponent(world, id, C(radius{})) // Note: This shouldn't do anything
+		}
+	}
+
+	// Verify they are all correct
+	for i, id := range ids {
+		expected := float64(id)
+
+		if i%2 == 0 {
+			// Expect these to be deleted in the world
+			_, ok := Read[position](world, id)
+			check(t, !ok) // Expect to be false because we've deleted this
+
+			velOut, ok := Read[velocity](world, id)
+			check(t, ok)
+			compare(t, velOut, velocity{expected, expected, expected})
+		} else if i%3 == 0 {
+			// Expect these to still exist in the world
+			posOut, ok := Read[position](world, id)
+			check(t, ok)
+			compare(t, posOut, position{expected, expected, expected})
+
+			_, ok = Read[velocity](world, id)
+			check(t, !ok) // Expect to be false because we've deleted this
+		} else if i%5 == 0 {
+			_, ok := Read[position](world, id)
+			check(t, !ok) // Expect to be false because we've deleted this
+			_, ok = Read[velocity](world, id)
+			check(t, !ok) // Expect to be false because we've deleted this
+		} else if i%7 == 0 {
+			_, ok := Read[position](world, id)
+			check(t, !ok) // Expect to be false because we've deleted this
+			_, ok = Read[velocity](world, id)
+			check(t, !ok) // Expect to be false because we've deleted this
+		} else {
+			// Expect these to still exist in the world
+			posOut, ok := Read[position](world, id)
+			check(t, ok)
+			compare(t, posOut, position{expected, expected, expected})
+			velOut, ok := Read[velocity](world, id)
+			check(t, ok)
+			compare(t, velOut, velocity{expected, expected, expected})
+		}
+	}
+}
+
 func TestResources(t *testing.T) {
 	world := NewWorld()
 	p := position{1, 2, 3}
