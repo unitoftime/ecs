@@ -222,7 +222,6 @@ func (s *Scheduler) SetRender(systems ...System) {
 // 	s.cleanup = append(s.cleanup, systems...)
 // }
 
-
 // Sets the accumulator maximum point so that if the accumulator gets way to big, we will reset it and continue on, dropping all physics ticks that would have been executed. This is useful in a runtime like WASM where the browser may not let us run as frequently as we may need (for example, when the tab is hidden or minimized).
 // Note: This must be set before you call scheduler.Run()
 // Note: The default value is 0, which will force every physics tick to run. I highly recommend setting this to something if you plan to build for WASM!
@@ -254,7 +253,6 @@ func (s *Scheduler) Run() {
 	s.accumulator = 0
 	maxLoopCount := time.Duration(s.maxLoopCount)
 
-
 	// TODO: Cleanup systems?
 	// defer func() {
 	// 	for _, sys := range s.cleanup {
@@ -267,7 +265,6 @@ func (s *Scheduler) Run() {
 	// 		// })
 	// 	}
 	// }()
-
 
 	// go func() {
 	// 	for {
@@ -282,7 +279,6 @@ func (s *Scheduler) Run() {
 	// 		}
 	// 	}
 	// }()
-
 
 	for !s.quit.Load() {
 		{
@@ -409,7 +405,6 @@ func (s *Scheduler) Run() {
 
 // 	for !s.quit.Load() {
 // 		worldMu.Lock()
-
 
 // 		for _, sys := range s.render {
 // 			sys.Run(dt)

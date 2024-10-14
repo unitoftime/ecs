@@ -1,12 +1,11 @@
 package main
 
 import (
+	_ "embed"
 	"os"
 	"strings"
-  "text/template"
-	_ "embed"
+	"text/template"
 )
-
 
 //go:embed view.tgo
 var viewTemplate string
@@ -65,7 +64,7 @@ func main() {
 		},
 	}
 
-  t := template.Must(template.New("ViewTemplate").Funcs(funcs).Parse(viewTemplate))
+	t := template.Must(template.New("ViewTemplate").Funcs(funcs).Parse(viewTemplate))
 
 	viewFile, err := os.OpenFile("view_gen.go", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
@@ -73,5 +72,5 @@ func main() {
 	}
 	defer viewFile.Close()
 
-  t.Execute(viewFile, data)
+	t.Execute(viewFile, data)
 }

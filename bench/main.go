@@ -24,14 +24,14 @@ package main
 import (
 	"fmt"
 	"log"
-	"time"
 	"math/rand"
 	"strconv"
+	"time"
 
-	"runtime"
-	"runtime/pprof"
 	"flag"
 	"os"
+	"runtime"
+	"runtime/pprof"
 
 	"github.com/unitoftime/ecs"
 )
@@ -76,11 +76,14 @@ func main() {
 
 	program := os.Args[1]
 	size, err := strconv.Atoi(os.Args[2])
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	colLimitArg, err := strconv.Atoi(os.Args[3])
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	collisionLimit := int32(colLimitArg)
-
 
 	// ballast := make([]byte, 10<<30)
 
@@ -108,7 +111,7 @@ func main() {
 			log.Fatal("could not create memory profile: ", err)
 		}
 		defer f.Close() // error handling omitted for example
-		runtime.GC() // get up-to-date statistics
+		runtime.GC()    // get up-to-date statistics
 		if err := pprof.WriteHeapProfile(f); err != nil {
 			log.Fatal("could not write memory profile: ", err)
 		}
@@ -135,9 +138,13 @@ func createWorld(size int) *ecs.World {
 
 func moveCircles(query *ecs.View2[Position, Velocity], fixedTime float64, maxPosition float64) {
 	query.MapSlices(func(ids []ecs.Id, pos []Position, vel []Velocity) {
-		if len(ids) != len(pos) || len(ids) != len(vel) { panic("ERR") }
+		if len(ids) != len(pos) || len(ids) != len(vel) {
+			panic("ERR")
+		}
 		for i := range ids {
-			if ids[i] == ecs.InvalidEntity { continue }
+			if ids[i] == ecs.InvalidEntity {
+				continue
+			}
 			pos[i].X += vel[i].X * fixedTime
 			pos[i].Y += vel[i].Y * fixedTime
 
@@ -159,17 +166,27 @@ func checkCollisions(world *ecs.World,
 
 	query.MapSlices(func(aId []ecs.Id, aPos []Position, aCol []Collider, aCnt []Count) {
 		innerQuery.MapSlices(func(bId []ecs.Id, bPos []Position, bCol []Collider) {
-			if len(aId) != len(aPos) || len(aId) != len(aCol) { panic("ERR") }
-			if len(bId) != len(bPos) || len(bId) != len(bCol) { panic("ERR") }
+			if len(aId) != len(aPos) || len(aId) != len(aCol) {
+				panic("ERR")
+			}
+			if len(bId) != len(bPos) || len(bId) != len(bCol) {
+				panic("ERR")
+			}
 			for i := range aId {
-				if aId[i] == ecs.InvalidEntity { continue }
+				if aId[i] == ecs.InvalidEntity {
+					continue
+				}
 				aPos_i := &aPos[i]
 				aCol_i := &aCol[i]
 				for j := range bId {
-					if bId[i] == ecs.InvalidEntity { continue }
+					if bId[i] == ecs.InvalidEntity {
+						continue
+					}
 					bPos_j := &bPos[j]
 					bCol_j := &bCol[j]
-					if aId[i] == bId[j] { continue } // Skip if entity is the same
+					if aId[i] == bId[j] {
+						continue
+					} // Skip if entity is the same
 
 					dx := aPos_i.X - bPos_j.X
 					dy := aPos_i.Y - bPos_j.Y
@@ -196,7 +213,6 @@ func checkCollisions(world *ecs.World,
 		})
 	})
 }
-
 
 func benchPhysicsOptimized(size int, collisionLimit int32) {
 	world := createWorld(size)
@@ -258,7 +274,7 @@ func benchPhysicsOptimized(size int, collisionLimit int32) {
 	// })
 }
 
-	/*
+/*
 974 1031
 975 625
 976 787
@@ -384,7 +400,7 @@ func benchPhysicsAlt(size int, collisionLimit int32) {
 
 		// Update positions
 		posVelQuery.MapId(func(id ecs.Id, position *Position, velocity *Velocity) {
-		// ecs.Map2(world, func(id ecs.Id, position *Position, velocity *Velocity) {
+			// ecs.Map2(world, func(id ecs.Id, position *Position, velocity *Velocity) {
 			position.X += velocity.X * fixedTime
 			position.Y += velocity.Y * fixedTime
 
@@ -401,7 +417,9 @@ func benchPhysicsAlt(size int, collisionLimit int32) {
 		deathCount := 0
 		posColCntQuery.MapId(func(aId ecs.Id, aPos *Position, aCol *Collider, aCnt *Count) {
 			posColQuery.MapId(func(bId ecs.Id, bPos *Position, bCol *Collider) {
-				if aId == bId { return } // Skip if entity is the same
+				if aId == bId {
+					return
+				} // Skip if entity is the same
 
 				dx := aPos.X - bPos.X
 				dy := aPos.Y - bPos.Y
@@ -665,7 +683,7 @@ func benchNativeComponents(size int, collisionLimit int32) {
 	cnt := make([]Count, size, size)
 
 	for i := 0; i < size; i++ {
-		ids[i] = ecs.Id(i+2)
+		ids[i] = ecs.Id(i + 2)
 		pos[i] = Position{maxPosition * rand.Float64(), maxPosition * rand.Float64()}
 		vel[i] = Velocity{maxSpeed * rand.Float64(), maxSpeed * rand.Float64()}
 		col[i] = Collider{
@@ -706,7 +724,9 @@ func benchNativeComponents(size int, collisionLimit int32) {
 				bPos := &pos[j]
 				bCol := &col[j]
 
-				if aId == bId { continue } // Skip if entity is the same
+				if aId == bId {
+					continue
+				} // Skip if entity is the same
 
 				dx := aPos.X - bPos.X
 				dy := aPos.Y - bPos.Y
@@ -760,7 +780,6 @@ func benchNativeComponents(size int, collisionLimit int32) {
 // ColRadius [float64] [float64] ...
 // ColCount  [int32]   [int32]   ...
 
-
 // Test with this new memory layout
 // [uint64]
 // PosX [float64]
@@ -779,7 +798,7 @@ func benchNativeSplit(size int, collisionLimit int32) {
 	cnt := make([]int32, size, size)
 
 	for i := 0; i < size; i++ {
-		ids[i] = ecs.Id(i+2)
+		ids[i] = ecs.Id(i + 2)
 		posX[i] = maxPosition * rand.Float64()
 		posY[i] = maxPosition * rand.Float64()
 		velX[i] = maxSpeed * rand.Float64()
@@ -818,7 +837,9 @@ func benchNativeSplit(size int, collisionLimit int32) {
 				bPosY := &posY[j]
 				bCol := &col[j]
 
-				if aId == bId { continue } // Skip if entity is the same
+				if aId == bId {
+					continue
+				} // Skip if entity is the same
 
 				dx := *aPosX - *bPosX
 				dy := *aPosY - *bPosY
@@ -845,6 +866,7 @@ func benchNativeSplit(size int, collisionLimit int32) {
 	// 	fmt.Println(ids[i], cnt[i])
 	// }
 }
+
 // [ id,  id ,  id ]
 // [ pos, pos, pos ]
 // [ vel, vel,     ]

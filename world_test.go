@@ -210,16 +210,16 @@ func TestWorldDeleteComponent(t *testing.T) {
 
 	// different deletes for different modulos
 	for i, id := range ids {
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			DeleteComponent(world, id, C(position{}))
-		} else if i % 3 == 0 {
+		} else if i%3 == 0 {
 			DeleteComponent(world, id, C(velocity{}))
-		} else if i % 5 == 0 {
+		} else if i%5 == 0 {
 			DeleteComponent(world, id, C(position{}), C(velocity{}))
-		} else if i % 7 == 0 {
+		} else if i%7 == 0 {
 			DeleteComponent(world, id, C(velocity{}))
 			DeleteComponent(world, id, C(position{}))
-		} else if i % 13 == 0 {
+		} else if i%13 == 0 {
 			DeleteComponent(world, id, C(radius{})) // Note: This shouldn't do anything
 		}
 	}
@@ -228,7 +228,7 @@ func TestWorldDeleteComponent(t *testing.T) {
 	for i, id := range ids {
 		expected := float64(id)
 
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			// Expect these to be deleted in the world
 			_, ok := Read[position](world, id)
 			check(t, !ok) // Expect to be false because we've deleted this
@@ -236,7 +236,7 @@ func TestWorldDeleteComponent(t *testing.T) {
 			velOut, ok := Read[velocity](world, id)
 			check(t, ok)
 			compare(t, velOut, velocity{expected, expected, expected})
-		} else if i % 3 == 0 {
+		} else if i%3 == 0 {
 			// Expect these to still exist in the world
 			posOut, ok := Read[position](world, id)
 			check(t, ok)
@@ -244,12 +244,12 @@ func TestWorldDeleteComponent(t *testing.T) {
 
 			_, ok = Read[velocity](world, id)
 			check(t, !ok) // Expect to be false because we've deleted this
-		} else if i % 5 == 0 {
+		} else if i%5 == 0 {
 			_, ok := Read[position](world, id)
 			check(t, !ok) // Expect to be false because we've deleted this
 			_, ok = Read[velocity](world, id)
 			check(t, !ok) // Expect to be false because we've deleted this
-		} else if i % 7 == 0 {
+		} else if i%7 == 0 {
 			_, ok := Read[position](world, id)
 			check(t, !ok) // Expect to be false because we've deleted this
 			_, ok = Read[velocity](world, id)

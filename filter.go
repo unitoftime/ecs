@@ -81,7 +81,7 @@ func (f optional) Filter(list []componentId) []componentId {
 
 type filterList struct {
 	comps                     []componentId
-	withoutArchMask archetypeMask
+	withoutArchMask           archetypeMask
 	cachedArchetypeGeneration int // Denotes the world's archetype generation that was used to create the list of archIds. If the world has a new generation, we should probably regenerate
 	archIds                   []archetypeId
 }
@@ -98,9 +98,9 @@ func newFilterList(comps []componentId, filters ...Filter) filterList {
 	}
 
 	return filterList{
-		comps:   comps,
+		comps:           comps,
 		withoutArchMask: withoutArchMask,
-		archIds: make([]archetypeId, 0),
+		archIds:         make([]archetypeId, 0),
 	}
 }
 func (f *filterList) regenerate(world *World) {

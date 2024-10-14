@@ -40,12 +40,12 @@ func (c Box[T]) Get() T {
 	return c.Comp
 }
 
-
 // Note: you can increase max component size by increasing maxComponentId and archetypeMask
 // TODO: I should have some kind of panic if you go over maximum component size
 const maxComponentId = 255
 
 var blankArchMask archetypeMask
+
 // Supports maximum 256 unique component types
 type archetypeMask [4]uint64 // TODO: can/should I make this configurable?
 func buildArchMask(comps ...Component) archetypeMask {
@@ -55,7 +55,7 @@ func buildArchMask(comps ...Component) archetypeMask {
 		c := comp.id()
 		idx := c / 64
 		offset := c - (64 * idx)
-		mask[idx] |= (1<<offset)
+		mask[idx] |= (1 << offset)
 	}
 	return mask
 }
@@ -66,7 +66,7 @@ func buildArchMaskFromAny(comps ...any) archetypeMask {
 		c := name(comp)
 		idx := c / 64
 		offset := c - (64 * idx)
-		mask[idx] |= (1<<offset)
+		mask[idx] |= (1 << offset)
 	}
 	return mask
 }
@@ -90,16 +90,16 @@ func (m archetypeMask) bitwiseAnd(a archetypeMask) archetypeMask {
 // TODO: You should move to this (ie archetype graph (or bitmask?). maintain the current archetype node, then traverse to nodes (and add new ones) based on which components are added): https://ajmmertens.medium.com/building-an-ecs-2-archetypes-and-vectorization-fe21690805f9
 // Dynamic component Registry
 type componentRegistry struct {
-	archSet     [][]archetypeId // Contains the set of archetypeIds that have this component
+	archSet     [][]archetypeId               // Contains the set of archetypeIds that have this component
 	archMask    map[archetypeMask]archetypeId // Contains a mapping of archetype bitmasks to archetypeIds
 	revArchMask map[archetypeId]archetypeMask // Contains the reverse mapping of archetypeIds to archetype masks
 }
 
 func newComponentRegistry() *componentRegistry {
 	r := &componentRegistry{
-		archSet:     make([][]archetypeId, maxComponentId + 1), // TODO: hardcoded to max component
+		archSet:     make([][]archetypeId, maxComponentId+1), // TODO: hardcoded to max component
 		archMask:    make(map[archetypeMask]archetypeId),
-		revArchMask:    make(map[archetypeId]archetypeMask),
+		revArchMask: make(map[archetypeId]archetypeMask),
 	}
 	return r
 }

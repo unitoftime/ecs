@@ -19,7 +19,7 @@ const (
 
 // World is the main data-holder. You usually pass it to other functions to do things.
 type World struct {
-	idCounter atomic.Uint64
+	idCounter    atomic.Uint64
 	nextId       Id
 	minId, maxId Id // This is the range of Ids returned by NewId
 	arch         *internalMap[Id, archetypeId]
@@ -62,10 +62,9 @@ func (w *World) NewId() Id {
 	for {
 		val := w.idCounter.Load()
 		if w.idCounter.CompareAndSwap(val, val+1) {
-			return (Id(val) % (w.maxId-w.minId)) + w.minId
+			return (Id(val) % (w.maxId - w.minId)) + w.minId
 		}
 	}
-
 
 	// if w.nextId < w.minId {
 	// 	w.nextId = w.minId
@@ -127,7 +126,9 @@ func Write(world *World, id Id, comp ...Component) {
 }
 
 func (world *World) Write(id Id, comp ...Component) {
-	if len(comp) <= 0 { return } // Do nothing if there are no components
+	if len(comp) <= 0 {
+		return
+	} // Do nothing if there are no components
 
 	archId, ok := world.arch.Get(id)
 	if ok {
@@ -218,7 +219,6 @@ func DeleteComponent(world *World, id Id, comp ...Component) {
 func (world *World) Exists(id Id) bool {
 	return world.arch.Has(id)
 }
-
 
 // --------------------------------------------------------------------------------
 // - Resources
