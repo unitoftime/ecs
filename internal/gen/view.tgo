@@ -70,10 +70,6 @@ func (v *View{{len $element}}[{{join $element ","}}]) Read(id Id) (*{{join $elem
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// lookup, ok := v.world.engine.lookup[archId]
-	// if !ok {
-	// 	panic("LookupList is missing!")
-	// }
 	index, ok := lookup.index.Get(id)
 	if !ok {
 		return {{with len $element}}{{nils .}}{{end}}
@@ -141,144 +137,125 @@ func (v *View{{len $element}}[{{join $element ","}}]) MapId(lambda func(id Id, {
 			if comp{{$arg}} != nil { ret{{$arg}} = &comp{{$arg}}[idx] }{{end}}
 			lambda(ids[idx], {{retlist $element}})
 		}
-
-	// 	// Option 2 - This is faster but has a combinatorial explosion problem
-	// 	if compA == nil && compB == nil {
-	// 		return
-	// 	} else if compA != nil && compB == nil {
-	// 		if len(ids) != len(compA) {
-	// 			panic("ERROR - Bounds don't match")
-	// 		}
-	// 		for i := range ids {
-	// 			if ids[i] == InvalidEntity { continue }
-	// 			lambda(ids[i], &compA[i], nil)
-	// 		}
-	// 	} else if compA == nil && compB != nil {
-	// 		if len(ids) != len(compB) {
-	// 			panic("ERROR - Bounds don't match")
-	// 		}
-	// 		for i := range ids {
-	// 			if ids[i] == InvalidEntity { continue }
-	// 			lambda(ids[i], nil, &compB[i])
-	// 		}
-	// 	} else if compA != nil && compB != nil {
-	// 		if len(ids) != len(compA) || len(ids) != len(compB) {
-	// 			panic("ERROR - Bounds don't match")
-	// 		}
-	// 		for i := range ids {
-	// 			if ids[i] == InvalidEntity { continue }
-	// 			lambda(ids[i], &compA[i], &compB[i])
-	// 		}
-	// 	}
 	}
-
-		// Original - doesn't handle optional
-	// for _, archId := range v.filter.archIds {
-	// 	aSlice, ok := v.storageA.slice[archId]
-	// 	if !ok { continue }
-	// 	bSlice, ok := v.storageB.slice[archId]
-	// 	if !ok { continue }
-
-	// 	lookup, ok := v.world.engine.lookup[archId]
-	// 	if !ok { panic("LookupList is missing!") }
-
-	// 	ids := lookup.id
-	// 	aComp := aSlice.comp
-	// 	bComp := bSlice.comp
-	// 	if len(ids) != len(aComp) || len(ids) != len(bComp) {
-	// 		panic("ERROR - Bounds don't match")
-	// 	}
-	// 	for i := range ids {
-	// 		if ids[i] == InvalidEntity { continue }
-	// 		lambda(ids[i], &aComp[i], &bComp[i])
-	// 	}
-	// }
 }
 
-// Maps the lambda function across every entity which matched the specified filters. Splits components into chunks of size up to `chunkSize` and then maps them in parallel. Smaller chunks results in highter overhead for small lambdas, but execution time is more predictable. If the chunk size is too hight, there is posibillity that not all the resources will utilized.
-func (v *View{{len $element}}[{{join $element ","}}]) MapIdParallel(chunkSize int, lambda func(id Id, {{lambdaArgs $element}})) {
+// Maps the lambda function across every entity which matched the specified filters. Components are split based on the number of OS threads available.
+func (v *View{{len $element}}[{{join $element ","}}]) MapIdParallel(lambda func(id Id, {{lambdaArgs $element}})) {
 	v.filter.regenerate(v.world)
 
 	{{range $ii, $arg := $element}}
 	var slice{{$arg}} *componentSlice[{{$arg}}]
-	var comp{{$arg}} []{{$arg}}
 	{{end}}
 
+	// 1. Calculate work
+	// 2. Calculate number of threads to execute with
+	// 3. Greedy divide work among N threads
+	// 4. Execute for each in its own goroutine
 
-	workDone := &sync.WaitGroup{}
-	type workPackage struct{start int; end int; ids []Id; {{parallelLambdaStructArgs $element}}}
-	newWorkChanel := make(chan workPackage)
-	mapWorker := func() {
-		defer workDone.Done()
-
-		for {
-			newWork, ok :=  <-newWorkChanel
-			if !ok {
-				return
-			}
-
-			// TODO: most probably this part ruins vectorization and SIMD. Maybe create new (faster) function where this will not occure?
-			{{range $ii, $arg := $element}}
-			var param{{$arg}} *{{$arg}}{{end}}
-
-			for i := newWork.start; i < newWork.end; i++ {
-				{{range $ii, $arg := $element}}
-				if newWork.{{lower $arg}} != nil { param{{$arg}} = &newWork.{{lower $arg}}[i]}{{end}}
-
-				lambda(newWork.ids[i], {{parallelLambdaArgsFromStruct $element}})
-			}
-		}
-	}
-	parallelLevel := runtime.NumCPU()*2
-	for i := 0; i < parallelLevel; i++ {
-		go mapWorker()
-	}
-
-
+	// 1. Calculate work
+	totalWork := 0
 	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil {
+			panic("LookupList is missing!")
+		}
+
+		// Each id represents an entity that holds the requested component(s)
+		// Each hole represents a deleted entity that used to hold the requested component(s)
+		totalWork += len(lookup.id) // - len(lookup.holes)
+	}
+
+	// 2. Calculate number of threads to execute with
+	numThreads := runtime.NumCPU()
+	var waitGroup sync.WaitGroup
+
+	type workItem struct{
+		ids []Id
+		{{range $ii, $arg := $element}}
+		comp{{$arg}} []{{$arg}}
+		{{end}}
+	}
+	workChannel := make(chan workItem)
+
+	for i := 0; i < numThreads; i++ {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+
+			for {
+				work, ok := <-workChannel
+				if !ok {
+					return
+				}
+
+				{{range $ii, $arg := $element}}
+				var ret{{$arg}} *{{$arg}}{{end}}
+				for idx := range work.ids {
+					if work.ids[idx] == InvalidEntity { continue } // Skip if its a hole
+					{{range $ii, $arg := $element}}
+					if work.comp{{$arg}} != nil { ret{{$arg}} = &work.comp{{$arg}}[idx] }{{end}}
+					lambda(work.ids[idx], {{retlist $element}})
+				}
+			}
+		}()
+	}
+
+	// 3. Greedy divide work among N threads
+	// Simple algorithm:
+	// a. Find an evenly balanced distribution per thread
+	// b. Generate all work until it gets consumed
+	workPerThread := totalWork / numThreads
+
+	// Generate
+	{{range $ii, $arg := $element}}
+	var comp{{$arg}} []{{$arg}}
+	{{end}}
+	for _, archId := range v.filter.archIds {
+		lookup := v.world.engine.lookup[archId]
+		if lookup == nil {
+			panic("LookupList is missing!")
+		}
+		ids := lookup.id
+
 		{{range $ii, $arg := $element}}
 		slice{{$arg}}, _ = v.storage{{$arg}}.slice[archId]{{end}}
-
-		lookup := v.world.engine.lookup[archId]
-		if lookup == nil { panic("LookupList is missing!") }
-		// lookup, ok := v.world.engine.lookup[archId]
-		// if !ok { panic("LookupList is missing!") }
-		ids := lookup.id
 
 		{{range $ii, $arg := $element}}
 		comp{{$arg}} = nil
 		if slice{{$arg}} != nil {
 			comp{{$arg}} = slice{{$arg}}.comp
 		}{{end}}
-		
-		startWorkRangeIndex := -1
-		for idx := range ids {
-			//TODO: chunks may be very small because of holes. Some clever heuristic is required. Most probably this is a problem of storage segmentation, but not this map algorithm.
-			if ids[idx] == InvalidEntity {
-				if startWorkRangeIndex != -1 {
-					newWorkChanel <- workPackage{start: startWorkRangeIndex, end: idx, ids: ids, {{range $ii, $arg := $element}} {{lower $arg}}: comp{{$arg}},{{end}}}
-					startWorkRangeIndex = -1
-				}
-				continue
-			} // Skip if its a hole
-			
-			if startWorkRangeIndex == -1 {
-				startWorkRangeIndex = idx
+
+		// workPerformed := 0
+
+		start := 0
+		end := 0
+		numWorkItems := (len(ids) / workPerThread) + 1
+		actualWorkPerThread := (len(ids) / numWorkItems) + 1
+		for i := 0; i < numWorkItems; i++ {
+			start = i * actualWorkPerThread
+			end = (i+1) * actualWorkPerThread
+			if end > len(ids) {
+				end = len(ids)
 			}
 
-			if idx - startWorkRangeIndex >= chunkSize {
-				newWorkChanel <- workPackage{start: startWorkRangeIndex, end: idx+1, ids: ids, {{range $ii, $arg := $element}} {{lower $arg}}: comp{{$arg}},{{end}}}
-				startWorkRangeIndex = -1
+			// workPerformed += len(ids[start:end])
+			workChannel <- workItem{
+				ids: ids[start:end],
+				{{range $ii, $arg := $element}}
+				comp{{$arg}}: comp{{$arg}}[start:end],
+				{{end}}
 			}
 		}
 
-		if startWorkRangeIndex != -1 {
-			newWorkChanel <- workPackage{start: startWorkRangeIndex, end: len(ids), {{range $ii, $arg := $element}} {{lower $arg}}: comp{{$arg}},{{end}}}
-		}
+		// if workPerformed != len(ids) {
+		// 	panic("wrong")
+		// }
 	}
 
-	close(newWorkChanel)
-	workDone.Wait()
+	close(workChannel)
+	waitGroup.Wait()
 }
 
 // Deprecated: This API is a tentative alternative way to map

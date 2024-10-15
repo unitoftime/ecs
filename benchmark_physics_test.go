@@ -3,6 +3,7 @@ package ecs
 import (
 	"math/rand"
 	"testing"
+	"time"
 )
 
 // Before we applied monomorphization techniques described here: https://planetscale.com/blog/generics-can-make-your-go-code-slower
@@ -47,23 +48,22 @@ type Velocity struct {
 
 func setupPhysics(size int) *World {
 	world := NewWorld()
-	// Register[Position](world)
-	// Register[Velocity](world)
 
+	rng := rand.New(rand.NewSource(1))
 	scale := float32(100.0)
 	for i := 0; i < size; i++ {
 		id := world.NewId()
 
 		Write(world, id,
 			C(Position{
-				scale * rand.Float32(),
-				scale * rand.Float32(),
-				scale * rand.Float32(),
+				scale * rng.Float32(),
+				scale * rng.Float32(),
+				scale * rng.Float32(),
 			}),
 			C(Velocity{
-				scale * rand.Float32(),
-				scale * rand.Float32(),
-				scale * rand.Float32(),
+				scale * rng.Float32(),
+				scale * rng.Float32(),
+				scale * rng.Float32(),
 			}))
 
 	}
@@ -86,6 +86,71 @@ func physicsTick2(id Id, pos *Position, vel *Velocity) {
 	pos.Z += vel.Z * dt
 	// TODO - writeback?
 }
+
+func TestPhysicsQueryMatch(t *testing.T) {
+	dt := float32(16 * time.Millisecond.Seconds())
+
+	world1 := setupPhysics(1e6)
+	query1 := Query2[Position, Velocity](world1)
+	query1.MapId(func(id Id, pos *Position, vel *Velocity) {
+		pos.X += vel.X * dt
+		pos.Y += vel.Y * dt
+		pos.Z += vel.Z * dt
+	})
+
+	world2 := setupPhysics(1e6)
+	query2 := Query2[Position, Velocity](world2)
+	query2.MapIdParallel(func(id Id, pos *Position, vel *Velocity) {
+		pos.X += vel.X * dt
+		pos.Y += vel.Y * dt
+		pos.Z += vel.Z * dt
+	})
+
+	// Check to make sure the worlds match
+	query1.MapId(func(id Id, pos *Position, vel *Velocity) {
+		pos2, vel2 := query2.Read(id)
+		if *pos != *pos2 {
+			t.Errorf("Incorrect Position")
+		}
+		if *vel != *vel2 {
+			t.Errorf("Incorrect Velocity")
+		}
+	})
+}
+
+
+func BenchmarkPhysicsQuery(b *testing.B) {
+	world := setupPhysics(1e6)
+	b.ResetTimer()
+
+	query := Query2[Position, Velocity](world)
+
+	dt := float32(16 * time.Millisecond.Seconds())
+	for i := 0; i < b.N; i++ {
+		query.MapId(func(id Id, pos *Position, vel *Velocity) {
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		})
+	}
+}
+
+func BenchmarkPhysicsQueryParallel(b *testing.B) {
+	world := setupPhysics(1e6)
+	b.ResetTimer()
+
+	query := Query2[Position, Velocity](world)
+
+	dt := float32(16 * time.Millisecond.Seconds())
+	for i := 0; i < b.N; i++ {
+		query.MapIdParallel(func(id Id, pos *Position, vel *Velocity) {
+			pos.X += vel.X * dt
+			pos.Y += vel.Y * dt
+			pos.Z += vel.Z * dt
+		})
+	}
+}
+
 
 // func BenchmarkPhysicsEcsMap(b *testing.B) {
 // 	world := setupPhysics(1e6)
