@@ -90,8 +90,6 @@ cmd.Execute()
 
 ### Still In Progress
 - [ ] Improving iterator performance: See: https://github.com/golang/go/discussions/54245
-- [ ] Automatic multithreading
-- [ ] Without() filter
 
 ### Videos
 Hopefully, eventually I can have some automated test-bench that runs and measures performance, but for now you'll just have to refer to my second video and hopefully trust me. Of course, you can run the benchmark in the `bench` folder to measure how long frames take on your computer.
