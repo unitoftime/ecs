@@ -118,7 +118,6 @@ func TestPhysicsQueryMatch(t *testing.T) {
 	})
 }
 
-
 func BenchmarkPhysicsQuery(b *testing.B) {
 	world := setupPhysics(1e6)
 	b.ResetTimer()
@@ -150,7 +149,6 @@ func BenchmarkPhysicsQueryParallel(b *testing.B) {
 		})
 	}
 }
-
 
 // func BenchmarkPhysicsEcsMap(b *testing.B) {
 // 	world := setupPhysics(1e6)

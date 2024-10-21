@@ -88,3 +88,86 @@ func (bun Bundle4[A, B, C, D]) Write(world *World, id Id, a A, b B, c C, d D) {
 		bun.comps...,
 	)
 }
+
+// // --------------------------------------------------------------------------------
+// type BundleTry2[A, B, C, D any] struct {
+// 	query *View4[A, B, C, D]
+// 	compId componentId
+// 	boxA   *Box[A]
+// 	boxB   *Box[B]
+// 	boxC   *Box[C]
+// 	boxD   *Box[D]
+// 	comps  []Component
+// }
+
+// // Createst the boxed component type
+// func NewBundleTry2[A, B, C, D any](world *World) BundleTry2[A, B, C, D] {
+// 	var a A
+// 	var b B
+// 	var c C
+// 	var d D
+// 	boxA := &Box[A]{a, name(a)}
+// 	boxB := &Box[B]{b, name(b)}
+// 	boxC := &Box[C]{c, name(c)}
+// 	boxD := &Box[D]{d, name(d)}
+// 	comps := []Component{
+// 		boxA, boxB, boxC, boxD,
+// 	}
+
+// 	return BundleTry2[A, B, C, D]{
+// 		query: Query4[A, B, C, D](world),
+// 		boxA:  boxA,
+// 		boxB:  boxB,
+// 		boxC:  boxC,
+// 		boxD:  boxD,
+// 		comps: comps,
+// 	}
+// }
+
+// // Step 1: Allocate arch Id
+// // Step 2: Read pointers
+// // Step 3: Write everything
+// func (bun BundleTry2[A, B, C, D]) Write(id Id, a *A, b *B, c *C, d *D) {
+// 	var archMask archetypeMask
+// 	bun.addToArchMask(&archMask, a, b, c, d)
+
+// 	world.allocate(id, archMask)
+
+// 	aDst, bDst, cDst, dDst := bun.query.Read(id)
+// 	if a != nil {
+// 		*aDst = *a
+// 	}
+// 	if b != nil {
+// 		*bDst = *b
+// 	}
+// 	if c != nil {
+// 		*cDst = *c
+// 	}
+// 	if d != nil {
+// 		*dDst = *d
+// 	}
+
+// 	// bun.boxA.Comp = *a
+// 	// bun.boxB.Comp = *b
+// 	// bun.boxC.Comp = *c
+// 	// bun.boxD.Comp = *d
+
+// 	// Write(world, id,
+// 	// 	bun.comps...,
+// 	// )
+// }
+
+// func (bun BundleTry2[A, B, C, D]) addToArchMask(archMask *archetypeMask, a *A, b *B, c *C, d *D) {
+// 	if a != nil {
+// 		archMask.addComponent(bun.boxA.compId)
+// 	}
+// 	if b != nil {
+// 		archMask.addComponent(bun.boxB.compId)
+// 	}
+// 	if c != nil {
+// 		archMask.addComponent(bun.boxC.compId)
+// 	}
+// 	if d != nil {
+// 		archMask.addComponent(bun.boxD.compId)
+// 	}
+// }

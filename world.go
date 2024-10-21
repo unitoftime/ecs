@@ -144,6 +144,31 @@ func (world *World) Write(id Id, comp ...Component) {
 	}
 }
 
+// TODO: For faster writing, I was thinking I'd make an allocation function whose sole purpose is to just allocate the space, which can then be read later on
+// func (world *World) allocate(id Id, addMask archetypeMask) {
+// 	if addMask == blankArchMask {
+// 		return // Nothing to allocate
+// 	}
+
+// 	archId, ok := world.arch.Get(id)
+// 	if ok {
+// 		// Calculate the new mask based on the bitwise or of the old and added masks
+// 		lookup := world.engine.lookup[archId]
+// 		oldMask := lookup.mask
+// 		newMask := oldMask.bitwiseOr(addMask)
+
+// 		newarchetypeId := world.engine.rewriteArch(archId, id, comp...)
+// 		world.arch.Put(id, newarchetypeId)
+// 	} else {
+// 		// Id does not yet exist, we need to add it for the first time
+// 		archId = world.engine.getArchetypeId(comp...)
+// 		world.arch.Put(id, archId)
+
+// 		// Write all components to that archetype
+// 		world.engine.write(archId, id, comp...)
+// 	}
+// }
+
 // Reads a specific component of the entity specified at id.
 // Returns true if the entity was found and had that component, else returns false.
 // Deprecated: This API is tentative, I'm trying to improve the QueryN construct so that it can capture this usecase.

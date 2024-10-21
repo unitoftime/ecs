@@ -327,11 +327,38 @@ func BenchmarkAddEntitySameCached(b *testing.B) {
 		C(acceleration{7, 8, 9}),
 		C(radius{10}),
 	)
-	id := world.NewId()
 
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < addEntSize; i++ {
+			id := world.NewId()
 			ent.Write(world, id)
+		}
+	}
+}
+
+func BenchmarkAddEntitySameCachedThenWrite(b *testing.B) {
+	world := NewWorld()
+
+	b.ResetTimer()
+
+	query := Query4[position, velocity, acceleration, radius](world)
+	ent := NewEntity(
+		C(position{}),
+		C(velocity{}),
+		C(acceleration{}),
+		C(radius{}),
+	)
+
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < addEntSize; i++ {
+			id := world.NewId()
+			ent.Write(world, id)
+
+			pos, vel, acc, rad := query.Read(id)
+			*pos = position{1, 2, 3}
+			*vel = velocity{4, 5, 6}
+			*acc = acceleration{7, 8, 9}
+			*rad = radius{10}
 		}
 	}
 }
@@ -426,3 +453,76 @@ func BenchmarkAddEntitySameCached(b *testing.B) {
 // BenchmarkAddEntityViaBundles2-12    	    5064	    331580 ns/op	  541033 B/op	       0 allocs/op
 // BenchmarkAddEntityViaBundles3-12    	    3040	    485595 ns/op	  837256 B/op	    6000 allocs/op
 // BenchmarkAddEntitySameCached-12     	   17451	     68978 ns/op	       3 B/op	       0 allocs/op
+
+//--------------------------------------------------------------------------------
+// Rebaseline on new computer
+//--------------------------------------------------------------------------------
+// BenchmarkAddEntityWrite-12          	    2576	    534658 ns/op	  643713 B/op	    4000 allocs/op
+// BenchmarkAddEntity-12               	    2626	    529261 ns/op	  643420 B/op	    4000 allocs/op
+// BenchmarkAddEntityMemCached-12      	    2574	    553593 ns/op	  644119 B/op	    4000 allocs/op
+// BenchmarkAddEntityCached-12         	    5134	    398114 ns/op	  533658 B/op	       0 allocs/op
+// BenchmarkAddEntityCommands-12       	    1888	    740393 ns/op	  841207 B/op	    7000 allocs/op
+// BenchmarkAddEntityViaBundles-12     	    3339	    491029 ns/op	  684959 B/op	    4000 allocs/op
+// BenchmarkAddEntityViaBundles2-12    	    4836	    409933 ns/op	  556111 B/op	       0 allocs/op
+// BenchmarkAddEntityViaBundles3-12    	    2828	    549254 ns/op	  812032 B/op	    6000 allocs/op
+// BenchmarkAddEntitySameCached-12     	   16140	     73152 ns/op	       0 B/op	       0 allocs/op
+
+// BenchmarkAddEntityWrite-12             	    2790	    515633 ns/op	  616915 B/op	    4000 allocs/op
+// BenchmarkAddEntity-12                  	    2793	    513607 ns/op	  616374 B/op	    4000 allocs/op
+// BenchmarkAddEntityMemCached-12         	    2691	    551973 ns/op	  635489 B/op	    4000 allocs/op
+// BenchmarkAddEntityCached-12            	    5208	    396999 ns/op	  531032 B/op	       0 allocs/op
+// BenchmarkAddEntityCommands-12          	    1905	    726353 ns/op	  835853 B/op	    7000 allocs/op
+// BenchmarkAddEntityViaBundles-12        	    3054	    485749 ns/op	  722442 B/op	    4000 allocs/op
+// BenchmarkAddEntityViaBundles2-12       	    5083	    408980 ns/op	  539012 B/op	       0 allocs/op
+// BenchmarkAddEntityViaBundles3-12       	    2956	    558824 ns/op	  854680 B/op	    6000 allocs/op
+// BenchmarkAddEntitySameCached-12        	   17047	     70804 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkAddEntityViaBundlesTry2-12    	    3458	    419984 ns/op	  553238 B/op	       0 allocs/op
+
+// BenchmarkAddEntityWrite-12          	    2523	    600336 ns/op
+// BenchmarkAddEntity-12               	    2706	    586171 ns/op
+// BenchmarkAddEntityMemCached-12      	    2595	    623440 ns/op
+// BenchmarkAddEntityCached-12         	    4144	    474984 ns/op
+// BenchmarkAddEntityCommands-12       	    1626	    795483 ns/op
+// BenchmarkAddEntityViaBundles-12     	    3411	    545720 ns/op
+// BenchmarkAddEntityViaBundles2-12    	    3888	    482885 ns/op
+// BenchmarkAddEntityViaBundles3-12    	    2805	    571085 ns/op
+// BenchmarkAddEntitySameCached-12     	   16396	     72816 ns/op
+
+// BenchmarkAddEntityWrite-12                  	    2508	    580966 ns/op
+// BenchmarkAddEntity-12                       	    2844	    581545 ns/op
+// BenchmarkAddEntityMemCached-12              	    2426	    628340 ns/op
+// BenchmarkAddEntityCached-12                 	    4381	    443793 ns/op
+// BenchmarkAddEntityCommands-12               	    1676	    805492 ns/op
+// BenchmarkAddEntityViaBundles-12             	    3052	    549700 ns/op
+// BenchmarkAddEntityViaBundles2-12            	    4027	    465475 ns/op
+// BenchmarkAddEntityViaBundles3-12            	    2733	    568369 ns/op
+// BenchmarkAddEntitySameCached-12             	    4578	    474989 ns/op
+// BenchmarkAddEntitySameCachedThenWrite-12    	    3069	    453504 ns/op
+
+// type myBundle struct {
+// 	pos position
+// 	vel velocity
+// 	acc acceleration
+// 	rad radius
+// }
+
+// func BenchmarkAddEntityViaBundlesTry2(b *testing.B) {
+// 	world := NewWorld()
+
+// 	b.ResetTimer()
+
+// 	bundle := NewBundleTry2[position, velocity, acceleration, radius](world)
+
+// 	for n := 0; n < b.N; n++ {
+// 		for i := 0; i < addEntSize; i++ {
+// 			id := world.NewId()
+// 			bundle.Write(id,
+// 				&position{1, 2, 3},
+// 				&velocity{4, 5, 6},
+// 				&acceleration{7, 8, 9},
+// 				&radius{10},
+// 			)
+// 		}
+// 	}
+// }
+
