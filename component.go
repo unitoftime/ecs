@@ -2,12 +2,55 @@ package ecs
 
 import (
 	"fmt"
-	// "sort"
+	"sync"
 )
+
+type storageBuilder interface {
+	build() storage
+}
+type storageBuilderImp[T any] struct {
+}
+
+func (s storageBuilderImp[T]) build() storage {
+	return &componentSliceStorage[T]{
+		slice: make(map[archetypeId]*componentSlice[T], DefaultAllocation),
+	}
+}
+
+func nameTyped[T any](comp T) componentId {
+	compId := name(comp)
+	registerComponentStorage[T](compId)
+	return compId
+}
+
+var componentStorageLookupMut sync.RWMutex
+var componentStorageLookup = make(map[componentId]storageBuilder)
+
+func registerComponentStorage[T any](compId componentId) {
+	componentStorageLookupMut.Lock()
+	_, ok := componentStorageLookup[compId]
+	if !ok {
+		componentStorageLookup[compId] = storageBuilderImp[T]{}
+	}
+	componentStorageLookupMut.Unlock()
+}
+
+func newComponentStorage(c componentId) storage {
+	componentStorageLookupMut.RLock()
+	s, ok := componentStorageLookup[c]
+	if !ok {
+		panic(fmt.Sprintf("tried to build component storage with unregistered componentId: %d", c))
+	}
+
+	componentStorageLookupMut.RUnlock()
+	return s.build()
+}
 
 type componentId uint16
 
 type Component interface {
+	SetOther(Component) // TODO: ???
+	Clone() Component   // TODO: ???
 	write(*archEngine, archetypeId, int)
 	id() componentId
 }
@@ -20,15 +63,26 @@ type Box[T any] struct {
 
 // Createst the boxed component type
 func C[T any](comp T) Box[T] {
+	compId := nameTyped[T](comp)
 	return Box[T]{
 		Comp:   comp,
-		compId: name(comp),
+		compId: compId,
 	}
 }
 func (c Box[T]) write(engine *archEngine, archId archetypeId, index int) {
 	store := getStorageByCompId[T](engine, c.id())
 	writeArch[T](engine, archId, index, store, c.Comp)
 }
+func (c Box[T]) writeVal(engine *archEngine, archId archetypeId, index int, val T) {
+	store := getStorageByCompId[T](engine, c.id())
+	writeArch[T](engine, archId, index, store, val)
+}
+func (c Box[T]) getPtr(engine *archEngine, archId archetypeId, index int) *T {
+	store := getStorageByCompId[T](engine, c.id())
+	slice := store.slice[archId]
+	return &slice.comp[index]
+}
+
 func (c Box[T]) id() componentId {
 	if c.compId == invalidComponentId {
 		c.compId = name(c.Comp)
@@ -36,8 +90,39 @@ func (c Box[T]) id() componentId {
 	return c.compId
 }
 
+func (c Box[T]) SetOther(other Component) {
+	o := other.(Box[T])
+	o.Comp = c.Comp
+}
+
 func (c Box[T]) Get() T {
 	return c.Comp
+}
+
+func (c Box[T]) Clone() Component {
+	return c
+}
+
+func (c Box[T]) UnbundleVal(bun *Bundler, val T) {
+	c.Comp = val
+	c.Unbundle(bun)
+}
+
+func (c Box[T]) Unbundle(bun *Bundler) {
+	compId := c.compId
+	val := c.Comp
+	bun.archMask.addComponent(compId)
+	bun.Set[compId] = true
+	if bun.Components[compId] == nil {
+		// Note: We need a pointer so that we dont do an allocation every time we set it
+		c2 := c // Note: make a copy, so the bundle doesn't contain a pointer to the original
+		bun.Components[compId] = &c2
+	} else {
+		rwComp := bun.Components[compId].(*Box[T])
+		rwComp.Comp = val
+	}
+
+	bun.maxComponentIdAdded = max(bun.maxComponentIdAdded, compId)
 }
 
 // Note: you can increase max component size by increasing maxComponentId and archetypeMask
@@ -120,6 +205,26 @@ func (m archetypeMask) contains(a archetypeMask) bool {
 	return true
 }
 
+// Checks to see if a mask m contains the supplied componentId
+// Returns true if the bit location in that mask is set, else returns false
+func (m archetypeMask) hasComponent(compId componentId) bool {
+	// Ranges: [0, 64), [64, 128), [128, 192), [192, 256)
+	idx := compId / 64
+	offset := compId - (64 * idx)
+	return (m[idx] & (1 << offset)) != 0
+}
+
+// Generates and returns a list of every componentId that this archetype contains
+func (m archetypeMask) getComponentList() []componentId {
+	ret := make([]componentId, 0)
+	for compId := componentId(0); compId <= maxComponentId; compId++ {
+		if m.hasComponent(compId) {
+			ret = append(ret, compId)
+		}
+	}
+	return ret
+}
+
 // TODO: You should move to this (ie archetype graph (or bitmask?). maintain the current archetype node, then traverse to nodes (and add new ones) based on which components are added): https://ajmmertens.medium.com/building-an-ecs-2-archetypes-and-vectorization-fe21690805f9
 // Dynamic component Registry
 type componentRegistry struct {
@@ -150,11 +255,37 @@ func (r *componentRegistry) print() {
 	}
 }
 
-func (r *componentRegistry) getArchetypeId(engine *archEngine, comps ...Component) archetypeId {
-	mask := buildArchMask(comps...)
+// func (r *componentRegistry) getArchetypeId(engine *archEngine, comps ...Component) archetypeId {
+// 	mask := buildArchMask(comps...)
+// 	archId, ok := r.archMask[mask]
+// 	if !ok {
+// 		componentIds := make([]componentId, 0)
+// 		for i := range comps {
+// 			componentIds = append(componentIds, comps[i].id())
+// 		}
+
+// 		archId = engine.newArchetypeId(mask, componentIds)
+// 		r.archMask[mask] = archId
+
+// 		if int(archId) != len(r.revArchMask) {
+// 			panic(fmt.Sprintf("ecs: archId must increment. Expected: %d, Got: %d", len(r.revArchMask), archId))
+// 		}
+// 		r.revArchMask = append(r.revArchMask, mask)
+
+// 		// Add this archetypeId to every component's archList
+// 		for _, comp := range comps {
+// 			compId := comp.id()
+// 			r.archSet[compId] = append(r.archSet[compId], archId)
+// 		}
+// 	}
+// 	return archId
+// }
+
+func (r *componentRegistry) getArchetypeIdFromMask(engine *archEngine, mask archetypeMask) archetypeId {
 	archId, ok := r.archMask[mask]
 	if !ok {
-		archId = engine.newArchetypeId(mask)
+		componentIds := mask.getComponentList()
+		archId = engine.newArchetypeId(mask, componentIds)
 		r.archMask[mask] = archId
 
 		if int(archId) != len(r.revArchMask) {
@@ -163,8 +294,7 @@ func (r *componentRegistry) getArchetypeId(engine *archEngine, comps ...Componen
 		r.revArchMask = append(r.revArchMask, mask)
 
 		// Add this archetypeId to every component's archList
-		for _, comp := range comps {
-			compId := comp.id()
+		for _, compId := range componentIds {
 			r.archSet[compId] = append(r.archSet[compId], archId)
 		}
 	}

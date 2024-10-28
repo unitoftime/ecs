@@ -26,7 +26,7 @@ func name(t any) componentId {
 	return compId
 }
 
-// Possible solution: Runs faster than reflection (mostly useful for potentially removing/reducing ecs.C(...) overhead
+// // Possible solution: Runs faster than reflection (mostly useful for potentially removing/reducing ecs.C(...) overhead
 // import (
 // 	"sync"
 // 	"unsafe"
@@ -38,7 +38,6 @@ func name(t any) componentId {
 // }
 
 // var componentIdMutex sync.Mutex
-// // var registeredComponents = make(map[reflect.Type]componentId, maxComponentId)
 // var registeredComponents = make(map[uintptr]componentId, maxComponentId)
 // var invalidComponentId componentId = 0
 // var componentRegistryCounter componentId = 1
@@ -49,8 +48,6 @@ func name(t any) componentId {
 // 	componentIdMutex.Lock()
 // 	defer componentIdMutex.Unlock()
 
-// 	// typeof := reflect.TypeOf(t)
-// 	// compId, ok := registeredComponents[typeof]
 // 	iface := (*emptyInterface)(unsafe.Pointer(&t))
 // 	typeptr := uintptr(iface.typ)
 // 	compId, ok := registeredComponents[typeptr]

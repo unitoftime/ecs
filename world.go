@@ -127,8 +127,8 @@ func Write(world *World, id Id, comp ...Component) {
 
 func (world *World) Write(id Id, comp ...Component) {
 	if len(comp) <= 0 {
-		return
-	} // Do nothing if there are no components
+		return // Do nothing if there are no components
+	}
 
 	archId, ok := world.arch.Get(id)
 	if ok {
@@ -136,7 +136,8 @@ func (world *World) Write(id Id, comp ...Component) {
 		world.arch.Put(id, newarchetypeId)
 	} else {
 		// Id does not yet exist, we need to add it for the first time
-		archId = world.engine.getArchetypeId(comp...)
+		mask := buildArchMask(comp...)
+		archId = world.engine.getArchetypeIdFromMask(mask)
 		world.arch.Put(id, archId)
 
 		// Write all components to that archetype
@@ -144,30 +145,50 @@ func (world *World) Write(id Id, comp ...Component) {
 	}
 }
 
-// TODO: For faster writing, I was thinking I'd make an allocation function whose sole purpose is to just allocate the space, which can then be read later on
-// func (world *World) allocate(id Id, addMask archetypeMask) {
-// 	if addMask == blankArchMask {
-// 		return // Nothing to allocate
-// 	}
+func (world *World) GetArchetype(comp ...Component) archetypeId {
+	mask := buildArchMask(comp...)
+	return world.engine.getArchetypeIdFromMask(mask)
+}
 
-// 	archId, ok := world.arch.Get(id)
-// 	if ok {
-// 		// Calculate the new mask based on the bitwise or of the old and added masks
-// 		lookup := world.engine.lookup[archId]
-// 		oldMask := lookup.mask
-// 		newMask := oldMask.bitwiseOr(addMask)
+// Note: This returns the index of the location allocated
+func (world *World) Allocate(id Id, archId archetypeId) int {
+	return world.allocate(id, world.engine.dcr.revArchMask[archId])
+}
 
-// 		newarchetypeId := world.engine.rewriteArch(archId, id, comp...)
-// 		world.arch.Put(id, newarchetypeId)
-// 	} else {
-// 		// Id does not yet exist, we need to add it for the first time
-// 		archId = world.engine.getArchetypeId(comp...)
-// 		world.arch.Put(id, archId)
+// Returns the index of the location allocated. May return -1 if invalid archMask supplied
+func (world *World) allocate(id Id, addMask archetypeMask) int {
+	if addMask == blankArchMask {
+		return -1 // Nothing to allocate
+	}
 
-// 		// Write all components to that archetype
-// 		world.engine.write(archId, id, comp...)
-// 	}
-// }
+	archId, ok := world.arch.Get(id)
+	if ok {
+		// Calculate the new mask based on the bitwise or of the old and added masks
+		lookup := world.engine.lookup[archId]
+		oldMask := lookup.mask
+		newMask := oldMask.bitwiseOr(addMask)
+
+		// If the new mask matches the old mask, then we don't need to move anything
+		if oldMask == newMask {
+			index, ok := lookup.index.Get(id)
+			if !ok {
+				panic("bug: id missing from lookup list")
+			}
+			return index
+		}
+
+		newArchId, newIndex := world.engine.moveArchetype(archId, newMask, id)
+		world.arch.Put(id, newArchId)
+		return newIndex
+	} else {
+		// Id does not yet exist, we need to add it for the first time
+		archId = world.engine.getArchetypeIdFromMask(addMask)
+		world.arch.Put(id, archId)
+
+		// Write all components to that archetype
+		return world.engine.allocate(archId, id)
+	}
+}
 
 // Reads a specific component of the entity specified at id.
 // Returns true if the entity was found and had that component, else returns false.

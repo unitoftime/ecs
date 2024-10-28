@@ -29,10 +29,11 @@ func (s *componentSlice[T]) Write(index int, val T) {
 
 // TODO: Rename, this is kind of like an archetype header
 type lookupList struct {
-	index *internalMap[Id, int] // A mapping from entity ids to array indices
-	id    []Id                  // An array of every id in the arch list (essentially a reverse mapping from index to Id)
-	holes []int                 // List of indexes that have ben deleted
-	mask  archetypeMask
+	index      *internalMap[Id, int] // A mapping from entity ids to array indices
+	id         []Id                  // An array of every id in the arch list (essentially a reverse mapping from index to Id)
+	holes      []int                 // List of indexes that have ben deleted
+	mask       archetypeMask
+	components []componentId // This is a list of all components that this archetype contains
 }
 
 func (l *lookupList) Len() int {
@@ -62,11 +63,15 @@ func (l *lookupList) addToEasiestHole(id Id) int {
 type storage interface {
 	ReadToEntity(*Entity, archetypeId, int) bool
 	ReadToRawEntity(*RawEntity, archetypeId, int) bool
+	Allocate(archetypeId, int) // Allocates the index, setting the data there to the zero value
 	Delete(archetypeId, int)
+	moveArchetype(archetypeId, int, archetypeId, int)
+
 	print(int)
 }
 
 type componentSliceStorage[T any] struct {
+	// TODO: Could these just increment rather than be a map lookup? I guess not every component type would have a storage slice for every archetype so we'd waste some memory. I guess at the very least we could use the faster lookup map
 	slice map[archetypeId]*componentSlice[T]
 }
 
@@ -86,6 +91,27 @@ func (ss *componentSliceStorage[T]) ReadToRawEntity(entity *RawEntity, archId ar
 	}
 	entity.Add(&cSlice.comp[index])
 	return true
+}
+
+func (ss *componentSliceStorage[T]) Allocate(archId archetypeId, index int) {
+	cSlice, ok := ss.slice[archId]
+	if !ok {
+		cSlice = &componentSlice[T]{
+			comp: make([]T, 0, DefaultAllocation),
+		}
+		ss.slice[archId] = cSlice
+	}
+
+	var val T
+	cSlice.Write(index, val)
+}
+
+func (ss *componentSliceStorage[T]) moveArchetype(oldArchId archetypeId, oldIndex int, newArchId archetypeId, newIndex int) {
+	oldSlice := ss.slice[oldArchId]
+	newSlice := ss.slice[newArchId]
+
+	val := oldSlice.comp[oldIndex]
+	newSlice.Write(newIndex, val)
 }
 
 // Delete is somewhat special because it deletes the index of the archId for the componentSlice
@@ -126,16 +152,17 @@ func newArchEngine() *archEngine {
 	}
 }
 
-func (e *archEngine) newArchetypeId(archMask archetypeMask) archetypeId {
+func (e *archEngine) newArchetypeId(archMask archetypeMask, components []componentId) archetypeId {
 	e.generation++ // Increment the generation
 
 	archId := archetypeId(len(e.lookup))
 	e.lookup = append(e.lookup,
 		&lookupList{
-			index: newMap[Id, int](0),
-			id:    make([]Id, 0, DefaultAllocation),
-			holes: make([]int, 0, DefaultAllocation),
-			mask:  archMask,
+			index:      newMap[Id, int](0),
+			id:         make([]Id, 0, DefaultAllocation),
+			holes:      make([]int, 0, DefaultAllocation),
+			mask:       archMask,
+			components: components,
 		},
 	)
 
@@ -184,8 +211,12 @@ func (e *archEngine) count(anything ...any) int {
 	return total
 }
 
-func (e *archEngine) getArchetypeId(comp ...Component) archetypeId {
-	return e.dcr.getArchetypeId(e, comp...)
+// func (e *archEngine) getArchetypeId(comp ...Component) archetypeId {
+// 	return e.dcr.getArchetypeId(e, comp...)
+// }
+
+func (e *archEngine) getArchetypeIdFromMask(mask archetypeMask) archetypeId {
+	return e.dcr.getArchetypeIdFromMask(e, mask)
 }
 
 // Returns replaces archIds with a list of archids that match the compId list
@@ -277,7 +308,6 @@ func getStorageByCompId[T any](e *archEngine, compId componentId) *componentSlic
 }
 
 func (e *archEngine) getOrAddLookupIndex(archId archetypeId, id Id) int {
-
 	lookup := e.lookup[archId]
 
 	// Check if we want to cleanup holes
@@ -298,11 +328,37 @@ func (e *archEngine) getOrAddLookupIndex(archId archetypeId, id Id) int {
 func (e *archEngine) write(archId archetypeId, id Id, comp ...Component) {
 	// Add to lookup list
 	index := e.getOrAddLookupIndex(archId, id)
+	e.writeIndex(archId, id, index, comp...)
+}
 
+func (e *archEngine) writeIndex(archId archetypeId, id Id, index int, comp ...Component) {
 	// Loop through all components and add them to individual component slices
 	for i := range comp {
 		comp[i].write(e, archId, index)
 	}
+}
+
+// Allocates a slot for the supplied archId
+func (e *archEngine) allocate(archId archetypeId, id Id) int {
+	// Add to lookup list
+	index := e.getOrAddLookupIndex(archId, id)
+
+	// for compId registered to archId
+	lookup := e.lookup[archId]
+	for _, compId := range lookup.components {
+		s := e.getStorage(compId)
+		s.Allocate(archId, index)
+	}
+	return index
+}
+
+func (e *archEngine) getStorage(compId componentId) storage {
+	ss := e.compSliceStorage[compId]
+	if ss == nil {
+		ss = newComponentStorage(compId)
+		e.compSliceStorage[compId] = ss
+	}
+	return ss
 }
 
 func writeArch[T any](e *archEngine, archId archetypeId, index int, store *componentSliceStorage[T], val T) {
@@ -385,7 +441,6 @@ func readPtrArch[T any](e *archEngine, archId archetypeId, id Id) *T {
 	return &cSlice.comp[index]
 }
 
-// TODO - Think: Is it better to read everything then push it into the new archetypeId? Or better to migrate everything in place?
 // Returns the archetypeId of where the entity ends up
 func (e *archEngine) rewriteArch(archId archetypeId, id Id, comp ...Component) archetypeId {
 	// Calculate the new mask based on the bitwise or of the old and added masks
@@ -400,20 +455,35 @@ func (e *archEngine) rewriteArch(archId archetypeId, id Id, comp ...Component) a
 		e.write(archId, id, comp...)
 		return archId
 	} else {
-		ent := e.ReadEntity(archId, id)
-		ent.Add(comp...)
-		combinedComps := ent.Comps()
-		// Note (maybe TODO): Right now we don't know if the new archtypeId exists for this, so we have to go through the normal code path to potentially create it (even though we currently have the new archtypeMask)
-		newArchId := e.getArchetypeId(combinedComps...)
+		// 1. Move Archetype Data
+		newArchId, newIndex := e.moveArchetype(archId, newMask, id)
 
-		// Case 2: Archetype changes
-		// 1: Delete all components in old archetype
-		e.TagForDeletion(archId, id)
+		// 2. Write new componts to new archetype/index location
+		e.writeIndex(newArchId, id, newIndex, comp...)
 
-		// 2: We need to write the entire list of combinedComps
-		e.write(newArchId, id, combinedComps...)
 		return newArchId
 	}
+}
+
+func (e *archEngine) moveArchetype(oldArchId archetypeId, newMask archetypeMask, id Id) (archetypeId, int) {
+	newArchId := e.dcr.getArchetypeIdFromMask(e, newMask)
+
+	newIndex := e.allocate(newArchId, id)
+
+	oldLookup := e.lookup[oldArchId]
+	oldIndex, ok := oldLookup.index.Get(id)
+	if !ok {
+		panic("bug: id missing from lookup list")
+	}
+
+	for _, compId := range oldLookup.components {
+		store := e.compSliceStorage[compId]
+		store.moveArchetype(oldArchId, oldIndex, newArchId, newIndex)
+	}
+
+	e.TagForDeletion(oldArchId, id)
+
+	return newArchId, newIndex
 }
 
 func (e *archEngine) ReadEntity(archId archetypeId, id Id) *Entity {
