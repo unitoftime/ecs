@@ -65,3 +65,20 @@ func BenchmarkMainRewriteArch(b *testing.B) {
 		world.Write(id, C(radius{}))
 	}
 }
+
+// Old: BenchmarkMainRewriteDownArch-12    	  375435	      3022 ns/op	     864 B/op	      31 allocs/op
+// New: BenchmarkMainRewriteDownArch-12    	  891117	      1373 ns/op	     360 B/op	       8 allocs/op
+func BenchmarkMainRewriteDownArch(b *testing.B) {
+	world := NewWorld()
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		id := world.NewId()
+		world.Write(id, C(position{}), C(velocity{}), C(acceleration{}), C(radius{}))
+
+		DeleteComponent(world, id, C(position{}))
+		DeleteComponent(world, id, C(velocity{}))
+		DeleteComponent(world, id, C(acceleration{}))
+		DeleteComponent(world, id, C(radius{}))
+	}
+}

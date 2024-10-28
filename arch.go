@@ -298,6 +298,7 @@ func (e *archEngine) rewriteArch(archId archetypeId, id Id, comp ...Component) a
 	}
 }
 
+// Moves an entity from one archetype to another, copying all of the data from the old archetype to the new one
 func (e *archEngine) moveArchetype(oldArchId archetypeId, newMask archetypeMask, id Id) (archetypeId, int) {
 	newArchId := e.dcr.getArchetypeId(e, newMask)
 
@@ -317,6 +318,29 @@ func (e *archEngine) moveArchetype(oldArchId archetypeId, newMask archetypeMask,
 	e.TagForDeletion(oldArchId, id)
 
 	return newArchId, newIndex
+}
+
+// Moves an entity from one archetype to another, copying all of the data required by the new archetype
+func (e *archEngine) moveArchetypeDown(oldArchId archetypeId, newMask archetypeMask, id Id) archetypeId {
+	newArchId := e.dcr.getArchetypeId(e, newMask)
+
+	newIndex := e.allocate(newArchId, id)
+
+	oldLookup := e.lookup[oldArchId]
+	oldIndex, ok := oldLookup.index.Get(id)
+	if !ok {
+		panic("bug: id missing from lookup list")
+	}
+
+	newLookup := e.lookup[newArchId]
+	for _, compId := range newLookup.components {
+		store := e.compSliceStorage[compId]
+		store.moveArchetype(oldArchId, oldIndex, newArchId, newIndex)
+	}
+
+	e.TagForDeletion(oldArchId, id)
+
+	return newArchId
 }
 
 func (e *archEngine) ReadEntity(archId archetypeId, id Id) *Entity {

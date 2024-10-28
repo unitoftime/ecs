@@ -183,6 +183,29 @@ func TestWorldWriteDelete(t *testing.T) {
 	}
 }
 
+func TestWorldDeleteAllViaComponents(t *testing.T) {
+	world := NewWorld()
+
+	id := world.NewId()
+	world.Write(id, C(position{}), C(velocity{}), C(acceleration{}), C(radius{}))
+
+	DeleteComponent(world, id, C(position{}))
+	DeleteComponent(world, id, C(velocity{}))
+	DeleteComponent(world, id, C(acceleration{}))
+	DeleteComponent(world, id, C(radius{}))
+	_, ok := Read[position](world, id)
+	check(t, !ok)
+	_, ok = Read[velocity](world, id)
+	check(t, !ok)
+	_, ok = Read[acceleration](world, id)
+	check(t, !ok)
+	_, ok = Read[radius](world, id)
+	check(t, !ok)
+
+	exists := world.Exists(id)
+	check(t, !exists)
+}
+
 func TestWorldDeleteComponent(t *testing.T) {
 	world := NewWorld()
 	ids := make([]Id, 0)

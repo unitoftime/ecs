@@ -64,6 +64,19 @@ func (m archetypeMask) bitwiseAnd(a archetypeMask) archetypeMask {
 	return m
 }
 
+// Clears every bit in m based on the bits set in 'c'
+func (m archetypeMask) bitwiseClear(c archetypeMask) archetypeMask {
+	for i := range m {
+		m[i] = m[i] & (^c[i])
+	}
+	return m
+}
+
+// m: 0x1010
+// c: 0x1100
+//!c: 0x0011
+// f: 0x0010
+
 // Checks to ensure archetype m contains archetype a
 // Returns true if every bit in m is also set in a
 // Returns false if at least one set bit in m is not set in a

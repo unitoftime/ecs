@@ -151,6 +151,34 @@ func (world *World) allocate(id Id, addMask archetypeMask) int {
 	}
 }
 
+// May return -1 if invalid archMask supplied, or if the entity doesn't exist
+func (world *World) deleteMask(id Id, deleteMask archetypeMask) {
+	archId, ok := world.arch.Get(id)
+	if !ok {
+		return
+	}
+
+	// 1. calculate the destination mask
+	lookup := world.engine.lookup[archId]
+	oldMask := lookup.mask
+	newMask := oldMask.bitwiseClear(deleteMask)
+
+	// If the new mask requires the removal of all components, then just delete the current entity
+	if newMask == blankArchMask {
+		Delete(world, id)
+		return
+	}
+
+	// If  the new mask matches the old mask, then we don't need to move anything
+	if oldMask == newMask {
+		return
+	}
+
+	// 2. Move all components from source arch to dest arch
+	newArchId := world.engine.moveArchetypeDown(archId, newMask, id)
+	world.arch.Put(id, newArchId)
+}
+
 // Reads a specific component of the entity specified at id.
 // Returns true if the entity was found and had that component, else returns false.
 // Deprecated: This API is tentative, I'm trying to improve the QueryN construct so that it can capture this usecase.
@@ -194,8 +222,6 @@ func Delete(world *World, id Id) bool {
 	world.arch.Delete(id)
 
 	world.engine.TagForDeletion(archId, id)
-	// Note: This was the old, more direct way, but isn't loop safe
-	// - world.engine.DeleteAll(archId, id)
 	return true
 }
 
@@ -204,22 +230,12 @@ func Delete(world *World, id Id) bool {
 // Skips deleting components that the entity doesn't have
 // If no components remain after the delete, the entity will be completely removed
 func DeleteComponent(world *World, id Id, comp ...Component) {
-	archId, ok := world.arch.Get(id)
-	if !ok {
+	if len(comp) <= 0 {
 		return
 	}
 
-	ent := world.engine.ReadEntity(archId, id)
-	for i := range comp {
-		ent.Delete(comp[i])
-	}
-
-	world.arch.Delete(id)
-	world.engine.TagForDeletion(archId, id)
-
-	if len(ent.comp) > 0 {
-		world.Write(id, ent.comp...)
-	}
+	mask := buildArchMask(comp...)
+	world.deleteMask(id, mask)
 }
 
 // Returns true if the entity exists in the world else it returns false
