@@ -4,53 +4,53 @@ import (
 	"testing"
 )
 
-func TestCommandExecution(t *testing.T) {
-	world := NewWorld()
+// func TestCommandExecution(t *testing.T) {
+// 	world := NewWorld()
 
-	cmd := NewCommand(world)
-	query := Query2[position, velocity](world)
+// 	cmd := NewCommand(world)
+// 	query := Query2[position, velocity](world)
 
-	// Write position
-	id := world.NewId()
-	pos := position{1, 1, 1}
-	WriteCmd(cmd, id, pos)
-	cmd.Execute()
+// 	// Write position
+// 	id := world.NewId()
+// 	pos := position{1, 1, 1}
+// 	WriteCmd(cmd, id, pos)
+// 	cmd.Execute()
 
-	// Check position and velocity
-	posOut, velOut := query.Read(id)
-	compare(t, *posOut, pos)
-	compare(t, velOut, nil)
+// 	// Check position and velocity
+// 	posOut, velOut := query.Read(id)
+// 	compare(t, *posOut, pos)
+// 	compare(t, velOut, nil)
 
-	// Write velocity
-	vel := velocity{2, 2, 2}
-	WriteCmd(cmd, id, vel)
-	cmd.Execute()
+// 	// Write velocity
+// 	vel := velocity{2, 2, 2}
+// 	WriteCmd(cmd, id, vel)
+// 	cmd.Execute()
 
-	// Check position and velocity
-	posOut, velOut = query.Read(id)
-	compare(t, *posOut, pos)
-	compare(t, *velOut, vel)
+// 	// Check position and velocity
+// 	posOut, velOut = query.Read(id)
+// 	compare(t, *posOut, pos)
+// 	compare(t, *velOut, vel)
 
-	compare(t, world.engine.count(position{}), 1)
-	compare(t, world.engine.count(position{}, velocity{}), 1)
-	compare(t, world.engine.count(position{}, velocity{}), 1)
-	compare(t, world.engine.count(acceleration{}), 0)
+// 	compare(t, world.engine.count(position{}), 1)
+// 	compare(t, world.engine.count(position{}, velocity{}), 1)
+// 	compare(t, world.engine.count(position{}, velocity{}), 1)
+// 	compare(t, world.engine.count(acceleration{}), 0)
 
-	count := 0
-	query.MapId(func(id Id, p *position, v *velocity) {
-		count++
-	})
-	compare(t, count, 1)
+// 	count := 0
+// 	query.MapId(func(id Id, p *position, v *velocity) {
+// 		count++
+// 	})
+// 	compare(t, count, 1)
 
-	// count = 0
-	// view := ViewAll2[position, velocity](world)
-	// for {
-	// 	_, _, _, ok := view.Iter()
-	// 	if !ok { break }
-	// 	count++
-	// }
-	// compare(t, count, 1)
-}
+// 	// count = 0
+// 	// view := ViewAll2[position, velocity](world)
+// 	// for {
+// 	// 	_, _, _, ok := view.Iter()
+// 	// 	if !ok { break }
+// 	// 	count++
+// 	// }
+// 	// compare(t, count, 1)
+// }
 
 // Note To self: Before I changed how archetype ids were generated
 // goos: linux
@@ -206,47 +206,47 @@ func BenchmarkAddEntityCached(b *testing.B) {
 	}
 }
 
-func BenchmarkAddEntityCommands(b *testing.B) {
-	world := NewWorld()
+// func BenchmarkAddEntityCommands(b *testing.B) {
+// 	world := NewWorld()
 
-	b.ResetTimer()
+// 	b.ResetTimer()
 
-	cmd := NewCommand(world)
+// 	cmd := NewCommand(world)
 
-	for n := 0; n < b.N; n++ {
-		for i := 0; i < addEntSize; i++ {
-			id := world.NewId()
-			WriteCmd(cmd, id, position{1, 2, 3})
-			WriteCmd(cmd, id, velocity{4, 5, 6})
-			WriteCmd(cmd, id, acceleration{7, 8, 9})
-			WriteCmd(cmd, id, radius{10})
-			cmd.Execute()
-		}
-	}
-}
+// 	for n := 0; n < b.N; n++ {
+// 		for i := 0; i < addEntSize; i++ {
+// 			id := world.NewId()
+// 			WriteCmd(cmd, id, position{1, 2, 3})
+// 			WriteCmd(cmd, id, velocity{4, 5, 6})
+// 			WriteCmd(cmd, id, acceleration{7, 8, 9})
+// 			WriteCmd(cmd, id, radius{10})
+// 			cmd.Execute()
+// 		}
+// 	}
+// }
 
-func BenchmarkAddEntityViaBundles(b *testing.B) {
-	world := NewWorld()
+// func BenchmarkAddEntityViaBundles(b *testing.B) {
+// 	world := NewWorld()
 
-	b.ResetTimer()
+// 	b.ResetTimer()
 
-	posBundle := NewBundle[position](world)
-	velBundle := NewBundle[velocity](world)
-	accBundle := NewBundle[acceleration](world)
-	radBundle := NewBundle[radius](world)
+// 	posBundle := NewBundle[position](world)
+// 	velBundle := NewBundle[velocity](world)
+// 	accBundle := NewBundle[acceleration](world)
+// 	radBundle := NewBundle[radius](world)
 
-	for n := 0; n < b.N; n++ {
-		for i := 0; i < addEntSize; i++ {
-			id := world.NewId()
-			Write(world, id,
-				posBundle.New(position{1, 2, 3}),
-				velBundle.New(velocity{4, 5, 6}),
-				accBundle.New(acceleration{7, 8, 9}),
-				radBundle.New(radius{10}),
-			)
-		}
-	}
-}
+// 	for n := 0; n < b.N; n++ {
+// 		for i := 0; i < addEntSize; i++ {
+// 			id := world.NewId()
+// 			Write(world, id,
+// 				posBundle.New(position{1, 2, 3}),
+// 				velBundle.New(velocity{4, 5, 6}),
+// 				accBundle.New(acceleration{7, 8, 9}),
+// 				radBundle.New(radius{10}),
+// 			)
+// 		}
+// 	}
+// }
 
 func BenchmarkAddEntityViaBundles2(b *testing.B) {
 	world := NewWorld()
@@ -268,32 +268,32 @@ func BenchmarkAddEntityViaBundles2(b *testing.B) {
 	}
 }
 
-func BenchmarkAddEntityViaBundles3(b *testing.B) {
-	world := NewWorld()
+// func BenchmarkAddEntityViaBundles3(b *testing.B) {
+// 	world := NewWorld()
 
-	b.ResetTimer()
+// 	b.ResetTimer()
 
-	command := NewCommand(world)
-	BundleOne := NewBundle2[position, velocity]()
-	BundleTwo := NewBundle2[acceleration, radius]()
+// 	command := NewCommand(world)
+// 	BundleOne := NewBundle2[position, velocity]()
+// 	BundleTwo := NewBundle2[acceleration, radius]()
 
-	for n := 0; n < b.N; n++ {
-		for i := 0; i < addEntSize; i++ {
-			command.Spawn(
-				BundleOne.With(
-					position{1, 2, 3},
-					velocity{4, 5, 6},
-				),
-				BundleTwo.With(
-					acceleration{7, 8, 9},
-					radius{10},
-				),
-			)
+// 	for n := 0; n < b.N; n++ {
+// 		for i := 0; i < addEntSize; i++ {
+// 			command.Spawn(
+// 				BundleOne.With(
+// 					position{1, 2, 3},
+// 					velocity{4, 5, 6},
+// 				),
+// 				BundleTwo.With(
+// 					acceleration{7, 8, 9},
+// 					radius{10},
+// 				),
+// 			)
 
-			// command.Execute()
-		}
-	}
-}
+// 			// command.Execute()
+// 		}
+// 	}
+// }
 
 // BenchmarkAddEntityViaBundles-12     	    2988	    496709 ns/op	  699920 B/op	    6072 allocs/op
 // BenchmarkAddEntityViaBundles2-12    	    3024	    501376 ns/op	  666834 B/op	    6074 allocs/op
@@ -642,17 +642,18 @@ func BenchmarkAllocateQuery(b *testing.B) {
 
 	b.ResetTimer()
 
-	archId := world.GetArchetype(
+	mask := buildArchMask(
 		C(position{}),
 		C(velocity{}),
 		C(acceleration{}),
 		C(radius{}),
 	)
+	archId := world.engine.getArchetypeId(mask)
 
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < addEntSize; i++ {
 			id := world.NewId()
-			world.Allocate(id, archId)
+			world.engine.allocate(archId, id)
 
 			p, v, a, r := query.Read(id)
 			*p = position{1, 2, 3}
@@ -668,21 +669,18 @@ func BenchmarkAllocateQueryNoQuery(b *testing.B) {
 
 	b.ResetTimer()
 
-	archId := world.GetArchetype(
-		positionId,
-		velocityId,
-		accelerationId,
-		radiusId,
-		// C(position{}),
-		// C(velocity{}),
-		// C(acceleration{}),
-		// C(radius{}),
+	mask := buildArchMask(
+		C(position{}),
+		C(velocity{}),
+		C(acceleration{}),
+		C(radius{}),
 	)
+	archId := world.engine.getArchetypeId(mask)
 
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < addEntSize; i++ {
 			id := world.NewId()
-			index := world.Allocate(id, archId)
+			index := world.engine.allocate(archId, id)
 
 			// // Note: Slightly faster option. Actually, I'm not so sure
 			// p := positionId.getPtr(world.engine, archId, index)

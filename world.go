@@ -80,45 +80,6 @@ func (w *World) NewId() Id {
 	// return id
 }
 
-// func (w *World) Count(anything ...any) int {
-// 	return w.engine.count(anything...)
-// }
-
-// func (w *World) Print(amount int) {
-// 	fmt.Println("--- World ---")
-// 	fmt.Printf("nextId: %d\n", w.nextId)
-
-// 	// max := amount
-// 	// for id, archId := range w.arch {
-// 	// 	fmt.Printf("id(%d) -> archId(%d)\n", id, archId)
-// 	// 	max--; if max <= 0 { break }
-// 	// }
-
-// 	// w.engine.Print(amount)
-// }
-
-// // A debug function for describing the current state of memory allocations in the ECS
-// func (w *World) DescribeMemory() {
-// 	fmt.Println("--- World ---")
-// 	fmt.Printf("nextId: %d\n", w.nextId)
-// 	fmt.Printf("Active Ent Count: %d\n", len(w.arch))
-// 	for archId, lookup := range w.engine.lookup {
-// 		efficiency := 100 * (1.0 - float64(len(lookup.holes))/float64(len(lookup.id)))
-// 		fmt.Printf("Lookup[%d] = {len(index)=%d, len(id)=%d, len(holes)=%d} | Efficiency=%.2f%%\n", archId, len(lookup.index), len(lookup.id), len(lookup.holes), efficiency)
-// 	}
-// }
-
-// TODO - Note: This function is not safe inside Maps or view iteraions
-// TODO - make this loop-safe by:
-// 1. Read the entire entity into an entity object
-// 2. Call loop-safe delete method on that ID (which tags it somehow to indicate it needs to be cleaned up)
-// 3. Modify the entity object by removing the requested components
-// 4. Write the entity object to the destination archetype
-// 4.a If the destination archetype is currently locked/flagged to indicate we are looping over it then wait for the lock release before writing the entity
-// 4.b When creating Maps and Views we need to lock each archId that needs to be processed. Notably this guarantees that all "Writes" to this archetypeId will be done AFTER the lambda has processed - Meaning that we won't execute the same entity twice.
-// 4.b.i When creating a view I may need like a "Close" method or "end" or something otherwise I'm not sure how to unlock the archId for modification
-// Question: Why not write directly to holes if possible?
-
 // Writes components to the entity specified at id. This API can potentially break if you call it inside of a loop. Specifically, if you cause the archetype of the entity to change by writing a new component, then the loop may act in mysterious ways.
 // Deprecated: This API is tentative, I might replace it with something similar to bevy commands to alleviate the above concern
 func Write(world *World, id Id, comp ...Component) {
@@ -137,7 +98,7 @@ func (world *World) Write(id Id, comp ...Component) {
 	} else {
 		// Id does not yet exist, we need to add it for the first time
 		mask := buildArchMask(comp...)
-		archId = world.engine.getArchetypeIdFromMask(mask)
+		archId = world.engine.getArchetypeId(mask)
 		world.arch.Put(id, archId)
 
 		// Write all components to that archetype
@@ -145,15 +106,15 @@ func (world *World) Write(id Id, comp ...Component) {
 	}
 }
 
-func (world *World) GetArchetype(comp ...Component) archetypeId {
-	mask := buildArchMask(comp...)
-	return world.engine.getArchetypeIdFromMask(mask)
-}
+// func (world *World) GetArchetype(comp ...Component) archetypeId {
+// 	mask := buildArchMask(comp...)
+// 	return world.engine.getArchetypeId(mask)
+// }
 
-// Note: This returns the index of the location allocated
-func (world *World) Allocate(id Id, archId archetypeId) int {
-	return world.allocate(id, world.engine.dcr.revArchMask[archId])
-}
+// // Note: This returns the index of the location allocated
+// func (world *World) Allocate(id Id, archId archetypeId) int {
+// 	return world.allocate(id, world.engine.dcr.revArchMask[archId])
+// }
 
 // Returns the index of the location allocated. May return -1 if invalid archMask supplied
 func (world *World) allocate(id Id, addMask archetypeMask) int {
@@ -182,7 +143,7 @@ func (world *World) allocate(id Id, addMask archetypeMask) int {
 		return newIndex
 	} else {
 		// Id does not yet exist, we need to add it for the first time
-		archId = world.engine.getArchetypeIdFromMask(addMask)
+		archId = world.engine.getArchetypeId(addMask)
 		world.arch.Put(id, archId)
 
 		// Write all components to that archetype

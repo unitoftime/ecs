@@ -11,128 +11,6 @@ type Id uint32
 
 type archetypeId uint32
 
-type componentSlice[T any] struct {
-	comp []T
-}
-
-// Note: This will panic if you write past the buffer by more than 1
-func (s *componentSlice[T]) Write(index int, val T) {
-	if index == len(s.comp) {
-		// Case: index causes a single append (new element added)
-		s.comp = append(s.comp, val)
-	} else {
-		// Case: index is inside the length
-		// Edge: (Causes Panic): Index is greater than 1 plus length
-		s.comp[index] = val
-	}
-}
-
-// TODO: Rename, this is kind of like an archetype header
-type lookupList struct {
-	index      *internalMap[Id, int] // A mapping from entity ids to array indices
-	id         []Id                  // An array of every id in the arch list (essentially a reverse mapping from index to Id)
-	holes      []int                 // List of indexes that have ben deleted
-	mask       archetypeMask
-	components []componentId // This is a list of all components that this archetype contains
-}
-
-func (l *lookupList) Len() int {
-	return l.index.Len()
-}
-
-// Adds ourselves to the last available hole, else appends
-// Returns the index
-func (l *lookupList) addToEasiestHole(id Id) int {
-	if len(l.holes) > 0 {
-		lastHoleIndex := len(l.holes) - 1
-		index := l.holes[lastHoleIndex]
-		l.id[index] = id
-		l.index.Put(id, index)
-
-		l.holes = l.holes[:lastHoleIndex]
-		return index
-	} else {
-		// Because the Id hasn't been added to this arch, we need to append it to the end
-		l.id = append(l.id, id)
-		index := len(l.id) - 1
-		l.index.Put(id, index)
-		return index
-	}
-}
-
-type storage interface {
-	ReadToEntity(*Entity, archetypeId, int) bool
-	ReadToRawEntity(*RawEntity, archetypeId, int) bool
-	Allocate(archetypeId, int) // Allocates the index, setting the data there to the zero value
-	Delete(archetypeId, int)
-	moveArchetype(archetypeId, int, archetypeId, int)
-
-	print(int)
-}
-
-type componentSliceStorage[T any] struct {
-	// TODO: Could these just increment rather than be a map lookup? I guess not every component type would have a storage slice for every archetype so we'd waste some memory. I guess at the very least we could use the faster lookup map
-	slice map[archetypeId]*componentSlice[T]
-}
-
-func (ss *componentSliceStorage[T]) ReadToEntity(entity *Entity, archId archetypeId, index int) bool {
-	cSlice, ok := ss.slice[archId]
-	if !ok {
-		return false
-	}
-	entity.Add(C(cSlice.comp[index]))
-	return true
-}
-
-func (ss *componentSliceStorage[T]) ReadToRawEntity(entity *RawEntity, archId archetypeId, index int) bool {
-	cSlice, ok := ss.slice[archId]
-	if !ok {
-		return false
-	}
-	entity.Add(&cSlice.comp[index])
-	return true
-}
-
-func (ss *componentSliceStorage[T]) Allocate(archId archetypeId, index int) {
-	cSlice, ok := ss.slice[archId]
-	if !ok {
-		cSlice = &componentSlice[T]{
-			comp: make([]T, 0, DefaultAllocation),
-		}
-		ss.slice[archId] = cSlice
-	}
-
-	var val T
-	cSlice.Write(index, val)
-}
-
-func (ss *componentSliceStorage[T]) moveArchetype(oldArchId archetypeId, oldIndex int, newArchId archetypeId, newIndex int) {
-	oldSlice := ss.slice[oldArchId]
-	newSlice := ss.slice[newArchId]
-
-	val := oldSlice.comp[oldIndex]
-	newSlice.Write(newIndex, val)
-}
-
-// Delete is somewhat special because it deletes the index of the archId for the componentSlice
-// but then plugs the hole by pushing the last element of the componentSlice into index
-func (ss *componentSliceStorage[T]) Delete(archId archetypeId, index int) {
-	cSlice, ok := ss.slice[archId]
-	if !ok {
-		return
-	}
-
-	lastVal := cSlice.comp[len(cSlice.comp)-1]
-	cSlice.comp[index] = lastVal
-	cSlice.comp = cSlice.comp[:len(cSlice.comp)-1]
-}
-
-func (s *componentSliceStorage[T]) print(amount int) {
-	for archId, compSlice := range s.slice {
-		fmt.Printf("archId(%d) - %v\n", archId, *compSlice)
-	}
-}
-
 // Provides generic storage for all archetypes
 type archEngine struct {
 	generation int
@@ -173,21 +51,6 @@ func (e *archEngine) getGeneration() int {
 	return e.generation
 }
 
-// func (e *archEngine) Print(amount int) {
-// 	fmt.Println("--- archEngine ---")
-// 	max := amount
-// 	for archId, lookup := range e.lookup {
-// 		fmt.Printf("archId(%d) - lookup(%v)\n", archId, lookup)
-// 		max--; if max <= 0 { break }
-// 	}
-// 	for name, storage := range e.compSliceStorage {
-// 		fmt.Printf("name(%s) -\n", name)
-// 		storage.print(amount)
-// 		max--; if max <= 0 { break }
-// 	}
-// 	e.dcr.print()
-// }
-
 func (e *archEngine) count(anything ...any) int {
 	comps := make([]componentId, len(anything))
 	for i, c := range anything {
@@ -211,12 +74,8 @@ func (e *archEngine) count(anything ...any) int {
 	return total
 }
 
-// func (e *archEngine) getArchetypeId(comp ...Component) archetypeId {
-// 	return e.dcr.getArchetypeId(e, comp...)
-// }
-
-func (e *archEngine) getArchetypeIdFromMask(mask archetypeMask) archetypeId {
-	return e.dcr.getArchetypeIdFromMask(e, mask)
+func (e *archEngine) getArchetypeId(mask archetypeMask) archetypeId {
+	return e.dcr.getArchetypeId(e, mask)
 }
 
 // Returns replaces archIds with a list of archids that match the compId list
@@ -258,32 +117,6 @@ func (e *archEngine) FilterList(archIds []archetypeId, comp []componentId) []arc
 	// for archId := range archCount {
 	// 	archIds = append(archIds, archId)
 	// }
-	// return archIds
-
-	// --------------------------------------------------------------------------------
-	// // Old way: With archSets that are just slices
-	// // Logic: Go thorugh and keep track of how many times we see each archetype. Then only keep the archetypes that we've seen an amount of times equal to the number of components. If we have 5 components and see 5 for a specific archId, it means that each component has that archId
-
-	// // Clearing Optimization: https://go.dev/doc/go1.11#performance-compiler
-	// for k := range e.archCount {
-	// 	delete(e.archCount, k)
-	// }
-
-	// for _, compId := range comp {
-	// 	for _, archId := range e.dcr.archSet[compId] {
-	// 		e.archCount[archId] = e.archCount[archId] + 1
-	// 	}
-	// }
-
-	// numComponents := len(comp)
-
-	// archIds = archIds[:0]
-	// for archId, count := range e.archCount {
-	// 	if count >= numComponents {
-	// 		archIds = append(archIds, archId)
-	// 	}
-	// }
-
 	// return archIds
 }
 
@@ -466,7 +299,7 @@ func (e *archEngine) rewriteArch(archId archetypeId, id Id, comp ...Component) a
 }
 
 func (e *archEngine) moveArchetype(oldArchId archetypeId, newMask archetypeMask, id Id) (archetypeId, int) {
-	newArchId := e.dcr.getArchetypeIdFromMask(e, newMask)
+	newArchId := e.dcr.getArchetypeId(e, newMask)
 
 	newIndex := e.allocate(newArchId, id)
 
