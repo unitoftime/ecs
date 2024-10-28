@@ -648,12 +648,11 @@ func BenchmarkAllocateQuery(b *testing.B) {
 		C(acceleration{}),
 		C(radius{}),
 	)
-	archId := world.engine.getArchetypeId(mask)
 
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < addEntSize; i++ {
 			id := world.NewId()
-			world.engine.allocate(archId, id)
+			world.allocate(id, mask)
 
 			p, v, a, r := query.Read(id)
 			*p = position{1, 2, 3}
@@ -680,7 +679,7 @@ func BenchmarkAllocateQueryNoQuery(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < addEntSize; i++ {
 			id := world.NewId()
-			index := world.engine.allocate(archId, id)
+			index := world.allocate(id, mask)
 
 			// // Note: Slightly faster option. Actually, I'm not so sure
 			// p := positionId.getPtr(world.engine, archId, index)

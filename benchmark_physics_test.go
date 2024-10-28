@@ -38,72 +38,68 @@ import (
 // BenchmarkPhysicsGeneric-12                    428	   2792891 ns/op
 // BenchmarkPhysicsSlice-12                	     628	   1952861 ns/op
 
-type Position struct {
-	X, Y, Z float32
-}
+type Position = position
 
-type Velocity struct {
-	X, Y, Z float32
-}
+type Velocity = velocity
 
 func setupPhysics(size int) *World {
 	world := NewWorld()
 
 	rng := rand.New(rand.NewSource(1))
-	scale := float32(100.0)
+	scale := 100.0
 	for i := 0; i < size; i++ {
 		id := world.NewId()
 
 		Write(world, id,
 			C(Position{
-				scale * rng.Float32(),
-				scale * rng.Float32(),
-				scale * rng.Float32(),
+				scale * rng.Float64(),
+				scale * rng.Float64(),
+				scale * rng.Float64(),
 			}),
 			C(Velocity{
-				scale * rng.Float32(),
-				scale * rng.Float32(),
-				scale * rng.Float32(),
+				scale * rng.Float64(),
+				scale * rng.Float64(),
+				scale * rng.Float64(),
 			}))
 
 	}
 	return world
 }
 
-var dt = float32(0.001)
+var dt = float64(0.001)
 
 func physicsTick(id Id, pos *Position, vel *Velocity) {
-	pos.X += vel.X * dt
-	pos.Y += vel.Y * dt
-	pos.Z += vel.Z * dt
+	pos.x += vel.x * dt
+	pos.y += vel.y * dt
+	pos.z += vel.z * dt
 	// TODO - writeback?
 }
 
 func physicsTick2(id Id, pos *Position, vel *Velocity) {
 
-	pos.X += vel.X * dt
-	pos.Y += vel.Y * dt
-	pos.Z += vel.Z * dt
+	pos.x += vel.x * dt
+	pos.y += vel.y * dt
+	pos.z += vel.z * dt
 	// TODO - writeback?
 }
 
 func TestPhysicsQueryMatch(t *testing.T) {
-	dt := float32(16 * time.Millisecond.Seconds())
+	dt := float64(16 * time.Millisecond.Seconds())
 
 	world1 := setupPhysics(1e6)
 	query1 := Query2[Position, Velocity](world1)
 	query1.MapId(func(id Id, pos *Position, vel *Velocity) {
-		pos.X += vel.X * dt
-		pos.Y += vel.Y * dt
-		pos.Z += vel.Z * dt
+		pos.x += vel.x * dt
+		pos.y += vel.y * dt
+		pos.z += vel.z * dt
 	})
 
 	world2 := setupPhysics(1e6)
 	query2 := Query2[Position, Velocity](world2)
 	query2.MapIdParallel(func(id Id, pos *Position, vel *Velocity) {
-		pos.X += vel.X * dt
-		pos.Y += vel.Y * dt
-		pos.Z += vel.Z * dt
+		pos.x += vel.x * dt
+		pos.y += vel.y * dt
+		pos.z += vel.z * dt
 	})
 
 	// Check to make sure the worlds match
@@ -124,12 +120,12 @@ func BenchmarkPhysicsQuery(b *testing.B) {
 
 	query := Query2[Position, Velocity](world)
 
-	dt := float32(16 * time.Millisecond.Seconds())
+	dt := float64(16 * time.Millisecond.Seconds())
 	for i := 0; i < b.N; i++ {
 		query.MapId(func(id Id, pos *Position, vel *Velocity) {
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		})
 	}
 }
@@ -140,12 +136,12 @@ func BenchmarkPhysicsQueryParallel(b *testing.B) {
 
 	query := Query2[Position, Velocity](world)
 
-	dt := float32(16 * time.Millisecond.Seconds())
+	dt := float64(16 * time.Millisecond.Seconds())
 	for i := 0; i < b.N; i++ {
 		query.MapIdParallel(func(id Id, pos *Position, vel *Velocity) {
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		})
 	}
 }
@@ -583,9 +579,9 @@ func BenchmarkRetryNative(b *testing.B) {
 	}
 	for i := 0; i < b.N; i++ {
 		for j := range ids {
-			pos[j].X += vel[j].X * dt
-			pos[j].Y += vel[j].Y * dt
-			pos[j].Z += vel[j].Z * dt
+			pos[j].x += vel[j].x * dt
+			pos[j].y += vel[j].y * dt
+			pos[j].z += vel[j].z * dt
 		}
 	}
 }
@@ -660,9 +656,9 @@ func BenchmarkRetryGenIter(b *testing.B) {
 				break
 			}
 
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		}
 		iter.idx = 0
 	}
@@ -684,9 +680,9 @@ func BenchmarkRetryGenIterWeirdGet(b *testing.B) {
 				break
 			}
 
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		}
 		iter.idx = 0
 	}
@@ -710,9 +706,9 @@ func BenchmarkRetryGenIterPtr(b *testing.B) {
 				break
 			}
 
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		}
 		iter.idx = 0
 	}
@@ -730,9 +726,9 @@ func BenchmarkRetryGenMap(b *testing.B) {
 	}
 	for i := 0; i < b.N; i++ {
 		iter.Map(func(pos *Position, vel *Velocity) {
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		})
 	}
 }
@@ -798,9 +794,9 @@ func BenchmarkRetryNoGenIter(b *testing.B) {
 				break
 			}
 
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		}
 		iter.idx = 0
 	}
@@ -822,9 +818,9 @@ func BenchmarkRetryNoGenIterVal(b *testing.B) {
 				break
 			}
 
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		}
 		iter.idx = 0
 	}
@@ -846,9 +842,9 @@ func BenchmarkRetryNoGenIterWeirdGet(b *testing.B) {
 				break
 			}
 
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		}
 		iter.idx = 0
 	}
@@ -872,9 +868,9 @@ func BenchmarkRetryNoGenIterPtr(b *testing.B) {
 				break
 			}
 
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		}
 		iter.idx = 0
 	}
@@ -892,9 +888,9 @@ func BenchmarkRetryNoGenMap(b *testing.B) {
 	}
 	for i := 0; i < b.N; i++ {
 		iter.Map(func(pos *Position, vel *Velocity) {
-			pos.X += vel.X * dt
-			pos.Y += vel.Y * dt
-			pos.Z += vel.Z * dt
+			pos.x += vel.x * dt
+			pos.y += vel.y * dt
+			pos.z += vel.z * dt
 		})
 	}
 }

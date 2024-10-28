@@ -4,7 +4,6 @@ import (
 	"slices"
 )
 
-// TODO - Filter types:
 // Optional - Lets you view even if component is missing (func will return nil)
 // With - Lets you add additional components that must be present
 // Without - Lets you add additional components that must not be present
