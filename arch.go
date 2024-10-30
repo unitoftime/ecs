@@ -30,7 +30,7 @@ func newArchEngine() *archEngine {
 	}
 }
 
-func (e *archEngine) newArchetypeId(archMask archetypeMask, components []componentId) archetypeId {
+func (e *archEngine) newArchetypeId(archMask archetypeMask, components []CompId) archetypeId {
 	e.generation++ // Increment the generation
 
 	archId := archetypeId(len(e.lookup))
@@ -52,7 +52,7 @@ func (e *archEngine) getGeneration() int {
 }
 
 func (e *archEngine) count(anything ...any) int {
-	comps := make([]componentId, len(anything))
+	comps := make([]CompId, len(anything))
 	for i, c := range anything {
 		comps[i] = name(c)
 	}
@@ -79,7 +79,7 @@ func (e *archEngine) getArchetypeId(mask archetypeMask) archetypeId {
 }
 
 // Returns replaces archIds with a list of archids that match the compId list
-func (e *archEngine) FilterList(archIds []archetypeId, comp []componentId) []archetypeId {
+func (e *archEngine) FilterList(archIds []archetypeId, comp []CompId) []archetypeId {
 	// Idea 3: Loop through every registered archMask to see if it matches
 	// Problem - Forces you to check every arch mask, even if the
 	// The good side is that you dont need to deduplicate your list, and you dont need to allocate
@@ -127,7 +127,7 @@ func getStorage[T any](e *archEngine) *componentSliceStorage[T] {
 }
 
 // Note: This will panic if the wrong compId doesn't match the generic type
-func getStorageByCompId[T any](e *archEngine, compId componentId) *componentSliceStorage[T] {
+func getStorageByCompId[T any](e *archEngine, compId CompId) *componentSliceStorage[T] {
 	ss := e.compSliceStorage[compId]
 	if ss == nil {
 		ss = &componentSliceStorage[T]{
@@ -166,8 +166,13 @@ func (e *archEngine) write(archId archetypeId, id Id, comp ...Component) {
 
 func (e *archEngine) writeIndex(archId archetypeId, id Id, index int, comp ...Component) {
 	// Loop through all components and add them to individual component slices
+	wd := W{
+		engine: e,
+		archId: archId,
+		index:  index,
+	}
 	for i := range comp {
-		comp[i].write(e, archId, index)
+		comp[i].CompWrite(wd)
 	}
 }
 
@@ -185,7 +190,7 @@ func (e *archEngine) allocate(archId archetypeId, id Id) int {
 	return index
 }
 
-func (e *archEngine) getStorage(compId componentId) storage {
+func (e *archEngine) getStorage(compId CompId) storage {
 	ss := e.compSliceStorage[compId]
 	if ss == nil {
 		ss = newComponentStorage(compId)

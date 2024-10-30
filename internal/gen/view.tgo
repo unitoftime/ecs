@@ -36,7 +36,7 @@ func Query{{len $element}}[{{join $element ","}} any](world *World, filters ...F
 {{range $ii, $arg := $element}}
 	var {{$arg}}{{$arg}} {{$arg}}{{end}}
 
-	comps := []componentId{
+	comps := []CompId{
 {{range $ii, $arg := $element}}
 		name({{$arg}}{{$arg}}),{{end}}
 

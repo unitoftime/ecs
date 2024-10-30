@@ -1,86 +1,143 @@
 package ecs
 
-// type Bundle[T any] struct {
-// 	compId  componentId
-// 	storage *componentSliceStorage[T]
-// 	// world *ecs.World //Needed?
+type Bundler struct {
+	archMask archetypeMask // The current archetypeMask
+	// TODO: Instead of set, you could just use the arch mask
+	Set                 [maxComponentId]bool      // The list of components that are being bundled
+	Components          [maxComponentId]Component // Component storage array for everything we've bundled
+	maxComponentIdAdded CompId
+}
+
+func (b *Bundler) Clear() {
+	b.archMask = blankArchMask
+	b.Set = [maxComponentId]bool{}
+	b.maxComponentIdAdded = 0
+	// b.Components // Note: No need to clear because we only use set values
+}
+
+// func (bun *Bundler) Add(comp Component) {
+// 	compId := comp.id()
+// 	bun.archMask.addComponent(compId)
+// 	bun.Set[compId] = true
+// 	if bun.Components[compId] == nil {
+// 		bun.Components[compId] = comp.Clone() // Create an internal copy
+// 	} else {
+// 		comp.SetOther(bun.Components[compId])
+// 	}
+
+// 	bun.maxComponentIdAdded = max(bun.maxComponentIdAdded, compId)
+// }
+
+func (bun *Bundler) Read(comp Component) (Component, bool) {
+	compId := comp.CompId()
+	if !bun.Set[compId] {
+		return comp, false // Was not set
+	}
+	return bun.Components[compId], true
+}
+
+// func (bun *Bundler) Remove(comp Component) {
+// 	compId := comp.id()
+// 	bun.archMask.removeComponent(compId)
+// 	bun.Set[compId] = true
+// }
+
+// func WriteComponent[T any](bun *Bundler, comp T) {
+// 	compId := nameTyped(comp)
+// 	bun.archMask.addComponent(compId)
+// 	bun.Set[compId] = true
+// 	if bun.Components[compId] == nil {
+// 		bun.Components[compId] = C(comp)
+// 	} else {
+// 		bun.Components[compId].Set(comp)
+// 	}
+
+// 	bun.maxComponentIdAdded = max(bun.maxComponentIdAdded, compId)
+// }
+
+func (b *Bundler) Write(world *World, id Id) {
+	archId := world.engine.getArchetypeId(b.archMask)
+	archMask := world.engine.dcr.revArchMask[archId]
+	index := world.allocate(id, archMask)
+
+	wd := W{
+		engine: world.engine,
+		archId: archId,
+		index:  index,
+	}
+
+	for i := CompId(0); i <= b.maxComponentIdAdded; i++ {
+		if !b.Set[i] {
+			continue
+		}
+
+		b.Components[i].CompWrite(wd)
+	}
+}
+
+//--------------------------------------------------------------------------------
+
+// Note: This is slightly more optimized than passing a list in every time because no allocs are needed
+// type Bundle4[A, B, C, D any] struct {
+// 	compId CompId
+// 	boxA   *box[A]
+// 	boxB   *box[B]
+// 	boxC   *box[C]
+// 	boxD   *box[D]
+// 	comps  []Component
 // }
 
 // // Createst the boxed component type
-// func NewBundle[T any](world *World) Bundle[T] {
-// 	var t T
-// 	compId := name(t)
-// 	return Bundle[T]{
-// 		compId:  compId,
-// 		storage: getStorageByCompId[T](world.engine, compId),
+// func NewBundle4[A, B, C, D any]() Bundle4[A, B, C, D] {
+// 	// var a A
+// 	// var b B
+// 	// var c C
+// 	// var d D
+
+// 	// boxA := &box[A]{a, name(a)}
+// 	// boxB := &box[B]{b, name(b)}
+// 	// boxC := &box[C]{c, name(c)}
+// 	// boxD := &box[D]{d, name(d)}
+// 	var a A
+// 	var b B
+// 	var c C
+// 	var d D
+
+// 	boxA := Comp(a)
+// 	boxB := Comp(b)
+// 	boxC := Comp(c)
+// 	boxD := Comp(d)
+
+// 	comps := []Component{
+// 		&boxA, &boxB, &boxC, &boxD,
+// 	}
+
+// 	return Bundle4[A, B, C, D]{
+// 		boxA:  &boxA,
+// 		boxB:  &boxB,
+// 		boxC:  &boxC,
+// 		boxD:  &boxD,
+// 		comps: comps,
 // 	}
 // }
 
-// func (c Bundle[T]) New(comp T) Box[T] {
-// 	return Box[T]{
-// 		Comp:   comp,
-// 		compId: c.compId,
-// 		// storage: c.storage,
-// 	}
+// func (bun Bundle4[A, B, C, D]) Write(world *World, id Id, a A, b B, c C, d D) {
+// 	bun.boxA.comp = a
+// 	bun.boxB.comp = b
+// 	bun.boxC.comp = c
+// 	bun.boxD.comp = d
+
+// 	Write(world, id,
+// 		bun.comps...,
+// 	)
 // }
 
-// func (b Bundle[T]) write(engine *archEngine, archId archetypeId, index int, comp T) {
-// 	writeArch[T](engine, archId, index, b.storage, comp)
+// func (bun Bundle4[A, B, C, D]) Unbundle(bundler *Bundler, a A, b B, c C, d D) {
+// 	bun.boxA.UnbundleVal(bundler, a)
+// 	bun.boxB.UnbundleVal(bundler, b)
+// 	bun.boxC.UnbundleVal(bundler, c)
+// 	bun.boxD.UnbundleVal(bundler, d)
 // }
-
-// func (b Bundle[T]) id() componentId {
-// 	return b.compId
-// }
-
-type Bundle4[A, B, C, D any] struct {
-	compId componentId
-	boxA   *Box[A]
-	boxB   *Box[B]
-	boxC   *Box[C]
-	boxD   *Box[D]
-	comps  []Component
-}
-
-// Createst the boxed component type
-func NewBundle4[A, B, C, D any]() Bundle4[A, B, C, D] {
-	var a A
-	var b B
-	var c C
-	var d D
-	boxA := &Box[A]{a, name(a)}
-	boxB := &Box[B]{b, name(b)}
-	boxC := &Box[C]{c, name(c)}
-	boxD := &Box[D]{d, name(d)}
-	comps := []Component{
-		boxA, boxB, boxC, boxD,
-	}
-
-	return Bundle4[A, B, C, D]{
-		boxA:  boxA,
-		boxB:  boxB,
-		boxC:  boxC,
-		boxD:  boxD,
-		comps: comps,
-	}
-}
-
-func (bun Bundle4[A, B, C, D]) Write(world *World, id Id, a A, b B, c C, d D) {
-	bun.boxA.Comp = a
-	bun.boxB.Comp = b
-	bun.boxC.Comp = c
-	bun.boxD.Comp = d
-
-	Write(world, id,
-		bun.comps...,
-	)
-}
-
-func (bun Bundle4[A, B, C, D]) Unbundle(bundler *Bundler, a A, b B, c C, d D) {
-	bun.boxA.UnbundleVal(bundler, a)
-	bun.boxB.UnbundleVal(bundler, b)
-	bun.boxC.UnbundleVal(bundler, c)
-	bun.boxD.UnbundleVal(bundler, d)
-}
 
 // --------------------------------------------------------------------------------
 // type BundleTry2[A, B, C, D any] struct {
@@ -152,57 +209,3 @@ func (bun Bundle4[A, B, C, D]) Unbundle(bundler *Bundler, a A, b B, c C, d D) {
 // 		archMask.addComponent(bun.boxD.compId)
 // 	}
 // }
-
-type Bundler struct {
-	archMask            archetypeMask             // The current archetypeMask
-	Set                 [maxComponentId]bool      // The list of components that are being bundled
-	Components          [maxComponentId]Component // Component storage array for everything we've bundled
-	maxComponentIdAdded componentId
-}
-
-func (b *Bundler) Clear() {
-	b.archMask = blankArchMask
-	b.Set = [maxComponentId]bool{}
-	b.maxComponentIdAdded = 0
-	// b.Components // Note: No need to clear because we only use set values
-}
-
-func (bun *Bundler) Add(comp Component) {
-	compId := comp.id()
-	bun.archMask.addComponent(compId)
-	bun.Set[compId] = true
-	if bun.Components[compId] == nil {
-		bun.Components[compId] = comp.Clone() // Create an internal copy
-	} else {
-		comp.SetOther(bun.Components[compId])
-	}
-
-	bun.maxComponentIdAdded = max(bun.maxComponentIdAdded, compId)
-}
-
-// func WriteComponent[T any](bun *Bundler, comp T) {
-// 	compId := nameTyped(comp)
-// 	bun.archMask.addComponent(compId)
-// 	bun.Set[compId] = true
-// 	if bun.Components[compId] == nil {
-// 		bun.Components[compId] = C(comp)
-// 	} else {
-// 		bun.Components[compId].Set(comp)
-// 	}
-
-// 	bun.maxComponentIdAdded = max(bun.maxComponentIdAdded, compId)
-// }
-
-func (b *Bundler) Write(world *World, id Id) {
-	archId := world.engine.getArchetypeId(b.archMask)
-	archMask := world.engine.dcr.revArchMask[archId]
-	index := world.allocate(id, archMask)
-
-	for i := componentId(0); i < b.maxComponentIdAdded; i++ {
-		if !b.Set[i] {
-			continue
-		}
-
-		b.Components[i].write(world.engine, archId, index)
-	}
-}

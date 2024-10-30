@@ -23,9 +23,9 @@ func NewEntity(components ...Component) *Entity {
 }
 
 // Returns the index that contains the same componentId or returns -1
-func (e *Entity) findIndex(compId componentId) int {
+func (e *Entity) findIndex(compId CompId) int {
 	for i := range e.comp {
-		if compId == e.comp[i].id() {
+		if compId == e.comp[i].CompId() {
 			return i
 		}
 	}
@@ -36,7 +36,7 @@ func (e *Entity) findIndex(compId componentId) int {
 // Adds a component to an entity
 func (e *Entity) Add(components ...Component) {
 	for i := range components {
-		idx := e.findIndex(components[i].id())
+		idx := e.findIndex(components[i].CompId())
 		if idx < 0 {
 			e.comp = append(e.comp, components[i])
 		} else {
@@ -79,7 +79,7 @@ func ReadFromEntity[T any](ent *Entity) (T, bool) {
 	}
 
 	icomp := ent.comp[idx]
-	return icomp.(Box[T]).Comp, true
+	return icomp.(box[T]).val, true
 
 	// var t T
 	// n := name(t)
@@ -111,7 +111,7 @@ func ReadEntity(world *World, id Id) *Entity {
 
 // Deletes a component on this entity
 func (e *Entity) Delete(c Component) {
-	compId := c.id()
+	compId := c.CompId()
 	idx := e.findIndex(compId)
 	if idx < 0 {
 		return
@@ -158,12 +158,12 @@ func (e *Entity) Clear() {
 // A RawEntity is like an Entity, but every component is actually a pointer to the underlying component. I mostly use this to build inspector UIs that can directly modify an entity
 // Deprecated: This type and its corresponding methods are tentative and might be replaced by something else.
 type RawEntity struct {
-	comp map[componentId]any
+	comp map[CompId]any
 }
 
 // Creates a new entity with the specified components
 func NewRawEntity(components ...any) *RawEntity {
-	c := make(map[componentId]any)
+	c := make(map[CompId]any)
 	for i := range components {
 		c[name(components[i])] = components[i]
 	}

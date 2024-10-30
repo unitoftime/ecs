@@ -1,137 +1,159 @@
 package ecs
 
-// // Represents a list of commands that need to be executed on the world
-// type Command struct {
-// 	world         *World
-// 	list          map[Id]*writeCmd // TODO - Note to self: if you ever add deletion inside of commands, then the packing commands into a map based on entity Id assumption wont hold, because you'll need some amount of specific ordering
-// 	dynamicBundle dynamicBundle
+import "fmt"
+
+// type singleCmd interface {
+// 	apply(*World)
 // }
 
-// // Create a new command to be executed
-// func NewCommand(world *World) *Command {
-// 	return &Command{
-// 		world: world,
-// 		list:  make(map[Id]*writeCmd),
-// 	}
+// type spawnCmd struct {
+// 	bundler *Bundler
+// }
+// func (c spawnCmd) apply(world *World) {
+// 	id := world.NewId()
+// 	c.bundler.Write(world, id)
 // }
 
-// // Execute the command
-// func (c *Command) Execute() {
-// 	// TODO - Batch similar commands, if you ever switch to something more complex than just writing
+type CmdType uint8
 
-// 	// Execute all the commands
-// 	for i := range c.list {
-// 		c.list[i].execute(c.world)
-// 	}
+const (
+	CmdTypeSpawn CmdType = iota
+	CmdTypeWrite
+	CmdTypeCustom
+)
 
-// 	// Clearing Optimization: https://go.dev/doc/go1.11#performance-compiler
-// 	for k := range c.list {
-// 		delete(c.list, k)
-// 	}
+type singleCmd struct {
+	Type    CmdType
+	id      Id
+	bundler *Bundler
+}
+
+func (c singleCmd) apply(world *World) {
+	switch c.Type {
+	case CmdTypeSpawn:
+		c.bundler.Write(world, c.id)
+	case CmdTypeWrite:
+		c.bundler.Write(world, c.id)
+	}
+}
+
+type EntityCommand struct {
+	cmd *singleCmd
+}
+
+func (e EntityCommand) Printout() {
+	fmt.Println("---")
+	for i := range e.cmd.bundler.Components {
+		if e.cmd.bundler.Set[i] {
+			fmt.Printf("+%v\n", e.cmd.bundler.Components[i])
+		}
+	}
+	// fmt.Printf("+%v\n", e.cmd.bundler)
+}
+
+func (e EntityCommand) Empty() bool {
+	return (e == EntityCommand{})
+}
+
+func (e EntityCommand) Insert(bun Writer) EntityCommand {
+	unbundle(bun, e.cmd.bundler)
+	return e
+}
+
+func (e EntityCommand) Id() Id {
+	return e.cmd.id
+}
+
+// func (e EntityCommand) Remove(bun Bundle) EntityCommand {
+// 	bun.Unbundle(e.cmd.bundler)
+// 	return e
 // }
 
-// // TODO - maybe rename as just Write?
-// // Adds a write command
-// func WriteCmd[A any](c *Command, id Id, comp A) {
-// 	cmd, ok := c.list[id]
-// 	if !ok {
-// 		cmd = newWriteCmd(id)
-// 		c.list[id] = cmd
-// 	}
+//	func (e EntityCommand) Add(seq iter.Seq[Component]) EntityCommand {
+//		for c := range seq {
+//			e.cmd.bundler.Add(c)
+//		}
+//		return e
+//	}
+func ReadComp[T Component](e EntityCommand) (T, bool) {
+	var t T
+	comp, ok := e.cmd.bundler.Read(t)
+	if ok {
+		box := comp.(*box[T])
+		return box.val, true
+	}
+	return t, false
+}
 
-// 	cmd.comps = append(cmd.comps, C(comp))
-// }
+type CommandQueue struct {
+	world    *World
+	commands []singleCmd
 
-// // type cmd interface {
-// // 	execute(*World)
-// // }
+	currentBundlerIndex int
+	bundlers            []*Bundler
+}
 
-// type writeCmd struct {
-// 	id    Id
-// 	comps []Component
-// }
+func NewCommandQueue(world *World) *CommandQueue {
+	return &CommandQueue{
+		world: world,
+	}
+}
+func (c *CommandQueue) initialize(world *World) any {
+	return NewCommandQueue(world)
+}
 
-// func newWriteCmd(id Id) *writeCmd {
-// 	return &writeCmd{
-// 		id:    id,
-// 		comps: make([]Component, 0, 2), // TODO - guaranteed to at least have 1, but a bit arbitrary
-// 	}
-// }
-// func (c *writeCmd) execute(world *World) {
-// 	world.Write(c.id, c.comps...)
-// }
+func (c *CommandQueue) NextBundler() *Bundler {
+	if c.currentBundlerIndex >= len(c.bundlers) {
+		bundler := &Bundler{}
+		c.bundlers = append(c.bundlers, bundler)
+		c.currentBundlerIndex = len(c.bundlers)
+		return bundler
+	} else {
+		bundler := c.bundlers[c.currentBundlerIndex]
+		bundler.Clear()
+		c.currentBundlerIndex++
+		return bundler
+	}
+}
 
-// func (w *World) Spawn() Ent {
-// 	return Ent{
-// 		id: w.NewId(),
-// 	}
-// }
+func unbundle(bundle Writer, bundler *Bundler) {
+	wd := W{bundler: bundler}
+	bundle.CompWrite(wd)
+}
 
-// type Ent struct {
-// 	id    Id
-// 	comps []Component
-// }
+func CmdSpawn[T Writer](c *CommandQueue, ub T) {
+	bundler := c.NextBundler()
+	unbundle(ub, bundler)
+	// ub.Unbundle(bundler)
+	c.commands = append(c.commands, singleCmd{
+		Type:    CmdTypeSpawn,
+		id:      c.world.NewId(),
+		bundler: bundler,
+	})
+}
 
-// // func NewWriter[T any]() *Writer[T] {
-// // 	var t T
-// // 	return &Writer[T]{
-// // 		comp: C(t), // TODO: combine when you remove Box[T]
-// // 	}
-// // }
-// // type Writer[T any] struct {
-// // 	comp Box[T]
-// // }
-// // func (w *Writer[T]) Write(ent *Ent, t T) *Ent {
-// // 	w.Comp = t
-// // 	ent.comps = append(ent, w.Comp)
-// // }
+func (c *CommandQueue) Spawn(bun Writer) {
+	entCmd := c.SpawnEmpty()
+	entCmd.Insert(bun)
+}
 
-// func (c *Command) Spawn(bundles ...unbundler) Id {
-// 	c.dynamicBundle.comps = c.dynamicBundle.comps[:0]
-// 	for _, b := range bundles {
-// 		b.unbundleInto(&c.dynamicBundle)
-// 	}
-// 	id := c.world.NewId()
-// 	c.world.Write(id, c.dynamicBundle.comps...)
-// 	return id
-// }
+func (c *CommandQueue) SpawnEmpty() EntityCommand {
+	bundler := c.NextBundler()
 
-// type dynamicBundle struct {
-// 	comps []Component
-// }
+	c.commands = append(c.commands, singleCmd{
+		Type:    CmdTypeSpawn,
+		id:      c.world.NewId(),
+		bundler: bundler,
+	})
+	return EntityCommand{
+		cmd: &(c.commands[len(c.commands)-1]),
+	}
+}
 
-// func (b *dynamicBundle) unbundleInto(d *dynamicBundle) {
-// 	d.comps = append(d.comps, b.comps...)
-// }
-
-// type unbundler interface {
-// 	unbundleInto(*dynamicBundle)
-// }
-
-// type Bundle2[A, B any] struct {
-// 	wa Box[A]
-// 	wb Box[B]
-// }
-
-// func NewBundle2[A, B any]() *Bundle2[A, B] {
-// 	var a A
-// 	var b B
-// 	return &Bundle2[A, B]{
-// 		wa: C(a),
-// 		wb: C(b),
-// 	}
-// }
-
-// func (bun *Bundle2[A, B]) With(a A, b B) *Bundle2[A, B] {
-// 	ret := &Bundle2[A, B]{
-// 		wa: bun.wa,
-// 		wb: bun.wb,
-// 	}
-// 	ret.wa.Comp = a
-// 	ret.wb.Comp = b
-// 	return ret
-// }
-
-// func (b *Bundle2[A, B]) unbundleInto(d *dynamicBundle) {
-// 	d.comps = append(d.comps, b.wa, b.wb)
-// }
+func (c *CommandQueue) Execute() {
+	for i := range c.commands {
+		c.commands[i].apply(c.world)
+	}
+	c.commands = c.commands[:0]
+	c.currentBundlerIndex = 0
+}

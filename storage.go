@@ -17,7 +17,7 @@ type lookupList struct {
 	id         []Id                  // An array of every id in the arch list (essentially a reverse mapping from index to Id)
 	holes      []int                 // List of indexes that have ben deleted
 	mask       archetypeMask
-	components []componentId // This is a list of all components that this archetype contains
+	components []CompId // This is a list of all components that this archetype contains
 }
 
 func (l *lookupList) Len() int {

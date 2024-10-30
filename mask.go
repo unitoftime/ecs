@@ -12,7 +12,7 @@ func buildArchMask(comps ...Component) archetypeMask {
 	var mask archetypeMask
 	for _, comp := range comps {
 		// Ranges: [0, 64), [64, 128), [128, 192), [192, 256)
-		c := comp.id()
+		c := comp.CompId()
 		idx := c / 64
 		offset := c - (64 * idx)
 		mask[idx] |= (1 << offset)
@@ -30,7 +30,7 @@ func buildArchMaskFromAny(comps ...any) archetypeMask {
 	}
 	return mask
 }
-func buildArchMaskFromId(compIds ...componentId) archetypeMask {
+func buildArchMaskFromId(compIds ...CompId) archetypeMask {
 	var mask archetypeMask
 	for _, c := range compIds {
 		// Ranges: [0, 64), [64, 128), [128, 192), [192, 256)
@@ -41,7 +41,7 @@ func buildArchMaskFromId(compIds ...componentId) archetypeMask {
 	return mask
 }
 
-func (m *archetypeMask) addComponent(compId componentId) {
+func (m *archetypeMask) addComponent(compId CompId) {
 	// Ranges: [0, 64), [64, 128), [128, 192), [192, 256)
 	idx := compId / 64
 	offset := compId - (64 * idx)
@@ -95,7 +95,7 @@ func (m archetypeMask) contains(a archetypeMask) bool {
 
 // Checks to see if a mask m contains the supplied componentId
 // Returns true if the bit location in that mask is set, else returns false
-func (m archetypeMask) hasComponent(compId componentId) bool {
+func (m archetypeMask) hasComponent(compId CompId) bool {
 	// Ranges: [0, 64), [64, 128), [128, 192), [192, 256)
 	idx := compId / 64
 	offset := compId - (64 * idx)
@@ -103,9 +103,9 @@ func (m archetypeMask) hasComponent(compId componentId) bool {
 }
 
 // Generates and returns a list of every componentId that this archetype contains
-func (m archetypeMask) getComponentList() []componentId {
-	ret := make([]componentId, 0)
-	for compId := componentId(0); compId <= maxComponentId; compId++ {
+func (m archetypeMask) getComponentList() []CompId {
+	ret := make([]CompId, 0)
+	for compId := CompId(0); compId <= maxComponentId; compId++ {
 		if m.hasComponent(compId) {
 			ret = append(ret, compId)
 		}

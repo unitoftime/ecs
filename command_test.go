@@ -1,8 +1,147 @@
 package ecs
 
 import (
+	"math/rand"
 	"testing"
 )
+
+func TestCommandWrites(t *testing.T) {
+	world := NewWorld()
+	commands := NewCommandQueue(world)
+
+	type data struct {
+		id  Id
+		pos position
+		vel velocity
+		acc acceleration
+		rad radius
+	}
+
+	expected := make([]data, 1000)
+	for i := range expected {
+		ent := commands.SpawnEmpty()
+
+		expected[i] = data{
+			id:  ent.Id(),
+			pos: position{1, rand.Float64() * 100, rand.Float64() * 100},
+			vel: velocity{2, rand.Float64() * 100, rand.Float64() * 100},
+			acc: acceleration{3, rand.Float64() * 100, rand.Float64() * 100},
+			rad: radius{rand.Float64() * 100},
+		}
+		ent.
+			Insert(expected[i].pos).
+			Insert(expected[i].vel).
+			Insert(expected[i].acc).
+			Insert(expected[i].rad)
+	}
+
+	commands.Execute()
+
+	for i := range expected {
+		id := expected[i].id
+
+		pos, ok := Read[position](world, id)
+		check(t, ok)
+		compare(t, pos, expected[i].pos)
+
+		vel, ok := Read[velocity](world, id)
+		check(t, ok)
+		compare(t, vel, expected[i].vel)
+
+		acc, ok := Read[acceleration](world, id)
+		check(t, ok)
+		compare(t, acc, expected[i].acc)
+
+		rad, ok := Read[radius](world, id)
+		check(t, ok)
+		compare(t, rad, expected[i].rad)
+	}
+}
+
+func TestWorldReadWriteNew(t *testing.T) {
+	world := NewWorld()
+	id := world.NewId()
+
+	// Write position
+	pos := position{1, 1, 1}
+	Write(world, id, pos)
+
+	// Check position and velocity
+	posOut, ok := Read[position](world, id)
+	check(t, ok)
+	compare(t, posOut, pos)
+	velOut, ok := Read[velocity](world, id)
+	check(t, !ok) // We expect this to be false
+	compare(t, velOut, velocity{0, 0, 0})
+
+	// Write velocity
+	vel := velocity{2, 2, 2}
+	Write(world, id, vel)
+
+	// Check position and velocity
+	posOut, ok = Read[position](world, id)
+	check(t, ok)
+	compare(t, posOut, pos)
+	velOut, ok = Read[velocity](world, id)
+	check(t, ok)
+	compare(t, velOut, vel)
+
+	compare(t, world.engine.count(position{}), 1)
+	compare(t, world.engine.count(position{}, velocity{}), 1)
+	compare(t, world.engine.count(position{}, velocity{}), 1)
+	compare(t, world.engine.count(acceleration{}), 0)
+
+	// count := 0
+	// Map2(world, func(id Id, p *position, v *velocity) {
+	// 	count++
+	// })
+	// compare(t, count, 1)
+
+	// count = 0
+	// view := ViewAll2[position, velocity](world)
+	// for {
+	// 	_, _, _, ok := view.Iter()
+	// 	if !ok { break }
+	// 	count++
+	// }
+	// compare(t, count, 1)
+}
+
+func TestWorldReadMultiWriteNew(t *testing.T) {
+	world := NewWorld()
+	id := world.NewId()
+
+	pos := position{1, 1, 1}
+	vel := velocity{2, 2, 2}
+	Write(world, id, pos, vel)
+
+	// Check position and velocity
+	posOut, ok := Read[position](world, id)
+	check(t, ok)
+	compare(t, posOut, pos)
+	velOut, ok := Read[velocity](world, id)
+	check(t, ok)
+	compare(t, velOut, vel)
+
+	// Write accel and size
+	accel := acceleration{3, 3, 3}
+	rad := radius{4}
+	Write(world, id, accel, rad)
+
+	// Check all
+	posOut, ok = Read[position](world, id)
+	check(t, ok)
+	compare(t, posOut, pos)
+	velOut, ok = Read[velocity](world, id)
+	check(t, ok)
+	compare(t, velOut, vel)
+	accelOut, ok := Read[acceleration](world, id)
+	check(t, ok)
+	compare(t, accelOut, accel)
+	radOut, ok := Read[radius](world, id)
+	check(t, ok)
+	compare(t, radOut, rad)
+}
 
 // func TestCommandExecution(t *testing.T) {
 // 	world := NewWorld()
@@ -248,25 +387,25 @@ func BenchmarkAddEntityCached(b *testing.B) {
 // 	}
 // }
 
-func BenchmarkAddEntityViaBundles2(b *testing.B) {
-	world := NewWorld()
+// func BenchmarkAddEntityViaBundles2(b *testing.B) {
+// 	world := NewWorld()
 
-	b.ResetTimer()
+// 	b.ResetTimer()
 
-	bundle := NewBundle4[position, velocity, acceleration, radius]()
+// 	bundle := NewBundle4[position, velocity, acceleration, radius]()
 
-	for n := 0; n < b.N; n++ {
-		for i := 0; i < addEntSize; i++ {
-			id := world.NewId()
-			bundle.Write(world, id,
-				position{1, 2, 3},
-				velocity{4, 5, 6},
-				acceleration{7, 8, 9},
-				radius{10},
-			)
-		}
-	}
-}
+// 	for n := 0; n < b.N; n++ {
+// 		for i := 0; i < addEntSize; i++ {
+// 			id := world.NewId()
+// 			bundle.Write(world, id,
+// 				position{1, 2, 3},
+// 				velocity{4, 5, 6},
+// 				acceleration{7, 8, 9},
+// 				radius{10},
+// 			)
+// 		}
+// 	}
+// }
 
 // func BenchmarkAddEntityViaBundles3(b *testing.B) {
 // 	world := NewWorld()
@@ -691,10 +830,21 @@ func BenchmarkAllocateQueryNoQuery(b *testing.B) {
 			// *a = acceleration{7, 8, 9}
 			// *r = radius{10}
 
-			positionId.writeVal(world.engine, archId, index, position{1, 2, 3})
-			velocityId.writeVal(world.engine, archId, index, velocity{1, 2, 3})
-			accelerationId.writeVal(world.engine, archId, index, acceleration{1, 2, 3})
-			radiusId.writeVal(world.engine, archId, index, radius{10})
+			// positionId.writeVal(world.engine, archId, index, position{1, 2, 3})
+			// velocityId.writeVal(world.engine, archId, index, velocity{1, 2, 3})
+			// accelerationId.writeVal(world.engine, archId, index, acceleration{1, 2, 3})
+			// radiusId.writeVal(world.engine, archId, index, radius{10})
+
+			wd := W{
+				engine: world.engine,
+				archId: archId,
+				index:  index,
+			}
+			positionId.WriteVal(wd, position{1, 2, 3})
+			velocityId.WriteVal(wd, velocity{1, 2, 3})
+			accelerationId.WriteVal(wd, acceleration{1, 2, 3})
+			radiusId.WriteVal(wd, radius{10})
+
 		}
 	}
 }
@@ -745,47 +895,42 @@ func BenchmarkAllocateQueryNoQuery(b *testing.B) {
 // 	}
 // }
 
-func BenchmarkAllocateBundler2(b *testing.B) {
-	world := NewWorld()
+// func BenchmarkAllocateBundler2(b *testing.B) {
+// 	world := NewWorld()
 
-	bun := &Bundler{}
+// 	bun := &Bundler{}
 
-	b.ResetTimer()
+// 	b.ResetTimer()
 
-	pos := C(position{1, 2, 3})
-	vel := C(velocity{4, 5, 6})
-	acc := C(acceleration{7, 8, 9})
-	rad := C(radius{10})
+// 	pos := C(position{1, 2, 3})
+// 	vel := C(velocity{4, 5, 6})
+// 	acc := C(acceleration{7, 8, 9})
+// 	rad := C(radius{10})
 
-	for n := 0; n < b.N; n++ {
-		for i := 0; i < addEntSize; i++ {
-			bun.Clear()
+// 	for n := 0; n < b.N; n++ {
+// 		for i := 0; i < addEntSize; i++ {
+// 			bun.Clear()
 
-			pos.Comp = position{1, 2, 3}
+// 			pos.Comp = position{1, 2, 3}
 
-			bun.Add(&pos)
-			bun.Add(&vel)
-			bun.Add(&acc)
-			bun.Add(&rad)
+// 			bun.Add(&pos)
+// 			bun.Add(&vel)
+// 			bun.Add(&acc)
+// 			bun.Add(&rad)
 
-			id := world.NewId()
-			bun.Write(world, id)
-		}
-	}
-}
+// 			id := world.NewId()
+// 			bun.Write(world, id)
+// 		}
+// 	}
+// }
 
-var positionId = C(position{})
-var velocityId = C(velocity{})
-var accelerationId = C(acceleration{})
-var radiusId = C(radius{})
+// type outerBundle struct {
+// 	myBundle myBundle
+// }
 
-type outerBundle struct {
-	myBundle myBundle
-}
-
-func (m outerBundle) Unbundle(bun *Bundler) {
-	m.myBundle.Unbundle(bun)
-}
+// func (m outerBundle) Unbundle(bun *Bundler) {
+// 	m.myBundle.Unbundle(bun)
+// }
 
 type myBundle struct {
 	pos position
@@ -794,11 +939,33 @@ type myBundle struct {
 	rad radius
 }
 
-func (m myBundle) Unbundle(bun *Bundler) {
-	positionId.UnbundleVal(bun, m.pos)
-	velocityId.UnbundleVal(bun, m.vel)
-	accelerationId.UnbundleVal(bun, m.acc)
-	radiusId.UnbundleVal(bun, m.rad)
+// Note: This was interesting, but ended up being pretty slow
+// func (m myBundle) BundleSeq() iter.Seq[Component] {
+// 	return func(yield func(Component) bool) {
+// 		if !yield(positionId.With(m.pos)) { return }
+// 		if !yield(velocityId.With(m.vel)) { return }
+// 		if !yield(accelerationId.With(m.acc)) { return }
+// 		if !yield(radiusId.With(m.rad)) { return }
+// 	}
+// }
+
+// func (m myBundle) Unbundle(bun *Bundler) {
+// 	positionId.With(m.pos).Unbundle(bun)
+// 	velocityId.With(m.vel).Unbundle(bun)
+// 	accelerationId.With(m.acc).Unbundle(bun)
+// 	radiusId.With(m.rad).Unbundle(bun)
+
+// 	// positionId.UnbundleVal(bun, m.pos)
+// 	// velocityId.UnbundleVal(bun, m.vel)
+// 	// accelerationId.UnbundleVal(bun, m.acc)
+// 	// radiusId.UnbundleVal(bun, m.rad)
+// }
+
+func (m myBundle) CompWrite(wd W) {
+	m.pos.CompWrite(wd)
+	m.vel.CompWrite(wd)
+	m.acc.CompWrite(wd)
+	m.rad.CompWrite(wd)
 }
 
 func BenchmarkAllocateManual(b *testing.B) {
@@ -818,138 +985,82 @@ func BenchmarkAllocateManual(b *testing.B) {
 			}
 
 			bun.Clear()
-			m.Unbundle(bun)
+			unbundle(m, bun)
 			id := world.NewId()
 			bun.Write(world, id)
 		}
 	}
 }
 
-var myBundle2 = NewBundle4[position, velocity, acceleration, radius]()
+// func BenchmarkAllocateBundle4(b *testing.B) {
+// 	world := NewWorld()
 
-func BenchmarkAllocateBundle4(b *testing.B) {
+// 	var myBundle2 = NewBundle4[position, velocity, acceleration, radius]()
+
+// 	bun := &Bundler{}
+
+// 	b.ResetTimer()
+
+// 	for n := 0; n < b.N; n++ {
+// 		for i := 0; i < addEntSize; i++ {
+// 			bun.Clear()
+
+// 			myBundle2.Unbundle(bun,
+// 				position{1, 2, 3},
+// 				velocity{1, 2, 3},
+// 				acceleration{1, 2, 3},
+// 				radius{1},
+// 			)
+
+// 			id := world.NewId()
+// 			bun.Write(world, id)
+// 		}
+// 	}
+// }
+
+// func BenchmarkAllocateBundle4Direct(b *testing.B) {
+// 	world := NewWorld()
+
+// 	var myBundle2 = NewBundle4[position, velocity, acceleration, radius]()
+
+// 	b.ResetTimer()
+
+// 	for n := 0; n < b.N; n++ {
+// 		for i := 0; i < addEntSize; i++ {
+// 			id := world.NewId()
+// 			myBundle2.Write(world, id,
+// 				position{1, 2, 3},
+// 				velocity{1, 2, 3},
+// 				acceleration{1, 2, 3},
+// 				radius{1},
+// 			)
+// 		}
+// 	}
+// }
+
+func BenchmarkAllocateNonBundle4Direct(b *testing.B) {
 	world := NewWorld()
-
-	bun := &Bundler{}
 
 	b.ResetTimer()
 
+	comps := []Component{
+		position{1, 2, 3},
+		velocity{1, 2, 3},
+		acceleration{1, 2, 3},
+		radius{1},
+	}
+
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < addEntSize; i++ {
-			bun.Clear()
-
-			myBundle2.Unbundle(bun,
-				position{1, 2, 3},
-				velocity{1, 2, 3},
-				acceleration{1, 2, 3},
-				radius{1},
-			)
-
 			id := world.NewId()
-			bun.Write(world, id)
+			world.Write(id, comps...)
 		}
 	}
-}
-
-type unbundler2 interface {
-	Unbundle(*Bundler)
-}
-
-// type singleCmd interface {
-// 	apply(*World)
-// }
-
-// type spawnCmd struct {
-// 	bundler *Bundler
-// }
-// func (c spawnCmd) apply(world *World) {
-// 	id := world.NewId()
-// 	c.bundler.Write(world, id)
-// }
-
-type CmdType uint8
-
-const (
-	CmdTypeSpawn CmdType = iota
-	CmdTypeWrite
-	CmdTypeCustom
-)
-
-type singleCmd struct {
-	Type    CmdType
-	id      Id
-	bundler *Bundler
-}
-
-func (c singleCmd) apply(world *World) {
-	switch c.Type {
-	case CmdTypeSpawn:
-		id := world.NewId()
-		c.bundler.Write(world, id)
-	case CmdTypeWrite:
-		c.bundler.Write(world, c.id)
-	}
-}
-
-type cmdQueue struct {
-	commands []singleCmd
-
-	currentBundlerIndex int
-	bundlers            []*Bundler
-}
-
-func newCmdQueue() *cmdQueue {
-	return &cmdQueue{}
-}
-func (c *cmdQueue) NextBundler() *Bundler {
-	if c.currentBundlerIndex >= len(c.bundlers) {
-		bundler := &Bundler{}
-		c.bundlers = append(c.bundlers, bundler)
-		c.currentBundlerIndex = len(c.bundlers) - 1
-		return bundler
-	} else {
-		bundler := c.bundlers[c.currentBundlerIndex]
-		bundler.Clear()
-		c.currentBundlerIndex++
-		return bundler
-	}
-}
-
-func CmdSpawn[T unbundler2](c *cmdQueue, ub T) {
-	bundler := c.NextBundler()
-	ub.Unbundle(bundler)
-	// c.commands = append(c.commands, spawnCmd{
-	// 	bundler: bundler,
-	// })
-	c.commands = append(c.commands, singleCmd{
-		Type:    CmdTypeSpawn,
-		bundler: bundler,
-	})
-}
-
-func (c *cmdQueue) Spawn(ub unbundler2) {
-	bundler := c.NextBundler()
-	ub.Unbundle(bundler)
-	// c.commands = append(c.commands, spawnCmd{
-	// 	bundler: bundler,
-	// })
-	c.commands = append(c.commands, singleCmd{
-		Type:    CmdTypeSpawn,
-		bundler: bundler,
-	})
-}
-
-func (c *cmdQueue) Execute(world *World) {
-	for i := range c.commands {
-		c.commands[i].apply(world)
-	}
-	c.commands = c.commands[:0]
-	c.currentBundlerIndex = 0
 }
 
 func BenchmarkAllocateCommands(b *testing.B) {
 	world := NewWorld()
-	cmd := newCmdQueue()
+	cmd := NewCommandQueue(world)
 
 	b.ResetTimer()
 
@@ -962,26 +1073,108 @@ func BenchmarkAllocateCommands(b *testing.B) {
 				rad: radius{1},
 			})
 		}
-		cmd.Execute(world)
+		cmd.Execute()
 	}
 }
 
 func BenchmarkAllocateCommands2(b *testing.B) {
 	world := NewWorld()
-	cmd := newCmdQueue()
+	cmd := NewCommandQueue(world)
 
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < addEntSize; i++ {
 			CmdSpawn(cmd, myBundle{
-				// cmd.Spawn(myBundle{
 				pos: position{1, 2, 3},
 				vel: velocity{1, 2, 3},
 				acc: acceleration{1, 2, 3},
 				rad: radius{1},
 			})
 		}
-		cmd.Execute(world)
+		cmd.Execute()
+	}
+}
+
+func BenchmarkAllocateCommands3(b *testing.B) {
+	world := NewWorld()
+	cmd := NewCommandQueue(world)
+
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < addEntSize; i++ {
+			cmd.SpawnEmpty().Insert(
+				myBundle{
+					pos: position{1, 2, 3},
+					vel: velocity{1, 2, 3},
+					acc: acceleration{1, 2, 3},
+					rad: radius{1},
+				})
+		}
+		// 	myBundle{
+		// 		pos: position{1, 2, 3},
+		// 		vel: velocity{1, 2, 3},
+		// 		acc: acceleration{1, 2, 3},
+		// 		rad: radius{1},
+		// 	}.Unbundle(entCmd.cmd.bundler)
+		// }
+		cmd.Execute()
+	}
+}
+
+// func BenchmarkAllocateCommands4(b *testing.B) {
+// 	world := NewWorld()
+// 	cmd := NewCommandQueue()
+
+// 	b.ResetTimer()
+
+// 	for n := 0; n < b.N; n++ {
+// 		for i := 0; i < addEntSize; i++ {
+// 			cmd.SpawnEmpty().
+// 				Insert(positionId.With(position{1, 2, 3})).
+// 				Insert(velocityId.With(velocity{1, 2, 3})).
+// 				Insert(accelerationId.With(acceleration{1, 2, 3})).
+// 				Insert(radiusId.With(radius{1}))
+// 		}
+// 		cmd.Execute(world)
+// 	}
+// }
+
+// func BenchmarkAllocateCommands5(b *testing.B) {
+// 	world := NewWorld()
+// 	cmd := NewCommandQueue(world)
+
+// 	b.ResetTimer()
+
+// 	for n := 0; n < b.N; n++ {
+// 		for i := 0; i < addEntSize; i++ {
+// 			cmd.SpawnEmpty().Add(
+// 				myBundle{
+// 					pos: position{1, 2, 3},
+// 					vel: velocity{1, 2, 3},
+// 					acc: acceleration{1, 2, 3},
+// 					rad: radius{1},
+// 				}.BundleSeq())
+// 		}
+// 		cmd.Execute()
+// 	}
+// }
+
+func BenchmarkAllocateCommands6(b *testing.B) {
+	world := NewWorld()
+	cmd := NewCommandQueue(world)
+
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < addEntSize; i++ {
+			cmd.SpawnEmpty().
+				Insert(position{1, 2, 3}).
+				Insert(velocity{1, 2, 3}).
+				Insert(acceleration{1, 2, 3}).
+				Insert(radius{1})
+		}
+		cmd.Execute()
 	}
 }

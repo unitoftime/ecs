@@ -5,6 +5,37 @@ import (
 	"testing"
 )
 
+var positionId = C(position{})
+var velocityId = C(velocity{})
+var accelerationId = C(acceleration{})
+var radiusId = C(radius{})
+
+func (p position) CompId() CompId {
+	return positionId.CompId()
+}
+func (p velocity) CompId() CompId {
+	return velocityId.CompId()
+}
+func (p acceleration) CompId() CompId {
+	return accelerationId.CompId()
+}
+func (p radius) CompId() CompId {
+	return radiusId.CompId()
+}
+
+func (p position) CompWrite(cw W) {
+	positionId.WriteVal(cw, p)
+}
+func (p velocity) CompWrite(cw W) {
+	velocityId.WriteVal(cw, p)
+}
+func (p acceleration) CompWrite(cw W) {
+	accelerationId.WriteVal(cw, p)
+}
+func (p radius) CompWrite(cw W) {
+	radiusId.WriteVal(cw, p)
+}
+
 type position struct {
 	x, y, z float64
 }
