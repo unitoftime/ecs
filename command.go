@@ -151,9 +151,12 @@ func (c *CommandQueue) SpawnEmpty() EntityCommand {
 }
 
 func (c *CommandQueue) Execute() {
+	// Perform all commands
 	for i := range c.commands {
 		c.commands[i].apply(c.world)
 	}
+
+	// Cleanup Queue
 	c.commands = c.commands[:0]
 	c.currentBundlerIndex = 0
 }
