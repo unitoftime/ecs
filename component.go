@@ -2,6 +2,11 @@ package ecs
 
 type CompId uint16
 
+func NewComp[T any]() comp[T] {
+	var t T
+	return Comp(t)
+}
+
 func Comp[T any](t T) comp[T] {
 	compId := nameTyped[T](t)
 	return comp[T]{

@@ -17,7 +17,8 @@ import "fmt"
 type CmdType uint8
 
 const (
-	CmdTypeSpawn CmdType = iota
+	CmdTypeNone CmdType = iota
+	CmdTypeSpawn
 	CmdTypeWrite
 	CmdTypeCustom
 )
@@ -30,6 +31,8 @@ type singleCmd struct {
 
 func (c singleCmd) apply(world *World) {
 	switch c.Type {
+	case CmdTypeNone:
+		// Do nothing, Command was probably cancelled
 	case CmdTypeSpawn:
 		c.bundler.Write(world, c.id)
 	case CmdTypeWrite:
@@ -49,6 +52,10 @@ func (e EntityCommand) Printout() {
 		}
 	}
 	// fmt.Printf("+%v\n", e.cmd.bundler)
+}
+
+func (e EntityCommand) Cancel() {
+	e.cmd.Type = CmdTypeNone
 }
 
 func (e EntityCommand) Empty() bool {
@@ -143,6 +150,19 @@ func (c *CommandQueue) SpawnEmpty() EntityCommand {
 	c.commands = append(c.commands, singleCmd{
 		Type:    CmdTypeSpawn,
 		id:      c.world.NewId(),
+		bundler: bundler,
+	})
+	return EntityCommand{
+		cmd: &(c.commands[len(c.commands)-1]),
+	}
+}
+
+func (c *CommandQueue) Write(id Id) EntityCommand {
+	bundler := c.NextBundler()
+
+	c.commands = append(c.commands, singleCmd{
+		Type:    CmdTypeWrite,
+		id:      id,
 		bundler: bundler,
 	})
 	return EntityCommand{
