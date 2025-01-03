@@ -1,5 +1,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/unitoftime/ecs.svg)](https://pkg.go.dev/github.com/unitoftime/ecs)
 [![Build](https://github.com/unitoftime/ecs/actions/workflows/build.yml/badge.svg)](https://github.com/unitoftime/ecs/actions/workflows/build.yml)
+[![Go Coverage](https://github.com/unitoftime/ecs/wiki/coverage.svg)](https://raw.githack.com/wiki/unitoftime/ecs/coverage.html)
+
 
 This is an ecs library I wrote for doing game development in Go. I'm actively using it and its pretty stable, but I do find bugs every once in a while. I might vary the APIs in the future if native iterators are added.
 
@@ -12,6 +14,11 @@ Conceptually you can imagine an ECS as one big table, where an `Id` column assoc
 | 1  | {2, 2}   | 6.28     | 22   |
 
 We use an archetype-based storage mechanism. Which simply means we have a specific table for a specific component layout. This means that if you add or remove components it can be somewhat expensive, because we have to copy the entire entity to the new table.
+
+## Basic Full Example
+You can find a fairly comprehensive example here:
+- [Basic Example](https://github.com/unitoftime/ecs/tree/master/examples/basic)
+
 
 ### Basic Usage
 Import the library: `import "github.com/unitoftime/ecs"`
@@ -82,9 +89,13 @@ query := ecs.Query2[Position, Velocity](world, ecs.Optional(Velocity))
 
 Commands will eventually replace `ecs.Write(...)` once I figure out how their usage will work. Commands essentially buffer some work on the ECS so that the work can be executed later on. You can use them in loop safe ways by calling `Execute()` after your loop has completed. Right now they work like this:
 ```
-cmd := ecs.NewCommand(world)
-WriteCmd(cmd, id, Position{1,1,1})
-WriteCmd(cmd, id, Velocity{1,1,1})
+world := NewWorld()
+cmd := NewCommandQueue(world)
+
+cmd.SpawnEmpty().
+    Insert(ecs.C(Position{1, 2, 3})).
+    Insert(ecs.C(Velocity{1, 2, 3}))
+
 cmd.Execute()
 ```
 

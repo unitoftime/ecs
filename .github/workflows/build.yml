@@ -21,6 +21,13 @@ jobs:
     - name: make All
       run: make all
 
-    # Maybe one day
-    # - name: Upload coverage to Codecov
-    #   uses: codecov/codecov-action@v2
+    - name: Update coverage report
+      uses: ncruces/go-coverage-report@v0
+      with:
+        report: true
+        chart: true
+        amend: true
+      if: |
+        matrix.os == 'ubuntu-latest' &&
+        github.event_name == 'push'
+      continue-on-error: true
