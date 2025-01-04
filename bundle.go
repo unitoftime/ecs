@@ -28,6 +28,10 @@ func (b *Bundler) Clear() {
 // 	bun.maxComponentIdAdded = max(bun.maxComponentIdAdded, compId)
 // }
 
+// func (bun *Bundler) Has(comp Component) bool {
+// 	return bun.Set[comp.CompId()]
+// }
+
 func (bun *Bundler) Read(comp Component) (Component, bool) {
 	compId := comp.CompId()
 	if !bun.Set[compId] {

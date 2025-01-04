@@ -35,10 +35,10 @@ func main() {
 		cmd.Execute()
 	}
 
-	scheduler := ecs.NewScheduler()
+	scheduler := ecs.NewScheduler(world)
 
 	// Append physics systems, these run on a fixed time step, so dt will always be constant
-	scheduler.AppendPhysics(
+	scheduler.AddSystems(ecs.StageFixedUpdate,
 		// Comment out if you want to spawn a new entity every frame
 		// ecs.NewSystem1(world, SpawnSystem),
 
@@ -46,9 +46,9 @@ func main() {
 		MoveSystemOption_A(world),
 
 		// Option B: Use the dynamic injection to create a system for you
-		ecs.NewSystem1(world, MoveSystemOption_B),
+		ecs.NewSystem1(MoveSystemOption_B),
 
-		ecs.NewSystem1(world, PrintSystem),
+		ecs.NewSystem1(PrintSystem),
 	)
 
 	// Also, add render systems if you want, These run as fast as possible
@@ -68,7 +68,7 @@ func SpawnSystem(dt time.Duration, commands *ecs.CommandQueue) {
 
 	name := Name(fmt.Sprintf("My Entity %d", cmd.Id()))
 	cmd.Insert(ecs.C(Position{1, 2, 3})).
-    Insert(ecs.C(Velocity{1, 2, 3})).
+		Insert(ecs.C(Velocity{1, 2, 3})).
 		Insert(ecs.C(name))
 }
 
@@ -107,4 +107,3 @@ func PrintSystem(dt time.Duration, query *ecs.View2[Name, Position]) {
 		fmt.Printf("%s: %v\n", *name, pos)
 	})
 }
-

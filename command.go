@@ -67,6 +67,16 @@ func (e EntityCommand) Insert(bun Writer) EntityCommand {
 	return e
 }
 
+// // Inserts the component if it is missing
+// func (e EntityCommand) InsertIfMissing(bun Component) EntityCommand {
+// 	if e.cmd.bundler.Has(bun) {
+// 		return e
+// 	}
+
+// 	unbundle(bun, e.cmd.bundler)
+// 	return e
+// }
+
 func (e EntityCommand) Id() Id {
 	return e.cmd.id
 }
@@ -180,3 +190,21 @@ func (c *CommandQueue) Execute() {
 	c.commands = c.commands[:0]
 	c.currentBundlerIndex = 0
 }
+
+// TODO: Maybe?
+// func (c *CommandQueue) ExecutePostWrite(postWrite func (ecs.Id)) {
+// 	// Perform all commands
+// 	for i := range c.commands {
+// 		c.commands[i].apply(c.world)
+// 	}
+// 	for i := range c.commands {
+// 		if c.commands[i].id == InvalidEntity {
+// 			continue
+// 		}
+// 		postWrite(c.commands[i].id)
+// 	}
+
+// 	// Cleanup Queue
+// 	c.commands = c.commands[:0]
+// 	c.currentBundlerIndex = 0
+// }

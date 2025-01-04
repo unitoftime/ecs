@@ -29,7 +29,8 @@ func physicsSystem(dt time.Duration, query *View2[position, velocity]) {
 
 func TestSystemCreationNew(t *testing.T) {
 	world := setupPhysics(100)
-	sys := NewSystem1(world, physicsSystem)
+	sys := NewSystem1(physicsSystem).Build(world)
+
 	fmt.Println("NAME", sys.Name)
 	for range 100 {
 		sys.Run(16 * time.Millisecond)
@@ -39,7 +40,8 @@ func TestSystemCreationNew(t *testing.T) {
 var lastTime time.Time
 
 func TestSchedulerPhysics(t *testing.T) {
-	scheduler := NewScheduler()
+	world := NewWorld()
+	scheduler := NewScheduler(world)
 	scheduler.AppendPhysics(System{
 		Name: "TestSystem",
 		Func: func(dt time.Duration) {
@@ -56,7 +58,8 @@ func TestSchedulerPhysics(t *testing.T) {
 var lastTimeInput, lastTimePhysics, lastTimeRender time.Time
 
 func TestSchedulerAll(t *testing.T) {
-	scheduler := NewScheduler()
+	world := NewWorld()
+	scheduler := NewScheduler(world)
 	scheduler.AppendInput(System{
 		Name: "TestSystemInput",
 		Func: func(dt time.Duration) {

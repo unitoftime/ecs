@@ -14,6 +14,10 @@ type System struct {
 	Func func(dt time.Duration)
 }
 
+func (s System) Build(world *World) System {
+	return s
+}
+
 // Create a new system. The system name will be automatically created based on the function name that calls this function
 func NewSystem(lambda func(dt time.Duration)) System {
 	systemName := "UnknownSystemName"
@@ -41,6 +45,7 @@ func (s *System) Run(dt time.Duration) time.Duration {
 
 	start := time.Now()
 	s.Func(dt)
+
 	return time.Since(start)
 }
 
@@ -82,7 +87,9 @@ func (s *SystemLog) String() string {
 // Physics: Execute physics systems (Fixed time systems)
 // Render: Execute render systems (Dynamic time systems)
 type Scheduler struct {
+	world                             *World
 	input, physics, render            []System
+	startupSystems                    []System
 	sysLogBack, sysLogFront           []SystemLog
 	sysLogBackFixed, sysLogFrontFixed []SystemLog
 	fixedTimeStep                     time.Duration
@@ -94,8 +101,10 @@ type Scheduler struct {
 }
 
 // Creates a scheduler
-func NewScheduler() *Scheduler {
+func NewScheduler(world *World) *Scheduler {
 	return &Scheduler{
+		world:            world,
+		startupSystems:   make([]System, 0),
 		input:            make([]System, 0),
 		physics:          make([]System, 0),
 		render:           make([]System, 0),
@@ -135,6 +144,30 @@ func (s *Scheduler) PauseRender(value bool) {
 // Sets the amount of time required before the fixed time systems will execute
 func (s *Scheduler) SetFixedTimeStep(t time.Duration) {
 	s.fixedTimeStep = t
+}
+
+type Stage uint8
+
+const (
+	StageStartup Stage = iota
+	StagePreFixedUpdate
+	StageFixedUpdate
+	StagePostFixedUpdate
+	StageUpdate
+)
+
+func (s *Scheduler) AddSystems(stage Stage, systems ...SystemBuilder) {
+	for _, sys := range systems {
+		system := sys.Build(s.world)
+		switch stage {
+		case StageStartup:
+			s.startupSystems = append(s.startupSystems, system)
+		case StageFixedUpdate:
+			s.AppendPhysics(system)
+		case StageUpdate:
+			s.AppendRender(system)
+		}
+	}
 }
 
 // Adds a system to the list of input systems
@@ -196,6 +229,10 @@ func (s *Scheduler) GetRenderInterp() float64 {
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 func (s *Scheduler) Run() {
+	for _, sys := range s.startupSystems {
+		sys.Run(0)
+	}
+
 	frameStart := time.Now()
 	dt := s.fixedTimeStep
 	// var accumulator time.Duration
