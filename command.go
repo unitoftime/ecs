@@ -94,10 +94,15 @@ func (e EntityCommand) Id() Id {
 //	}
 func ReadComp[T Component](e EntityCommand) (T, bool) {
 	var t T
-	comp, ok := e.cmd.bundler.Read(t)
+	// comp, ok := e.cmd.bundler.Read(t)
+	// if ok {
+	// 	box := comp.(*box[T])
+	// 	return box.val, true
+	// }
+
+	comp, ok := readBundle[T](e.cmd.bundler)
 	if ok {
-		box := comp.(*box[T])
-		return box.val, true
+		return comp, true
 	}
 	return t, false
 }

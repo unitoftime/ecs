@@ -32,13 +32,23 @@ func (b *Bundler) Clear() {
 // 	return bun.Set[comp.CompId()]
 // }
 
-func (bun *Bundler) Read(comp Component) (Component, bool) {
+func readBundle[T Component](bun *Bundler) (T, bool) {
+	var comp T
 	compId := comp.CompId()
+
 	if !bun.Set[compId] {
 		return comp, false // Was not set
 	}
-	return bun.Components[compId], true
+	return bun.Components[compId].(*box[T]).val, true
 }
+
+// func (bun *Bundler) Read(comp Component) (Component, bool) {
+// 	compId := comp.CompId()
+// 	if !bun.Set[compId] {
+// 		return comp, false // Was not set
+// 	}
+// 	return bun.Components[compId], true
+// }
 
 // func (bun *Bundler) Remove(comp Component) {
 // 	compId := comp.id()
