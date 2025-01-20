@@ -34,6 +34,7 @@ func (c singleCmd) apply(world *World) {
 	case CmdTypeNone:
 		// Do nothing, Command was probably cancelled
 	case CmdTypeSpawn:
+		// TODO: This could probably use a Spawn function which would be faster
 		c.bundler.Write(world, c.id)
 	case CmdTypeWrite:
 		c.bundler.Write(world, c.id)

@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"fmt"
 	"math"
 	"sync/atomic"
 
@@ -22,9 +23,9 @@ type World struct {
 	idCounter    atomic.Uint64
 	nextId       Id
 	minId, maxId Id // This is the range of Ids returned by NewId
-	arch         *internalMap[Id, archetypeId]
-	engine       *archEngine
-	resources    map[reflect.Type]any
+	arch      locMap
+	engine    *archEngine
+	resources map[reflect.Type]any
 }
 
 // Creates a new world
@@ -33,11 +34,17 @@ func NewWorld() *World {
 		nextId: firstEntity + 1,
 		minId:  firstEntity + 1,
 		maxId:  MaxEntity,
-		arch:   newMap[Id, archetypeId](DefaultAllocation),
+		arch:   newLocMap(DefaultAllocation),
 		engine: newArchEngine(),
 
 		resources: make(map[reflect.Type]any),
 	}
+}
+
+func (w *World) print() {
+	fmt.Printf("%+v\n", *w)
+
+	w.engine.print()
 }
 
 // Sets an range of Ids that the world will use when creating new Ids. Potentially helpful when you have multiple worlds and don't want their Id space to collide.
@@ -80,6 +87,22 @@ func (w *World) NewId() Id {
 	// return id
 }
 
+func (world *World) Spawn(comp ...Component) Id {
+	id := world.NewId()
+	world.spawn(id, comp...)
+	return id
+}
+
+func (world *World) spawn(id Id, comp ...Component) {
+	// Id does not yet exist, we need to add it for the first time
+	mask := buildArchMask(comp...)
+	archId := world.engine.getArchetypeId(mask)
+
+	// Write all components to that archetype
+	index := world.engine.spawn(archId, id, comp...)
+	world.arch.Put(id, entLoc{archId, uint32(index)})
+}
+
 // Writes components to the entity specified at id. This API can potentially break if you call it inside of a loop. Specifically, if you cause the archetype of the entity to change by writing a new component, then the loop may act in mysterious ways.
 // Deprecated: This API is tentative, I might replace it with something similar to bevy commands to alleviate the above concern
 func Write(world *World, id Id, comp ...Component) {
@@ -91,18 +114,12 @@ func (world *World) Write(id Id, comp ...Component) {
 		return // Do nothing if there are no components
 	}
 
-	archId, ok := world.arch.Get(id)
+	loc, ok := world.arch.Get(id)
 	if ok {
-		newarchetypeId := world.engine.rewriteArch(archId, id, comp...)
-		world.arch.Put(id, newarchetypeId)
+		newLoc := world.engine.rewriteArch(loc, id, comp...)
+		world.arch.Put(id, newLoc)
 	} else {
-		// Id does not yet exist, we need to add it for the first time
-		mask := buildArchMask(comp...)
-		archId = world.engine.getArchetypeId(mask)
-		world.arch.Put(id, archId)
-
-		// Write all components to that archetype
-		world.engine.write(archId, id, comp...)
+		world.spawn(id, comp...)
 	}
 }
 
@@ -116,50 +133,54 @@ func (world *World) Write(id Id, comp ...Component) {
 // 	return world.allocate(id, world.engine.dcr.revArchMask[archId])
 // }
 
+// Allocates an index for the id at the specified addMask location
+// 1. If the id already exists, an archetype move will happen
+// 2. If the id doesn't exist, then the addMask is the newMask and the entity will be allocated there
 // Returns the index of the location allocated. May return -1 if invalid archMask supplied
-func (world *World) allocate(id Id, addMask archetypeMask) int {
+func (world *World) allocateMove(id Id, addMask archetypeMask) entLoc {
 	if addMask == blankArchMask {
-		return -1 // Nothing to allocate
+		// Nothing to allocate, aka do nothing
+		loc, _ := world.arch.Get(id)
+		// TODO: Technically this is some kind of error if id isn't set
+		return loc
 	}
 
-	archId, ok := world.arch.Get(id)
+	loc, ok := world.arch.Get(id)
 	if ok {
 		// Calculate the new mask based on the bitwise or of the old and added masks
-		lookup := world.engine.lookup[archId]
+		lookup := world.engine.lookup[loc.archId]
 		oldMask := lookup.mask
 		newMask := oldMask.bitwiseOr(addMask)
 
 		// If the new mask matches the old mask, then we don't need to move anything
 		if oldMask == newMask {
-			index, ok := lookup.index.Get(id)
-			if !ok {
-				panic("bug: id missing from lookup list")
-			}
-			return index
+			return loc
 		}
 
-		newArchId, newIndex := world.engine.moveArchetype(archId, newMask, id)
-		world.arch.Put(id, newArchId)
-		return newIndex
+		newLoc := world.engine.moveArchetype(loc, newMask, id)
+		world.arch.Put(id, newLoc)
+		return newLoc
 	} else {
 		// Id does not yet exist, we need to add it for the first time
-		archId = world.engine.getArchetypeId(addMask)
-		world.arch.Put(id, archId)
-
+		archId := world.engine.getArchetypeId(addMask)
 		// Write all components to that archetype
-		return world.engine.allocate(archId, id)
+		newIndex := world.engine.allocate(archId, id)
+
+		newLoc := entLoc{archId, uint32(newIndex)}
+		world.arch.Put(id, newLoc)
+		return newLoc
 	}
 }
 
 // May return -1 if invalid archMask supplied, or if the entity doesn't exist
 func (world *World) deleteMask(id Id, deleteMask archetypeMask) {
-	archId, ok := world.arch.Get(id)
+	loc, ok := world.arch.Get(id)
 	if !ok {
 		return
 	}
 
 	// 1. calculate the destination mask
-	lookup := world.engine.lookup[archId]
+	lookup := world.engine.lookup[loc.archId]
 	oldMask := lookup.mask
 	newMask := oldMask.bitwiseClear(deleteMask)
 
@@ -175,8 +196,8 @@ func (world *World) deleteMask(id Id, deleteMask archetypeMask) {
 	}
 
 	// 2. Move all components from source arch to dest arch
-	newArchId := world.engine.moveArchetypeDown(archId, newMask, id)
-	world.arch.Put(id, newArchId)
+	newLoc := world.engine.moveArchetypeDown(loc, newMask, id)
+	world.arch.Put(id, newLoc)
 }
 
 // Reads a specific component of the entity specified at id.
@@ -184,12 +205,12 @@ func (world *World) deleteMask(id Id, deleteMask archetypeMask) {
 // Deprecated: This API is tentative, I'm trying to improve the QueryN construct so that it can capture this usecase.
 func Read[T any](world *World, id Id) (T, bool) {
 	var ret T
-	archId, ok := world.arch.Get(id)
+	loc, ok := world.arch.Get(id)
 	if !ok {
 		return ret, false
 	}
 
-	return readArch[T](world.engine, archId, id)
+	return readArch[T](world.engine, loc, id)
 }
 
 // Reads a pointer to the component of the entity at the specified id.
@@ -197,12 +218,12 @@ func Read[T any](world *World, id Id) (T, bool) {
 // This pointer is short lived and can become invalid if any other entity changes in the world
 // Deprecated: This API is tentative, I'm trying to improve the QueryN construct so that it can capture this usecase.
 func ReadPtr[T any](world *World, id Id) *T {
-	archId, ok := world.arch.Get(id)
+	loc, ok := world.arch.Get(id)
 	if !ok {
 		return nil
 	}
 
-	return readPtrArch[T](world.engine, archId, id)
+	return readPtrArch[T](world.engine, loc, id)
 }
 
 // This is safe for maps and loops

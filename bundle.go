@@ -70,14 +70,12 @@ func readBundle[T Component](bun *Bundler) (T, bool) {
 // }
 
 func (b *Bundler) Write(world *World, id Id) {
-	archId := world.engine.getArchetypeId(b.archMask)
-	archMask := world.engine.dcr.revArchMask[archId]
-	index := world.allocate(id, archMask)
+	newLoc := world.allocateMove(id, b.archMask)
 
 	wd := W{
 		engine: world.engine,
-		archId: archId,
-		index:  index,
+		archId: newLoc.archId,
+		index:  int(newLoc.index),
 	}
 
 	for i := CompId(0); i <= b.maxComponentIdAdded; i++ {

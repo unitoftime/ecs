@@ -5,6 +5,52 @@ import (
 	"testing"
 )
 
+func TestCommandSingleRewrite(t *testing.T) {
+	world := NewWorld()
+	cmd := NewCommandQueue(world)
+
+	a := world.NewId()
+	b := world.NewId()
+	c := world.NewId()
+	d := world.NewId()
+	Write(world, a, C(position{}), C(velocity{}))
+	Write(world, b, C(position{}), C(velocity{}))
+	Write(world, c, C(position{}), C(velocity{}))
+	Write(world, d, C(position{}), C(velocity{}))
+	DeleteComponent(world, a, C(velocity{}))
+	DeleteComponent(world, b, C(velocity{}))
+	DeleteComponent(world, c, C(velocity{}))
+	DeleteComponent(world, d, C(velocity{}))
+
+	queryPos := Query1[position](world)
+	queryVel := Query1[velocity](world)
+
+	queryPos.MapId(func(id Id, pos *position) {
+		cmd.Write(id).Insert(C(velocity{}))
+	})
+	check(t, *queryPos.Read(a) == position{})
+	check(t, *queryPos.Read(b) == position{})
+	check(t, *queryPos.Read(c) == position{})
+	check(t, *queryPos.Read(d) == position{})
+
+	check(t, queryVel.Read(a) == nil)
+	check(t, queryVel.Read(b) == nil)
+	check(t, queryVel.Read(c) == nil)
+	check(t, queryVel.Read(d) == nil)
+
+	cmd.Execute()
+
+	check(t, *queryPos.Read(a) == position{})
+	check(t, *queryPos.Read(b) == position{})
+	check(t, *queryPos.Read(c) == position{})
+	check(t, *queryPos.Read(d) == position{})
+
+	check(t, *queryVel.Read(a) == velocity{})
+	check(t, *queryVel.Read(b) == velocity{})
+	check(t, *queryVel.Read(c) == velocity{})
+	check(t, *queryVel.Read(d) == velocity{})
+}
+
 func TestCommandWrites(t *testing.T) {
 	world := NewWorld()
 	commands := NewCommandQueue(world)
@@ -791,7 +837,7 @@ func BenchmarkAllocateQuery(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < addEntSize; i++ {
 			id := world.NewId()
-			world.allocate(id, mask)
+			world.allocateMove(id, mask)
 
 			p, v, a, r := query.Read(id)
 			*p = position{1, 2, 3}
@@ -813,12 +859,12 @@ func BenchmarkAllocateQueryNoQuery(b *testing.B) {
 		C(acceleration{}),
 		C(radius{}),
 	)
-	archId := world.engine.getArchetypeId(mask)
+	// archId := world.engine.getArchetypeId(mask)
 
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < addEntSize; i++ {
 			id := world.NewId()
-			index := world.allocate(id, mask)
+			newLoc := world.allocateMove(id, mask)
 
 			// // Note: Slightly faster option. Actually, I'm not so sure
 			// p := positionId.getPtr(world.engine, archId, index)
@@ -837,8 +883,8 @@ func BenchmarkAllocateQueryNoQuery(b *testing.B) {
 
 			wd := W{
 				engine: world.engine,
-				archId: archId,
-				index:  index,
+				archId: newLoc.archId,
+				index:  int(newLoc.index),
 			}
 			positionId.WriteVal(wd, position{1, 2, 3})
 			velocityId.WriteVal(wd, velocity{1, 2, 3})

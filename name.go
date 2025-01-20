@@ -19,8 +19,8 @@ type storageBuilderImp[T any] struct {
 }
 
 func (s storageBuilderImp[T]) build() storage {
-	return &componentSliceStorage[T]{
-		slice: make(map[archetypeId]*componentSlice[T], DefaultAllocation),
+	return &componentStorage[T]{
+		slice: newMap[archetypeId, *componentList[T]](DefaultAllocation),
 	}
 }
 

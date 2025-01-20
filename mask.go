@@ -1,13 +1,20 @@
 package ecs
 
+import "fmt"
+
 // Note: you can increase max component size by increasing maxComponentId and archetypeMask
 // TODO: I should have some kind of panic if you go over maximum component size
-const maxComponentId = 255
+const numMaskBlocks = 4
+const maxComponentId = (numMaskBlocks * 64) - 1 // 4 maskBlocks = 255 components
 
 var blankArchMask archetypeMask
 
 // Supports maximum 256 unique component types
-type archetypeMask [4]uint64 // TODO: can/should I make this configurable?
+type archetypeMask [numMaskBlocks]uint64 // TODO: can/should I make this configurable?
+func (a archetypeMask) String() string {
+	return fmt.Sprintf("0x%x%x%x%x", a[0], a[1], a[2], a[3])
+}
+
 func buildArchMask(comps ...Component) archetypeMask {
 	var mask archetypeMask
 	for _, comp := range comps {

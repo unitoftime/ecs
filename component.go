@@ -97,7 +97,7 @@ func (c comp[T]) WriteVal(cw W, val T) {
 		c.UnbundleVal(cw.bundler, val)
 	} else {
 		store := getStorageByCompId[T](cw.engine, c.CompId())
-		writeArch[T](cw.engine, cw.archId, cw.index, store, val)
+		writeArch(cw.engine, cw.archId, cw.index, store, val)
 	}
 }
 

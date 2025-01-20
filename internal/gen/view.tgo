@@ -18,7 +18,7 @@ type View{{len $element}}[{{join $element ","}} any] struct {
 	world *World
 	filter filterList
 	{{range $ii, $arg := $element}}
-	storage{{$arg}} *componentSliceStorage[{{$arg}}]{{end}}
+	storage{{$arg}} *componentStorage[{{$arg}}]{{end}}
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -62,23 +62,20 @@ func (v *View{{len $element}}[{{join $element ","}}]) Read(id Id) (*{{join $elem
 		return {{with len $element}}{{nils .}}{{end}}
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return {{with len $element}}{{nils .}}{{end}}
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return {{with len $element}}{{nils .}}{{end}}
-	}
+	index := int(loc.index)
 
 {{range $ii, $arg := $element}}
 	var ret{{$arg}} *{{$arg}}{{end}}
 
-	{{range $ii, $arg := $element}}	slice{{$arg}}, ok := v.storage{{$arg}}.slice[archId]
+	{{range $ii, $arg := $element}}	slice{{$arg}}, ok := v.storage{{$arg}}.slice.Get(loc.archId)
 	if ok {
 		ret{{$arg}} = &slice{{$arg}}.comp[index]
 	}
@@ -106,14 +103,14 @@ func (v *View{{len $element}}[{{join $element ","}}]) MapId(lambda func(id Id, {
 	v.filter.regenerate(v.world)
 
 	{{range $ii, $arg := $element}}
-	var slice{{$arg}} *componentSlice[{{$arg}}]
+	var slice{{$arg}} *componentList[{{$arg}}]
 	var comp{{$arg}} []{{$arg}}
 	var ret{{$arg}} *{{$arg}}
 	{{end}}
 
 	for _, archId := range v.filter.archIds {
 		{{range $ii, $arg := $element}}
-		slice{{$arg}}, _ = v.storage{{$arg}}.slice[archId]{{end}}
+		slice{{$arg}}, _ = v.storage{{$arg}}.slice.Get(archId){{end}}
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil { panic("LookupList is missing!") }
@@ -145,7 +142,7 @@ func (v *View{{len $element}}[{{join $element ","}}]) MapIdParallel(lambda func(
 	v.filter.regenerate(v.world)
 
 	{{range $ii, $arg := $element}}
-	var slice{{$arg}} *componentSlice[{{$arg}}]
+	var slice{{$arg}} *componentList[{{$arg}}]
 	{{end}}
 
 	// 1. Calculate work
@@ -219,7 +216,7 @@ func (v *View{{len $element}}[{{join $element ","}}]) MapIdParallel(lambda func(
 		ids := lookup.id
 
 		{{range $ii, $arg := $element}}
-		slice{{$arg}}, _ = v.storage{{$arg}}.slice[archId]{{end}}
+		slice{{$arg}}, _ = v.storage{{$arg}}.slice.Get(archId){{end}}
 
 		{{range $ii, $arg := $element}}
 		comp{{$arg}} = nil
@@ -269,7 +266,7 @@ func (v *View{{len $element}}[{{join $element ","}}]) MapSlices(lambda func(id [
 
 	for _, archId := range v.filter.archIds {
 		{{range $ii, $arg := $element}}
-		slice{{$arg}}, ok := v.storage{{$arg}}.slice[archId]
+		slice{{$arg}}, ok := v.storage{{$arg}}.slice.Get(archId)
 		if !ok { continue }{{end}}
 
 		lookup := v.world.engine.lookup[archId]

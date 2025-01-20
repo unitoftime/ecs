@@ -16,7 +16,7 @@ type View1[A any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
+	storageA *componentStorage[A]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -57,22 +57,23 @@ func (v *View1[A]) Read(id Id) *A {
 		return nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
@@ -100,13 +101,13 @@ func (v *View1[A]) Count() int {
 func (v *View1[A]) MapId(lambda func(id Id, a *A)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -141,7 +142,7 @@ func (v *View1[A]) MapId(lambda func(id Id, a *A)) {
 func (v *View1[A]) MapIdParallel(lambda func(id Id, a *A)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -215,7 +216,7 @@ func (v *View1[A]) MapIdParallel(lambda func(id Id, a *A)) {
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -262,7 +263,7 @@ func (v *View1[A]) MapSlices(lambda func(id []Id, a []A)) {
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -295,8 +296,8 @@ type View2[A, B any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -341,27 +342,28 @@ func (v *View2[A, B]) Read(id Id) (*A, *B) {
 		return nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
@@ -389,18 +391,18 @@ func (v *View2[A, B]) Count() int {
 func (v *View2[A, B]) MapId(lambda func(id Id, a *A, b *B)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -443,9 +445,9 @@ func (v *View2[A, B]) MapId(lambda func(id Id, a *A, b *B)) {
 func (v *View2[A, B]) MapIdParallel(lambda func(id Id, a *A, b *B)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -527,8 +529,8 @@ func (v *View2[A, B]) MapIdParallel(lambda func(id Id, a *A, b *B)) {
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -582,11 +584,11 @@ func (v *View2[A, B]) MapSlices(lambda func(id []Id, a []A, b []B)) {
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -620,9 +622,9 @@ type View3[A, B, C any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
-	storageC *componentSliceStorage[C]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
+	storageC *componentStorage[C]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -671,32 +673,33 @@ func (v *View3[A, B, C]) Read(id Id) (*A, *B, *C) {
 		return nil, nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
 	var retC *C
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
-	sliceC, ok := v.storageC.slice[archId]
+	sliceC, ok := v.storageC.slice.Get(loc.archId)
 	if ok {
 		retC = &sliceC.comp[index]
 	}
@@ -724,23 +727,23 @@ func (v *View3[A, B, C]) Count() int {
 func (v *View3[A, B, C]) MapId(lambda func(id Id, a *A, b *B, c *C)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 	var compC []C
 	var retC *C
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -791,11 +794,11 @@ func (v *View3[A, B, C]) MapId(lambda func(id Id, a *A, b *B, c *C)) {
 func (v *View3[A, B, C]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -885,9 +888,9 @@ func (v *View3[A, B, C]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C)) {
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -948,15 +951,15 @@ func (v *View3[A, B, C]) MapSlices(lambda func(id []Id, a []A, b []B, c []C)) {
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceC, ok := v.storageC.slice[archId]
+		sliceC, ok := v.storageC.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -991,10 +994,10 @@ type View4[A, B, C, D any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
-	storageC *componentSliceStorage[C]
-	storageD *componentSliceStorage[D]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
+	storageC *componentStorage[C]
+	storageD *componentStorage[D]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -1047,37 +1050,38 @@ func (v *View4[A, B, C, D]) Read(id Id) (*A, *B, *C, *D) {
 		return nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil, nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil, nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
 	var retC *C
 	var retD *D
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
-	sliceC, ok := v.storageC.slice[archId]
+	sliceC, ok := v.storageC.slice.Get(loc.archId)
 	if ok {
 		retC = &sliceC.comp[index]
 	}
-	sliceD, ok := v.storageD.slice[archId]
+	sliceD, ok := v.storageD.slice.Get(loc.archId)
 	if ok {
 		retD = &sliceD.comp[index]
 	}
@@ -1105,28 +1109,28 @@ func (v *View4[A, B, C, D]) Count() int {
 func (v *View4[A, B, C, D]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 	var compC []C
 	var retC *C
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 	var compD []D
 	var retD *D
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -1185,13 +1189,13 @@ func (v *View4[A, B, C, D]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D)) {
 func (v *View4[A, B, C, D]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d *D)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -1289,10 +1293,10 @@ func (v *View4[A, B, C, D]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -1360,19 +1364,19 @@ func (v *View4[A, B, C, D]) MapSlices(lambda func(id []Id, a []A, b []B, c []C, 
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceC, ok := v.storageC.slice[archId]
+		sliceC, ok := v.storageC.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceD, ok := v.storageD.slice[archId]
+		sliceD, ok := v.storageD.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -1408,11 +1412,11 @@ type View5[A, B, C, D, E any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
-	storageC *componentSliceStorage[C]
-	storageD *componentSliceStorage[D]
-	storageE *componentSliceStorage[E]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
+	storageC *componentStorage[C]
+	storageD *componentStorage[D]
+	storageE *componentStorage[E]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -1469,18 +1473,19 @@ func (v *View5[A, B, C, D, E]) Read(id Id) (*A, *B, *C, *D, *E) {
 		return nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil, nil, nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil, nil, nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
@@ -1488,23 +1493,23 @@ func (v *View5[A, B, C, D, E]) Read(id Id) (*A, *B, *C, *D, *E) {
 	var retD *D
 	var retE *E
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
-	sliceC, ok := v.storageC.slice[archId]
+	sliceC, ok := v.storageC.slice.Get(loc.archId)
 	if ok {
 		retC = &sliceC.comp[index]
 	}
-	sliceD, ok := v.storageD.slice[archId]
+	sliceD, ok := v.storageD.slice.Get(loc.archId)
 	if ok {
 		retD = &sliceD.comp[index]
 	}
-	sliceE, ok := v.storageE.slice[archId]
+	sliceE, ok := v.storageE.slice.Get(loc.archId)
 	if ok {
 		retE = &sliceE.comp[index]
 	}
@@ -1532,33 +1537,33 @@ func (v *View5[A, B, C, D, E]) Count() int {
 func (v *View5[A, B, C, D, E]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 	var compC []C
 	var retC *C
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 	var compD []D
 	var retD *D
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 	var compE []E
 	var retE *E
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -1625,15 +1630,15 @@ func (v *View5[A, B, C, D, E]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, 
 func (v *View5[A, B, C, D, E]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d *D, e *E)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -1739,11 +1744,11 @@ func (v *View5[A, B, C, D, E]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -1818,23 +1823,23 @@ func (v *View5[A, B, C, D, E]) MapSlices(lambda func(id []Id, a []A, b []B, c []
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceC, ok := v.storageC.slice[archId]
+		sliceC, ok := v.storageC.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceD, ok := v.storageD.slice[archId]
+		sliceD, ok := v.storageD.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceE, ok := v.storageE.slice[archId]
+		sliceE, ok := v.storageE.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -1871,12 +1876,12 @@ type View6[A, B, C, D, E, F any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
-	storageC *componentSliceStorage[C]
-	storageD *componentSliceStorage[D]
-	storageE *componentSliceStorage[E]
-	storageF *componentSliceStorage[F]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
+	storageC *componentStorage[C]
+	storageD *componentStorage[D]
+	storageE *componentStorage[E]
+	storageF *componentStorage[F]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -1937,18 +1942,19 @@ func (v *View6[A, B, C, D, E, F]) Read(id Id) (*A, *B, *C, *D, *E, *F) {
 		return nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil, nil, nil, nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil, nil, nil, nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
@@ -1957,27 +1963,27 @@ func (v *View6[A, B, C, D, E, F]) Read(id Id) (*A, *B, *C, *D, *E, *F) {
 	var retE *E
 	var retF *F
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
-	sliceC, ok := v.storageC.slice[archId]
+	sliceC, ok := v.storageC.slice.Get(loc.archId)
 	if ok {
 		retC = &sliceC.comp[index]
 	}
-	sliceD, ok := v.storageD.slice[archId]
+	sliceD, ok := v.storageD.slice.Get(loc.archId)
 	if ok {
 		retD = &sliceD.comp[index]
 	}
-	sliceE, ok := v.storageE.slice[archId]
+	sliceE, ok := v.storageE.slice.Get(loc.archId)
 	if ok {
 		retE = &sliceE.comp[index]
 	}
-	sliceF, ok := v.storageF.slice[archId]
+	sliceF, ok := v.storageF.slice.Get(loc.archId)
 	if ok {
 		retF = &sliceF.comp[index]
 	}
@@ -2005,38 +2011,38 @@ func (v *View6[A, B, C, D, E, F]) Count() int {
 func (v *View6[A, B, C, D, E, F]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 	var compC []C
 	var retC *C
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 	var compD []D
 	var retD *D
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 	var compE []E
 	var retE *E
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 	var compF []F
 	var retF *F
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -2111,17 +2117,17 @@ func (v *View6[A, B, C, D, E, F]) MapId(lambda func(id Id, a *A, b *B, c *C, d *
 func (v *View6[A, B, C, D, E, F]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -2235,12 +2241,12 @@ func (v *View6[A, B, C, D, E, F]) MapIdParallel(lambda func(id Id, a *A, b *B, c
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -2322,27 +2328,27 @@ func (v *View6[A, B, C, D, E, F]) MapSlices(lambda func(id []Id, a []A, b []B, c
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceC, ok := v.storageC.slice[archId]
+		sliceC, ok := v.storageC.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceD, ok := v.storageD.slice[archId]
+		sliceD, ok := v.storageD.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceE, ok := v.storageE.slice[archId]
+		sliceE, ok := v.storageE.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceF, ok := v.storageF.slice[archId]
+		sliceF, ok := v.storageF.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -2380,13 +2386,13 @@ type View7[A, B, C, D, E, F, G any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
-	storageC *componentSliceStorage[C]
-	storageD *componentSliceStorage[D]
-	storageE *componentSliceStorage[E]
-	storageF *componentSliceStorage[F]
-	storageG *componentSliceStorage[G]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
+	storageC *componentStorage[C]
+	storageD *componentStorage[D]
+	storageE *componentStorage[E]
+	storageF *componentStorage[F]
+	storageG *componentStorage[G]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -2451,18 +2457,19 @@ func (v *View7[A, B, C, D, E, F, G]) Read(id Id) (*A, *B, *C, *D, *E, *F, *G) {
 		return nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil, nil, nil, nil, nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil, nil, nil, nil, nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
@@ -2472,31 +2479,31 @@ func (v *View7[A, B, C, D, E, F, G]) Read(id Id) (*A, *B, *C, *D, *E, *F, *G) {
 	var retF *F
 	var retG *G
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
-	sliceC, ok := v.storageC.slice[archId]
+	sliceC, ok := v.storageC.slice.Get(loc.archId)
 	if ok {
 		retC = &sliceC.comp[index]
 	}
-	sliceD, ok := v.storageD.slice[archId]
+	sliceD, ok := v.storageD.slice.Get(loc.archId)
 	if ok {
 		retD = &sliceD.comp[index]
 	}
-	sliceE, ok := v.storageE.slice[archId]
+	sliceE, ok := v.storageE.slice.Get(loc.archId)
 	if ok {
 		retE = &sliceE.comp[index]
 	}
-	sliceF, ok := v.storageF.slice[archId]
+	sliceF, ok := v.storageF.slice.Get(loc.archId)
 	if ok {
 		retF = &sliceF.comp[index]
 	}
-	sliceG, ok := v.storageG.slice[archId]
+	sliceG, ok := v.storageG.slice.Get(loc.archId)
 	if ok {
 		retG = &sliceG.comp[index]
 	}
@@ -2524,43 +2531,43 @@ func (v *View7[A, B, C, D, E, F, G]) Count() int {
 func (v *View7[A, B, C, D, E, F, G]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 	var compC []C
 	var retC *C
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 	var compD []D
 	var retD *D
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 	var compE []E
 	var retE *E
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 	var compF []F
 	var retF *F
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 	var compG []G
 	var retG *G
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -2643,19 +2650,19 @@ func (v *View7[A, B, C, D, E, F, G]) MapId(lambda func(id Id, a *A, b *B, c *C, 
 func (v *View7[A, B, C, D, E, F, G]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -2777,13 +2784,13 @@ func (v *View7[A, B, C, D, E, F, G]) MapIdParallel(lambda func(id Id, a *A, b *B
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -2872,31 +2879,31 @@ func (v *View7[A, B, C, D, E, F, G]) MapSlices(lambda func(id []Id, a []A, b []B
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceC, ok := v.storageC.slice[archId]
+		sliceC, ok := v.storageC.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceD, ok := v.storageD.slice[archId]
+		sliceD, ok := v.storageD.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceE, ok := v.storageE.slice[archId]
+		sliceE, ok := v.storageE.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceF, ok := v.storageF.slice[archId]
+		sliceF, ok := v.storageF.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceG, ok := v.storageG.slice[archId]
+		sliceG, ok := v.storageG.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -2935,14 +2942,14 @@ type View8[A, B, C, D, E, F, G, H any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
-	storageC *componentSliceStorage[C]
-	storageD *componentSliceStorage[D]
-	storageE *componentSliceStorage[E]
-	storageF *componentSliceStorage[F]
-	storageG *componentSliceStorage[G]
-	storageH *componentSliceStorage[H]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
+	storageC *componentStorage[C]
+	storageD *componentStorage[D]
+	storageE *componentStorage[E]
+	storageF *componentStorage[F]
+	storageG *componentStorage[G]
+	storageH *componentStorage[H]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -3011,18 +3018,19 @@ func (v *View8[A, B, C, D, E, F, G, H]) Read(id Id) (*A, *B, *C, *D, *E, *F, *G,
 		return nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil, nil, nil, nil, nil, nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil, nil, nil, nil, nil, nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
@@ -3033,35 +3041,35 @@ func (v *View8[A, B, C, D, E, F, G, H]) Read(id Id) (*A, *B, *C, *D, *E, *F, *G,
 	var retG *G
 	var retH *H
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
-	sliceC, ok := v.storageC.slice[archId]
+	sliceC, ok := v.storageC.slice.Get(loc.archId)
 	if ok {
 		retC = &sliceC.comp[index]
 	}
-	sliceD, ok := v.storageD.slice[archId]
+	sliceD, ok := v.storageD.slice.Get(loc.archId)
 	if ok {
 		retD = &sliceD.comp[index]
 	}
-	sliceE, ok := v.storageE.slice[archId]
+	sliceE, ok := v.storageE.slice.Get(loc.archId)
 	if ok {
 		retE = &sliceE.comp[index]
 	}
-	sliceF, ok := v.storageF.slice[archId]
+	sliceF, ok := v.storageF.slice.Get(loc.archId)
 	if ok {
 		retF = &sliceF.comp[index]
 	}
-	sliceG, ok := v.storageG.slice[archId]
+	sliceG, ok := v.storageG.slice.Get(loc.archId)
 	if ok {
 		retG = &sliceG.comp[index]
 	}
-	sliceH, ok := v.storageH.slice[archId]
+	sliceH, ok := v.storageH.slice.Get(loc.archId)
 	if ok {
 		retH = &sliceH.comp[index]
 	}
@@ -3089,48 +3097,48 @@ func (v *View8[A, B, C, D, E, F, G, H]) Count() int {
 func (v *View8[A, B, C, D, E, F, G, H]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G, h *H)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 	var compC []C
 	var retC *C
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 	var compD []D
 	var retD *D
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 	var compE []E
 	var retE *E
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 	var compF []F
 	var retF *F
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 	var compG []G
 	var retG *G
 
-	var sliceH *componentSlice[H]
+	var sliceH *componentList[H]
 	var compH []H
 	var retH *H
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
-		sliceH, _ = v.storageH.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
+		sliceH, _ = v.storageH.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -3221,21 +3229,21 @@ func (v *View8[A, B, C, D, E, F, G, H]) MapId(lambda func(id Id, a *A, b *B, c *
 func (v *View8[A, B, C, D, E, F, G, H]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G, h *H)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 
-	var sliceH *componentSlice[H]
+	var sliceH *componentList[H]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -3365,14 +3373,14 @@ func (v *View8[A, B, C, D, E, F, G, H]) MapIdParallel(lambda func(id Id, a *A, b
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
-		sliceH, _ = v.storageH.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
+		sliceH, _ = v.storageH.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -3468,35 +3476,35 @@ func (v *View8[A, B, C, D, E, F, G, H]) MapSlices(lambda func(id []Id, a []A, b 
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceC, ok := v.storageC.slice[archId]
+		sliceC, ok := v.storageC.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceD, ok := v.storageD.slice[archId]
+		sliceD, ok := v.storageD.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceE, ok := v.storageE.slice[archId]
+		sliceE, ok := v.storageE.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceF, ok := v.storageF.slice[archId]
+		sliceF, ok := v.storageF.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceG, ok := v.storageG.slice[archId]
+		sliceG, ok := v.storageG.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceH, ok := v.storageH.slice[archId]
+		sliceH, ok := v.storageH.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -3536,15 +3544,15 @@ type View9[A, B, C, D, E, F, G, H, I any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
-	storageC *componentSliceStorage[C]
-	storageD *componentSliceStorage[D]
-	storageE *componentSliceStorage[E]
-	storageF *componentSliceStorage[F]
-	storageG *componentSliceStorage[G]
-	storageH *componentSliceStorage[H]
-	storageI *componentSliceStorage[I]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
+	storageC *componentStorage[C]
+	storageD *componentStorage[D]
+	storageE *componentStorage[E]
+	storageF *componentStorage[F]
+	storageG *componentStorage[G]
+	storageH *componentStorage[H]
+	storageI *componentStorage[I]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -3617,18 +3625,19 @@ func (v *View9[A, B, C, D, E, F, G, H, I]) Read(id Id) (*A, *B, *C, *D, *E, *F, 
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil, nil, nil, nil, nil, nil, nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
@@ -3640,39 +3649,39 @@ func (v *View9[A, B, C, D, E, F, G, H, I]) Read(id Id) (*A, *B, *C, *D, *E, *F, 
 	var retH *H
 	var retI *I
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
-	sliceC, ok := v.storageC.slice[archId]
+	sliceC, ok := v.storageC.slice.Get(loc.archId)
 	if ok {
 		retC = &sliceC.comp[index]
 	}
-	sliceD, ok := v.storageD.slice[archId]
+	sliceD, ok := v.storageD.slice.Get(loc.archId)
 	if ok {
 		retD = &sliceD.comp[index]
 	}
-	sliceE, ok := v.storageE.slice[archId]
+	sliceE, ok := v.storageE.slice.Get(loc.archId)
 	if ok {
 		retE = &sliceE.comp[index]
 	}
-	sliceF, ok := v.storageF.slice[archId]
+	sliceF, ok := v.storageF.slice.Get(loc.archId)
 	if ok {
 		retF = &sliceF.comp[index]
 	}
-	sliceG, ok := v.storageG.slice[archId]
+	sliceG, ok := v.storageG.slice.Get(loc.archId)
 	if ok {
 		retG = &sliceG.comp[index]
 	}
-	sliceH, ok := v.storageH.slice[archId]
+	sliceH, ok := v.storageH.slice.Get(loc.archId)
 	if ok {
 		retH = &sliceH.comp[index]
 	}
-	sliceI, ok := v.storageI.slice[archId]
+	sliceI, ok := v.storageI.slice.Get(loc.archId)
 	if ok {
 		retI = &sliceI.comp[index]
 	}
@@ -3700,53 +3709,53 @@ func (v *View9[A, B, C, D, E, F, G, H, I]) Count() int {
 func (v *View9[A, B, C, D, E, F, G, H, I]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G, h *H, i *I)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 	var compC []C
 	var retC *C
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 	var compD []D
 	var retD *D
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 	var compE []E
 	var retE *E
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 	var compF []F
 	var retF *F
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 	var compG []G
 	var retG *G
 
-	var sliceH *componentSlice[H]
+	var sliceH *componentList[H]
 	var compH []H
 	var retH *H
 
-	var sliceI *componentSlice[I]
+	var sliceI *componentList[I]
 	var compI []I
 	var retI *I
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
-		sliceH, _ = v.storageH.slice[archId]
-		sliceI, _ = v.storageI.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
+		sliceH, _ = v.storageH.slice.Get(archId)
+		sliceI, _ = v.storageI.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -3845,23 +3854,23 @@ func (v *View9[A, B, C, D, E, F, G, H, I]) MapId(lambda func(id Id, a *A, b *B, 
 func (v *View9[A, B, C, D, E, F, G, H, I]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G, h *H, i *I)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 
-	var sliceH *componentSlice[H]
+	var sliceH *componentList[H]
 
-	var sliceI *componentSlice[I]
+	var sliceI *componentList[I]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -3999,15 +4008,15 @@ func (v *View9[A, B, C, D, E, F, G, H, I]) MapIdParallel(lambda func(id Id, a *A
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
-		sliceH, _ = v.storageH.slice[archId]
-		sliceI, _ = v.storageI.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
+		sliceH, _ = v.storageH.slice.Get(archId)
+		sliceI, _ = v.storageI.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -4110,39 +4119,39 @@ func (v *View9[A, B, C, D, E, F, G, H, I]) MapSlices(lambda func(id []Id, a []A,
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceC, ok := v.storageC.slice[archId]
+		sliceC, ok := v.storageC.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceD, ok := v.storageD.slice[archId]
+		sliceD, ok := v.storageD.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceE, ok := v.storageE.slice[archId]
+		sliceE, ok := v.storageE.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceF, ok := v.storageF.slice[archId]
+		sliceF, ok := v.storageF.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceG, ok := v.storageG.slice[archId]
+		sliceG, ok := v.storageG.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceH, ok := v.storageH.slice[archId]
+		sliceH, ok := v.storageH.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceI, ok := v.storageI.slice[archId]
+		sliceI, ok := v.storageI.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -4183,16 +4192,16 @@ type View10[A, B, C, D, E, F, G, H, I, J any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
-	storageC *componentSliceStorage[C]
-	storageD *componentSliceStorage[D]
-	storageE *componentSliceStorage[E]
-	storageF *componentSliceStorage[F]
-	storageG *componentSliceStorage[G]
-	storageH *componentSliceStorage[H]
-	storageI *componentSliceStorage[I]
-	storageJ *componentSliceStorage[J]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
+	storageC *componentStorage[C]
+	storageD *componentStorage[D]
+	storageE *componentStorage[E]
+	storageF *componentStorage[F]
+	storageG *componentStorage[G]
+	storageH *componentStorage[H]
+	storageI *componentStorage[I]
+	storageJ *componentStorage[J]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -4269,18 +4278,19 @@ func (v *View10[A, B, C, D, E, F, G, H, I, J]) Read(id Id) (*A, *B, *C, *D, *E, 
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
@@ -4293,43 +4303,43 @@ func (v *View10[A, B, C, D, E, F, G, H, I, J]) Read(id Id) (*A, *B, *C, *D, *E, 
 	var retI *I
 	var retJ *J
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
-	sliceC, ok := v.storageC.slice[archId]
+	sliceC, ok := v.storageC.slice.Get(loc.archId)
 	if ok {
 		retC = &sliceC.comp[index]
 	}
-	sliceD, ok := v.storageD.slice[archId]
+	sliceD, ok := v.storageD.slice.Get(loc.archId)
 	if ok {
 		retD = &sliceD.comp[index]
 	}
-	sliceE, ok := v.storageE.slice[archId]
+	sliceE, ok := v.storageE.slice.Get(loc.archId)
 	if ok {
 		retE = &sliceE.comp[index]
 	}
-	sliceF, ok := v.storageF.slice[archId]
+	sliceF, ok := v.storageF.slice.Get(loc.archId)
 	if ok {
 		retF = &sliceF.comp[index]
 	}
-	sliceG, ok := v.storageG.slice[archId]
+	sliceG, ok := v.storageG.slice.Get(loc.archId)
 	if ok {
 		retG = &sliceG.comp[index]
 	}
-	sliceH, ok := v.storageH.slice[archId]
+	sliceH, ok := v.storageH.slice.Get(loc.archId)
 	if ok {
 		retH = &sliceH.comp[index]
 	}
-	sliceI, ok := v.storageI.slice[archId]
+	sliceI, ok := v.storageI.slice.Get(loc.archId)
 	if ok {
 		retI = &sliceI.comp[index]
 	}
-	sliceJ, ok := v.storageJ.slice[archId]
+	sliceJ, ok := v.storageJ.slice.Get(loc.archId)
 	if ok {
 		retJ = &sliceJ.comp[index]
 	}
@@ -4357,58 +4367,58 @@ func (v *View10[A, B, C, D, E, F, G, H, I, J]) Count() int {
 func (v *View10[A, B, C, D, E, F, G, H, I, J]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G, h *H, i *I, j *J)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 	var compC []C
 	var retC *C
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 	var compD []D
 	var retD *D
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 	var compE []E
 	var retE *E
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 	var compF []F
 	var retF *F
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 	var compG []G
 	var retG *G
 
-	var sliceH *componentSlice[H]
+	var sliceH *componentList[H]
 	var compH []H
 	var retH *H
 
-	var sliceI *componentSlice[I]
+	var sliceI *componentList[I]
 	var compI []I
 	var retI *I
 
-	var sliceJ *componentSlice[J]
+	var sliceJ *componentList[J]
 	var compJ []J
 	var retJ *J
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
-		sliceH, _ = v.storageH.slice[archId]
-		sliceI, _ = v.storageI.slice[archId]
-		sliceJ, _ = v.storageJ.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
+		sliceH, _ = v.storageH.slice.Get(archId)
+		sliceI, _ = v.storageI.slice.Get(archId)
+		sliceJ, _ = v.storageJ.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -4515,25 +4525,25 @@ func (v *View10[A, B, C, D, E, F, G, H, I, J]) MapId(lambda func(id Id, a *A, b 
 func (v *View10[A, B, C, D, E, F, G, H, I, J]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G, h *H, i *I, j *J)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 
-	var sliceH *componentSlice[H]
+	var sliceH *componentList[H]
 
-	var sliceI *componentSlice[I]
+	var sliceI *componentList[I]
 
-	var sliceJ *componentSlice[J]
+	var sliceJ *componentList[J]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -4679,16 +4689,16 @@ func (v *View10[A, B, C, D, E, F, G, H, I, J]) MapIdParallel(lambda func(id Id, 
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
-		sliceH, _ = v.storageH.slice[archId]
-		sliceI, _ = v.storageI.slice[archId]
-		sliceJ, _ = v.storageJ.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
+		sliceH, _ = v.storageH.slice.Get(archId)
+		sliceI, _ = v.storageI.slice.Get(archId)
+		sliceJ, _ = v.storageJ.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -4798,43 +4808,43 @@ func (v *View10[A, B, C, D, E, F, G, H, I, J]) MapSlices(lambda func(id []Id, a 
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceC, ok := v.storageC.slice[archId]
+		sliceC, ok := v.storageC.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceD, ok := v.storageD.slice[archId]
+		sliceD, ok := v.storageD.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceE, ok := v.storageE.slice[archId]
+		sliceE, ok := v.storageE.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceF, ok := v.storageF.slice[archId]
+		sliceF, ok := v.storageF.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceG, ok := v.storageG.slice[archId]
+		sliceG, ok := v.storageG.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceH, ok := v.storageH.slice[archId]
+		sliceH, ok := v.storageH.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceI, ok := v.storageI.slice[archId]
+		sliceI, ok := v.storageI.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceJ, ok := v.storageJ.slice[archId]
+		sliceJ, ok := v.storageJ.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -4876,17 +4886,17 @@ type View11[A, B, C, D, E, F, G, H, I, J, K any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
-	storageC *componentSliceStorage[C]
-	storageD *componentSliceStorage[D]
-	storageE *componentSliceStorage[E]
-	storageF *componentSliceStorage[F]
-	storageG *componentSliceStorage[G]
-	storageH *componentSliceStorage[H]
-	storageI *componentSliceStorage[I]
-	storageJ *componentSliceStorage[J]
-	storageK *componentSliceStorage[K]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
+	storageC *componentStorage[C]
+	storageD *componentStorage[D]
+	storageE *componentStorage[E]
+	storageF *componentStorage[F]
+	storageG *componentStorage[G]
+	storageH *componentStorage[H]
+	storageI *componentStorage[I]
+	storageJ *componentStorage[J]
+	storageK *componentStorage[K]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -4967,18 +4977,19 @@ func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) Read(id Id) (*A, *B, *C, *D, *
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
@@ -4992,47 +5003,47 @@ func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) Read(id Id) (*A, *B, *C, *D, *
 	var retJ *J
 	var retK *K
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
-	sliceC, ok := v.storageC.slice[archId]
+	sliceC, ok := v.storageC.slice.Get(loc.archId)
 	if ok {
 		retC = &sliceC.comp[index]
 	}
-	sliceD, ok := v.storageD.slice[archId]
+	sliceD, ok := v.storageD.slice.Get(loc.archId)
 	if ok {
 		retD = &sliceD.comp[index]
 	}
-	sliceE, ok := v.storageE.slice[archId]
+	sliceE, ok := v.storageE.slice.Get(loc.archId)
 	if ok {
 		retE = &sliceE.comp[index]
 	}
-	sliceF, ok := v.storageF.slice[archId]
+	sliceF, ok := v.storageF.slice.Get(loc.archId)
 	if ok {
 		retF = &sliceF.comp[index]
 	}
-	sliceG, ok := v.storageG.slice[archId]
+	sliceG, ok := v.storageG.slice.Get(loc.archId)
 	if ok {
 		retG = &sliceG.comp[index]
 	}
-	sliceH, ok := v.storageH.slice[archId]
+	sliceH, ok := v.storageH.slice.Get(loc.archId)
 	if ok {
 		retH = &sliceH.comp[index]
 	}
-	sliceI, ok := v.storageI.slice[archId]
+	sliceI, ok := v.storageI.slice.Get(loc.archId)
 	if ok {
 		retI = &sliceI.comp[index]
 	}
-	sliceJ, ok := v.storageJ.slice[archId]
+	sliceJ, ok := v.storageJ.slice.Get(loc.archId)
 	if ok {
 		retJ = &sliceJ.comp[index]
 	}
-	sliceK, ok := v.storageK.slice[archId]
+	sliceK, ok := v.storageK.slice.Get(loc.archId)
 	if ok {
 		retK = &sliceK.comp[index]
 	}
@@ -5060,63 +5071,63 @@ func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) Count() int {
 func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G, h *H, i *I, j *J, k *K)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 	var compC []C
 	var retC *C
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 	var compD []D
 	var retD *D
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 	var compE []E
 	var retE *E
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 	var compF []F
 	var retF *F
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 	var compG []G
 	var retG *G
 
-	var sliceH *componentSlice[H]
+	var sliceH *componentList[H]
 	var compH []H
 	var retH *H
 
-	var sliceI *componentSlice[I]
+	var sliceI *componentList[I]
 	var compI []I
 	var retI *I
 
-	var sliceJ *componentSlice[J]
+	var sliceJ *componentList[J]
 	var compJ []J
 	var retJ *J
 
-	var sliceK *componentSlice[K]
+	var sliceK *componentList[K]
 	var compK []K
 	var retK *K
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
-		sliceH, _ = v.storageH.slice[archId]
-		sliceI, _ = v.storageI.slice[archId]
-		sliceJ, _ = v.storageJ.slice[archId]
-		sliceK, _ = v.storageK.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
+		sliceH, _ = v.storageH.slice.Get(archId)
+		sliceI, _ = v.storageI.slice.Get(archId)
+		sliceJ, _ = v.storageJ.slice.Get(archId)
+		sliceK, _ = v.storageK.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -5231,27 +5242,27 @@ func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) MapId(lambda func(id Id, a *A,
 func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G, h *H, i *I, j *J, k *K)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 
-	var sliceH *componentSlice[H]
+	var sliceH *componentList[H]
 
-	var sliceI *componentSlice[I]
+	var sliceI *componentList[I]
 
-	var sliceJ *componentSlice[J]
+	var sliceJ *componentList[J]
 
-	var sliceK *componentSlice[K]
+	var sliceK *componentList[K]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -5405,17 +5416,17 @@ func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) MapIdParallel(lambda func(id I
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
-		sliceH, _ = v.storageH.slice[archId]
-		sliceI, _ = v.storageI.slice[archId]
-		sliceJ, _ = v.storageJ.slice[archId]
-		sliceK, _ = v.storageK.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
+		sliceH, _ = v.storageH.slice.Get(archId)
+		sliceI, _ = v.storageI.slice.Get(archId)
+		sliceJ, _ = v.storageJ.slice.Get(archId)
+		sliceK, _ = v.storageK.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -5532,47 +5543,47 @@ func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) MapSlices(lambda func(id []Id,
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceC, ok := v.storageC.slice[archId]
+		sliceC, ok := v.storageC.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceD, ok := v.storageD.slice[archId]
+		sliceD, ok := v.storageD.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceE, ok := v.storageE.slice[archId]
+		sliceE, ok := v.storageE.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceF, ok := v.storageF.slice[archId]
+		sliceF, ok := v.storageF.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceG, ok := v.storageG.slice[archId]
+		sliceG, ok := v.storageG.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceH, ok := v.storageH.slice[archId]
+		sliceH, ok := v.storageH.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceI, ok := v.storageI.slice[archId]
+		sliceI, ok := v.storageI.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceJ, ok := v.storageJ.slice[archId]
+		sliceJ, ok := v.storageJ.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceK, ok := v.storageK.slice[archId]
+		sliceK, ok := v.storageK.slice.Get(archId)
 		if !ok {
 			continue
 		}
@@ -5615,18 +5626,18 @@ type View12[A, B, C, D, E, F, G, H, I, J, K, L any] struct {
 	world  *World
 	filter filterList
 
-	storageA *componentSliceStorage[A]
-	storageB *componentSliceStorage[B]
-	storageC *componentSliceStorage[C]
-	storageD *componentSliceStorage[D]
-	storageE *componentSliceStorage[E]
-	storageF *componentSliceStorage[F]
-	storageG *componentSliceStorage[G]
-	storageH *componentSliceStorage[H]
-	storageI *componentSliceStorage[I]
-	storageJ *componentSliceStorage[J]
-	storageK *componentSliceStorage[K]
-	storageL *componentSliceStorage[L]
+	storageA *componentStorage[A]
+	storageB *componentStorage[B]
+	storageC *componentStorage[C]
+	storageD *componentStorage[D]
+	storageE *componentStorage[E]
+	storageF *componentStorage[F]
+	storageG *componentStorage[G]
+	storageH *componentStorage[H]
+	storageI *componentStorage[I]
+	storageJ *componentStorage[J]
+	storageK *componentStorage[K]
+	storageL *componentStorage[L]
 }
 
 // implement the intializer interface so that it can be automatically created and injected into systems
@@ -5711,18 +5722,19 @@ func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) Read(id Id) (*A, *B, *C, *D
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
-	archId, ok := v.world.arch.Get(id)
+	loc, ok := v.world.arch.Get(id)
 	if !ok {
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
 	}
-	lookup := v.world.engine.lookup[archId]
+	lookup := v.world.engine.lookup[loc.archId]
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
+	// }
+	index := int(loc.index)
 
 	var retA *A
 	var retB *B
@@ -5737,51 +5749,51 @@ func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) Read(id Id) (*A, *B, *C, *D
 	var retK *K
 	var retL *L
 
-	sliceA, ok := v.storageA.slice[archId]
+	sliceA, ok := v.storageA.slice.Get(loc.archId)
 	if ok {
 		retA = &sliceA.comp[index]
 	}
-	sliceB, ok := v.storageB.slice[archId]
+	sliceB, ok := v.storageB.slice.Get(loc.archId)
 	if ok {
 		retB = &sliceB.comp[index]
 	}
-	sliceC, ok := v.storageC.slice[archId]
+	sliceC, ok := v.storageC.slice.Get(loc.archId)
 	if ok {
 		retC = &sliceC.comp[index]
 	}
-	sliceD, ok := v.storageD.slice[archId]
+	sliceD, ok := v.storageD.slice.Get(loc.archId)
 	if ok {
 		retD = &sliceD.comp[index]
 	}
-	sliceE, ok := v.storageE.slice[archId]
+	sliceE, ok := v.storageE.slice.Get(loc.archId)
 	if ok {
 		retE = &sliceE.comp[index]
 	}
-	sliceF, ok := v.storageF.slice[archId]
+	sliceF, ok := v.storageF.slice.Get(loc.archId)
 	if ok {
 		retF = &sliceF.comp[index]
 	}
-	sliceG, ok := v.storageG.slice[archId]
+	sliceG, ok := v.storageG.slice.Get(loc.archId)
 	if ok {
 		retG = &sliceG.comp[index]
 	}
-	sliceH, ok := v.storageH.slice[archId]
+	sliceH, ok := v.storageH.slice.Get(loc.archId)
 	if ok {
 		retH = &sliceH.comp[index]
 	}
-	sliceI, ok := v.storageI.slice[archId]
+	sliceI, ok := v.storageI.slice.Get(loc.archId)
 	if ok {
 		retI = &sliceI.comp[index]
 	}
-	sliceJ, ok := v.storageJ.slice[archId]
+	sliceJ, ok := v.storageJ.slice.Get(loc.archId)
 	if ok {
 		retJ = &sliceJ.comp[index]
 	}
-	sliceK, ok := v.storageK.slice[archId]
+	sliceK, ok := v.storageK.slice.Get(loc.archId)
 	if ok {
 		retK = &sliceK.comp[index]
 	}
-	sliceL, ok := v.storageL.slice[archId]
+	sliceL, ok := v.storageL.slice.Get(loc.archId)
 	if ok {
 		retL = &sliceL.comp[index]
 	}
@@ -5809,68 +5821,68 @@ func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) Count() int {
 func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) MapId(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G, h *H, i *I, j *J, k *K, l *L)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 	var compA []A
 	var retA *A
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 	var compB []B
 	var retB *B
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 	var compC []C
 	var retC *C
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 	var compD []D
 	var retD *D
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 	var compE []E
 	var retE *E
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 	var compF []F
 	var retF *F
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 	var compG []G
 	var retG *G
 
-	var sliceH *componentSlice[H]
+	var sliceH *componentList[H]
 	var compH []H
 	var retH *H
 
-	var sliceI *componentSlice[I]
+	var sliceI *componentList[I]
 	var compI []I
 	var retI *I
 
-	var sliceJ *componentSlice[J]
+	var sliceJ *componentList[J]
 	var compJ []J
 	var retJ *J
 
-	var sliceK *componentSlice[K]
+	var sliceK *componentList[K]
 	var compK []K
 	var retK *K
 
-	var sliceL *componentSlice[L]
+	var sliceL *componentList[L]
 	var compL []L
 	var retL *L
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
-		sliceH, _ = v.storageH.slice[archId]
-		sliceI, _ = v.storageI.slice[archId]
-		sliceJ, _ = v.storageJ.slice[archId]
-		sliceK, _ = v.storageK.slice[archId]
-		sliceL, _ = v.storageL.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
+		sliceH, _ = v.storageH.slice.Get(archId)
+		sliceI, _ = v.storageI.slice.Get(archId)
+		sliceJ, _ = v.storageJ.slice.Get(archId)
+		sliceK, _ = v.storageK.slice.Get(archId)
+		sliceL, _ = v.storageL.slice.Get(archId)
 
 		lookup := v.world.engine.lookup[archId]
 		if lookup == nil {
@@ -5993,29 +6005,29 @@ func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) MapId(lambda func(id Id, a 
 func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d *D, e *E, f *F, g *G, h *H, i *I, j *J, k *K, l *L)) {
 	v.filter.regenerate(v.world)
 
-	var sliceA *componentSlice[A]
+	var sliceA *componentList[A]
 
-	var sliceB *componentSlice[B]
+	var sliceB *componentList[B]
 
-	var sliceC *componentSlice[C]
+	var sliceC *componentList[C]
 
-	var sliceD *componentSlice[D]
+	var sliceD *componentList[D]
 
-	var sliceE *componentSlice[E]
+	var sliceE *componentList[E]
 
-	var sliceF *componentSlice[F]
+	var sliceF *componentList[F]
 
-	var sliceG *componentSlice[G]
+	var sliceG *componentList[G]
 
-	var sliceH *componentSlice[H]
+	var sliceH *componentList[H]
 
-	var sliceI *componentSlice[I]
+	var sliceI *componentList[I]
 
-	var sliceJ *componentSlice[J]
+	var sliceJ *componentList[J]
 
-	var sliceK *componentSlice[K]
+	var sliceK *componentList[K]
 
-	var sliceL *componentSlice[L]
+	var sliceL *componentList[L]
 
 	// 1. Calculate work
 	// 2. Calculate number of threads to execute with
@@ -6177,18 +6189,18 @@ func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) MapIdParallel(lambda func(i
 		}
 		ids := lookup.id
 
-		sliceA, _ = v.storageA.slice[archId]
-		sliceB, _ = v.storageB.slice[archId]
-		sliceC, _ = v.storageC.slice[archId]
-		sliceD, _ = v.storageD.slice[archId]
-		sliceE, _ = v.storageE.slice[archId]
-		sliceF, _ = v.storageF.slice[archId]
-		sliceG, _ = v.storageG.slice[archId]
-		sliceH, _ = v.storageH.slice[archId]
-		sliceI, _ = v.storageI.slice[archId]
-		sliceJ, _ = v.storageJ.slice[archId]
-		sliceK, _ = v.storageK.slice[archId]
-		sliceL, _ = v.storageL.slice[archId]
+		sliceA, _ = v.storageA.slice.Get(archId)
+		sliceB, _ = v.storageB.slice.Get(archId)
+		sliceC, _ = v.storageC.slice.Get(archId)
+		sliceD, _ = v.storageD.slice.Get(archId)
+		sliceE, _ = v.storageE.slice.Get(archId)
+		sliceF, _ = v.storageF.slice.Get(archId)
+		sliceG, _ = v.storageG.slice.Get(archId)
+		sliceH, _ = v.storageH.slice.Get(archId)
+		sliceI, _ = v.storageI.slice.Get(archId)
+		sliceJ, _ = v.storageJ.slice.Get(archId)
+		sliceK, _ = v.storageK.slice.Get(archId)
+		sliceL, _ = v.storageL.slice.Get(archId)
 
 		compA = nil
 		if sliceA != nil {
@@ -6312,51 +6324,51 @@ func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) MapSlices(lambda func(id []
 
 	for _, archId := range v.filter.archIds {
 
-		sliceA, ok := v.storageA.slice[archId]
+		sliceA, ok := v.storageA.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceB, ok := v.storageB.slice[archId]
+		sliceB, ok := v.storageB.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceC, ok := v.storageC.slice[archId]
+		sliceC, ok := v.storageC.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceD, ok := v.storageD.slice[archId]
+		sliceD, ok := v.storageD.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceE, ok := v.storageE.slice[archId]
+		sliceE, ok := v.storageE.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceF, ok := v.storageF.slice[archId]
+		sliceF, ok := v.storageF.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceG, ok := v.storageG.slice[archId]
+		sliceG, ok := v.storageG.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceH, ok := v.storageH.slice[archId]
+		sliceH, ok := v.storageH.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceI, ok := v.storageI.slice[archId]
+		sliceI, ok := v.storageI.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceJ, ok := v.storageJ.slice[archId]
+		sliceJ, ok := v.storageJ.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceK, ok := v.storageK.slice[archId]
+		sliceK, ok := v.storageK.slice.Get(archId)
 		if !ok {
 			continue
 		}
-		sliceL, ok := v.storageL.slice[archId]
+		sliceL, ok := v.storageL.slice.Get(archId)
 		if !ok {
 			continue
 		}

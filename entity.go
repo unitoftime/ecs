@@ -101,12 +101,12 @@ func (ent *Entity) Write(world *World, id Id) {
 
 // Reads the entire entity out of the world and into an *Entity object. Returns nil if the entity doesn't exist
 func ReadEntity(world *World, id Id) *Entity {
-	archId, ok := world.arch.Get(id)
+	entLoc, ok := world.arch.Get(id)
 	if !ok {
 		return nil
 	}
 
-	return world.engine.ReadEntity(archId, id)
+	return world.engine.ReadEntity(entLoc, id)
 }
 
 // Deletes a component on this entity
@@ -215,12 +215,12 @@ func (e *RawEntity) Comps() []any {
 
 // Reads the entire entity out of the world and into an *RawEntity object. Returns nil if the entity doesn't exist. RawEntity is lik
 func ReadRawEntity(world *World, id Id) *RawEntity {
-	archId, ok := world.arch.Get(id)
+	loc, ok := world.arch.Get(id)
 	if !ok {
 		return nil
 	}
 
-	return world.engine.ReadRawEntity(archId, id)
+	return world.engine.ReadRawEntity(loc, id)
 }
 
 // Deletes a component on this entity
