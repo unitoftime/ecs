@@ -20,7 +20,7 @@ type lookupList struct {
 }
 
 func (l *lookupList) Len() int {
-	return l.index.Len()
+	return len(l.id) - len(l.holes)
 }
 
 // Adds ourselves to the last available hole, else appends

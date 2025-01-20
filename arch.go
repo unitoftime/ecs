@@ -162,17 +162,19 @@ func getStorageByCompId[T any](e *archEngine, compId CompId) *componentStorage[T
 func (e *archEngine) getOrAddLookupIndex(archId archetypeId, id Id) int {
 	lookup := e.lookup[archId]
 
-	// Check if we want to cleanup holes
-	// TODO: This is a defragmentation operation. I'm not really sure how to compute heuristically that we should repack our slices. Too big it causes a stall, too small it causes unecessary repacks. maybe make it percentage based on holes per total entities. Maybe repack one at a time. Currently this should only trigger if we delete more than 1024 of the same archetype
-	if len(lookup.holes) >= 1024 {
-		e.CleanupHoles(archId)
-	}
+	// TODO: Removed this here. Need to relocate this somewhere better
+	// // Check if we want to cleanup holes
+	// // TODO: This is a defragmentation operation. I'm not really sure how to compute heuristically that we should repack our slices. Too big it causes a stall, too small it causes unecessary repacks. maybe make it percentage based on holes per total entities. Maybe repack one at a time. Currently this should only trigger if we delete more than 1024 of the same archetype
+	// if len(lookup.holes) >= 1024 {
+	// 	e.CleanupHoles(archId)
+	// }
 
-	index, ok := lookup.index.Get(id)
-	if !ok {
-		// Because the Id hasn't been added to this arch, we need to add it
-		index = lookup.addToEasiestHole(id)
-	}
+	// index, ok := lookup.index.Get(id)
+	// if !ok {
+	// 	// Because the Id hasn't been added to this arch, we need to add it
+	// 	index = lookup.addToEasiestHole(id)
+	// }
+	index := lookup.addToEasiestHole(id)
 	return index
 }
 
@@ -394,57 +396,65 @@ func (e *archEngine) TagForDeletion(loc entLoc, id Id) {
 	lookup.holes = append(lookup.holes, int(loc.index))
 }
 
-func (e *archEngine) CleanupHoles(archId archetypeId) {
-	lookup := e.lookup[archId]
-	if lookup == nil {
-		panic("Archetype doesn't have lookup list")
-	}
+// TODO: I removed this. there's one segement that needs to be fixed. Ideally it'd be nice to have a repack operation. I kinda feel like it isn't useful until after you do a bunch of writes though? Maybe execute repacks every so often after a command buffer execute
+// func (e *archEngine) CleanupHoles(archId archetypeId) {
+// 	lookup := e.lookup[archId]
+// 	if lookup == nil {
+// 		panic("Archetype doesn't have lookup list")
+// 	}
 
-	for _, index := range lookup.holes {
-		// Pop all holes off the end of the archetype
-		for {
-			lastIndex := len(lookup.id) - 1
-			if lastIndex < 0 {
-				break
-			} // Break if the index we are trying to pop off is -1
-			lastId := lookup.id[lastIndex]
-			if lastId == InvalidEntity {
-				// If the last id is a hole, then slice it off
-				lookup.id = lookup.id[:lastIndex]
-				for n := range e.compStorage {
-					if e.compStorage[n] != nil {
-						e.compStorage[n].Delete(archId, lastIndex)
-					}
-				}
+// 	for _, index := range lookup.holes {
+// 		// Pop all holes off the end of the archetype
+// 		for {
+// 			lastIndex := len(lookup.id) - 1
+// 			if lastIndex < 0 {
+// 				break
+// 			} // Break if the index we are trying to pop off is -1
+// 			lastId := lookup.id[lastIndex]
+// 			if lastId == InvalidEntity {
+// 				// If the last id is a hole, then slice it off
+// 				lookup.id = lookup.id[:lastIndex]
+// 				// for n := range e.compStorage {
+// 				// 	if e.compStorage[n] != nil {
+// 				// 		e.compStorage[n].Delete(archId, lastIndex)
+// 				// 	}
+// 				// }
+// 				for n := range e.compStorage {
+// 					if e.compStorage[n] != nil {
+// 						e.compStorage[n].Delete(archId, lastIndex)
+// 					}
+// 				}
 
-				continue // Try again
-			}
+// 				continue // Try again
+// 			}
 
-			break
-		}
+// 			break
+// 		}
 
-		// Check bounds because we may have popped past our original index
-		if index >= len(lookup.id) {
-			continue
-		}
+// 		// Check bounds because we may have popped past our original index
+// 		if index >= len(lookup.id) {
+// 			continue
+// 		}
 
-		// Swap lastIndex (which is not a hole) with index (which is a hole)
-		lastIndex := len(lookup.id) - 1
-		lastId := lookup.id[lastIndex]
-		if lastId == InvalidEntity {
-			panic("Bug: This shouldn't happen")
-		}
+// 		// Swap lastIndex (which is not a hole) with index (which is a hole)
+// 		lastIndex := len(lookup.id) - 1
+// 		lastId := lookup.id[lastIndex]
+// 		if lastId == InvalidEntity {
+// 			panic("Bug: This shouldn't happen")
+// 		}
 
-		lookup.id[index] = lastId
-		lookup.id = lookup.id[:lastIndex]
-		lookup.index.Put(lastId, index)
-		for n := range e.compStorage {
-			if e.compStorage[n] != nil {
-				e.compStorage[n].Delete(archId, index)
-			}
-		}
-	}
+// 		// TODO: To fix this, you need to bubble the index swap up to the entLoc map. You probably want to relocate how the "CleanupHoles" gets called. I kinda feel like it shouldn't get executed on write?
 
-	// Clear holes slice
-	lookup.holes = lookup.holes[:0]
-}
+// 		lookup.id[index] = lastId
+// 		lookup.id = lookup.id[:lastIndex]
+// 		lookup.index.Put(lastId, index)
+// 		for n := range e.compStorage {
+// 			if e.compStorage[n] != nil {
+// 				e.compStorage[n].Delete(archId, index)
+// 			}
+// 		}
+// 	}
+
+// 	// Clear holes slice
+// 	lookup.holes = lookup.holes[:0]
+// }
