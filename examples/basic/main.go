@@ -61,9 +61,7 @@ func main() {
 // Note: This system wasn't added to the scheduler, so that I wouldn't constantly spawn entities in the physics loop
 // But, you can rely on commands to get injected for you, just like a query.
 func SpawnSystem(dt time.Duration, commands *ecs.CommandQueue) {
-	// TODO: I'd like to rewrite this to be internally managed, but for now you must manually call Execute()
-	defer commands.Execute()
-
+	// Note: The scheduler will automatically call .Execute() the command queue
 	cmd := commands.SpawnEmpty()
 
 	name := Name(fmt.Sprintf("My Entity %d", cmd.Id()))

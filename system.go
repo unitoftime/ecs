@@ -46,6 +46,7 @@ func (s *System) Run(dt time.Duration) time.Duration {
 	start := time.Now()
 	s.Func(dt)
 
+	
 	return time.Since(start)
 }
 
@@ -229,8 +230,10 @@ func (s *Scheduler) GetRenderInterp() float64 {
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 func (s *Scheduler) Run() {
+	commandQueue := GetInjectable[CommandQueue](s.world)
 	for _, sys := range s.startupSystems {
 		sys.Run(0)
+		commandQueue.Execute()
 	}
 
 	frameStart := time.Now()
@@ -243,6 +246,7 @@ func (s *Scheduler) Run() {
 	// defer func() {
 	// 	for _, sys := range s.cleanup {
 	// 		sys.Run(dt)
+	// 		commandQueue.Execute()
 
 	// 		// TODO: Track syslog time?
 	// 		// s.sysLogBack = append(s.sysLogBack, SystemLog{
@@ -257,6 +261,7 @@ func (s *Scheduler) Run() {
 	// 		time.Sleep(s.fixedTimeStep)
 	// 		for _, sys := range s.physics {
 	// 			sysTime := sys.Run(s.fixedTimeStep)
+	// commandQueue.Execute()
 
 	// 			s.sysLogBackFixed = append(s.sysLogBackFixed, SystemLog{
 	// 				Name: sys.Name,
@@ -277,6 +282,7 @@ func (s *Scheduler) Run() {
 		// Input Systems
 		for _, sys := range s.input {
 			sysTime := sys.Run(dt)
+			commandQueue.Execute()
 
 			s.sysLogBack = append(s.sysLogBack, SystemLog{
 				Name: sys.Name,
@@ -301,6 +307,7 @@ func (s *Scheduler) Run() {
 		for s.accumulator >= s.fixedTimeStep {
 			for _, sys := range s.physics {
 				sysTime := sys.Run(s.fixedTimeStep)
+				commandQueue.Execute()
 
 				s.sysLogBackFixed = append(s.sysLogBackFixed, SystemLog{
 					Name: sys.Name,
@@ -314,6 +321,7 @@ func (s *Scheduler) Run() {
 		if !s.pauseRender.Load() {
 			for _, sys := range s.render {
 				sysTime := sys.Run(dt)
+				commandQueue.Execute()
 
 				s.sysLogBack = append(s.sysLogBack, SystemLog{
 					Name: sys.Name,
