@@ -23,9 +23,10 @@ type World struct {
 	idCounter    atomic.Uint64
 	nextId       Id
 	minId, maxId Id // This is the range of Ids returned by NewId
-	arch      locMap
-	engine    *archEngine
-	resources map[reflect.Type]any
+	arch         locMap
+	engine       *archEngine
+	resources    map[reflect.Type]any
+	observers    *internalMap[EventId, list[Handler]] // TODO: SliceMap instead of map
 }
 
 // Creates a new world
@@ -38,6 +39,7 @@ func NewWorld() *World {
 		engine: newArchEngine(),
 
 		resources: make(map[reflect.Type]any),
+		observers: newMap[EventId, list[Handler]](0),
 	}
 }
 
@@ -101,6 +103,8 @@ func (world *World) spawn(id Id, comp ...Component) {
 	// Write all components to that archetype
 	index := world.engine.spawn(archId, id, comp...)
 	world.arch.Put(id, entLoc{archId, uint32(index)})
+
+	world.engine.runFinalizedHooks(id)
 }
 
 // Writes components to the entity specified at id. This API can potentially break if you call it inside of a loop. Specifically, if you cause the archetype of the entity to change by writing a new component, then the loop may act in mysterious ways.
@@ -121,6 +125,28 @@ func (world *World) Write(id Id, comp ...Component) {
 	} else {
 		world.spawn(id, comp...)
 	}
+
+	world.engine.runFinalizedHooks(id)
+}
+
+func (w *World) writeBundler(id Id, b *Bundler) {
+	newLoc := w.allocateMove(id, b.archMask)
+
+	wd := W{
+		engine: w.engine,
+		archId: newLoc.archId,
+		index:  int(newLoc.index),
+	}
+
+	for i := CompId(0); i <= b.maxComponentIdAdded; i++ {
+		if !b.Set[i] {
+			continue
+		}
+
+		b.Components[i].CompWrite(wd)
+	}
+
+	w.engine.runFinalizedHooks(id)
 }
 
 // func (world *World) GetArchetype(comp ...Component) archetypeId {
@@ -159,6 +185,9 @@ func (world *World) allocateMove(id Id, addMask archetypeMask) entLoc {
 
 		newLoc := world.engine.moveArchetype(loc, newMask, id)
 		world.arch.Put(id, newLoc)
+
+		world.engine.finalizeOnAdd = markComponentDiff(world.engine.finalizeOnAdd, addMask, oldMask)
+
 		return newLoc
 	} else {
 		// Id does not yet exist, we need to add it for the first time
@@ -168,6 +197,9 @@ func (world *World) allocateMove(id Id, addMask archetypeMask) entLoc {
 
 		newLoc := entLoc{archId, uint32(newIndex)}
 		world.arch.Put(id, newLoc)
+
+		world.engine.finalizeOnAdd = markComponentMask(world.engine.finalizeOnAdd, addMask)
+
 		return newLoc
 	}
 }
@@ -198,32 +230,6 @@ func (world *World) deleteMask(id Id, deleteMask archetypeMask) {
 	// 2. Move all components from source arch to dest arch
 	newLoc := world.engine.moveArchetypeDown(loc, newMask, id)
 	world.arch.Put(id, newLoc)
-}
-
-// Reads a specific component of the entity specified at id.
-// Returns true if the entity was found and had that component, else returns false.
-// Deprecated: This API is tentative, I'm trying to improve the QueryN construct so that it can capture this usecase.
-func Read[T any](world *World, id Id) (T, bool) {
-	var ret T
-	loc, ok := world.arch.Get(id)
-	if !ok {
-		return ret, false
-	}
-
-	return readArch[T](world.engine, loc, id)
-}
-
-// Reads a pointer to the component of the entity at the specified id.
-// Returns true if the entity was found and had that component, else returns false.
-// This pointer is short lived and can become invalid if any other entity changes in the world
-// Deprecated: This API is tentative, I'm trying to improve the QueryN construct so that it can capture this usecase.
-func ReadPtr[T any](world *World, id Id) *T {
-	loc, ok := world.arch.Get(id)
-	if !ok {
-		return nil
-	}
-
-	return readPtrArch[T](world.engine, loc, id)
 }
 
 // This is safe for maps and loops
@@ -286,6 +292,38 @@ func GetInjectable[T any](world *World) T {
 	// 3. Fallback: Just return the default value for whatever it is
 	world.resources[name] = t
 	return t
+}
+
+// --------------------------------------------------------------------------------
+// - Observers
+// --------------------------------------------------------------------------------
+func (w *World) Trigger(event Event, id Id) {
+	handlerList, ok := w.observers.Get(event.EventId())
+	if !ok {
+		return
+	}
+	for _, handler := range handlerList.list {
+		handler.Run(id, event)
+	}
+}
+
+func (w *World) AddObserver(handler Handler) {
+	handlerList, ok := w.observers.Get(handler.EventTrigger())
+	if !ok {
+		handlerList = newList[Handler]()
+	}
+
+	handlerList.Add(handler)
+	w.observers.Put(handler.EventTrigger(), handlerList)
+}
+
+// You may only register one hook per component, else it will panic
+func (w *World) SetHookOnAdd(comp Component, handler Handler) {
+	current := w.engine.onAddHooks[comp.CompId()]
+	if current != nil {
+		panic("AddHook: You may only register one hook per component")
+	}
+	w.engine.onAddHooks[comp.CompId()] = handler
 }
 
 // --------------------------------------------------------------------------------

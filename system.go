@@ -46,7 +46,6 @@ func (s *System) Run(dt time.Duration) time.Duration {
 	start := time.Now()
 	s.Func(dt)
 
-	
 	return time.Since(start)
 }
 
@@ -230,7 +229,7 @@ func (s *Scheduler) GetRenderInterp() float64 {
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 func (s *Scheduler) Run() {
-	commandQueue := GetInjectable[CommandQueue](s.world)
+	commandQueue := GetInjectable[*CommandQueue](s.world)
 	for _, sys := range s.startupSystems {
 		sys.Run(0)
 		commandQueue.Execute()

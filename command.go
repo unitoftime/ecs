@@ -20,13 +20,15 @@ const (
 	CmdTypeNone CmdType = iota
 	CmdTypeSpawn
 	CmdTypeWrite
-	CmdTypeCustom
+	CmdTypeTrigger
+	// CmdTypeCustom
 )
 
 type singleCmd struct {
 	Type    CmdType
 	id      Id
 	bundler *Bundler
+	event   Event
 }
 
 func (c singleCmd) apply(world *World) {
@@ -38,6 +40,8 @@ func (c singleCmd) apply(world *World) {
 		c.bundler.Write(world, c.id)
 	case CmdTypeWrite:
 		c.bundler.Write(world, c.id)
+	case CmdTypeTrigger:
+		world.Trigger(c.event, c.id)
 	}
 }
 
@@ -144,21 +148,21 @@ func unbundle(bundle Writer, bundler *Bundler) {
 	bundle.CompWrite(wd)
 }
 
-func CmdSpawn[T Writer](c *CommandQueue, ub T) {
-	bundler := c.NextBundler()
-	unbundle(ub, bundler)
-	// ub.Unbundle(bundler)
-	c.commands = append(c.commands, singleCmd{
-		Type:    CmdTypeSpawn,
-		id:      c.world.NewId(),
-		bundler: bundler,
-	})
-}
+// func CmdSpawn[T Writer](c *CommandQueue, ub T) {
+// 	bundler := c.NextBundler()
+// 	unbundle(ub, bundler)
+// 	// ub.Unbundle(bundler)
+// 	c.commands = append(c.commands, singleCmd{
+// 		Type:    CmdTypeSpawn,
+// 		id:      c.world.NewId(),
+// 		bundler: bundler,
+// 	})
+// }
 
-func (c *CommandQueue) Spawn(bun Writer) {
-	entCmd := c.SpawnEmpty()
-	entCmd.Insert(bun)
-}
+// func (c *CommandQueue) Spawn(bun Writer) {
+// 	entCmd := c.SpawnEmpty()
+// 	entCmd.Insert(bun)
+// }
 
 func (c *CommandQueue) SpawnEmpty() EntityCommand {
 	bundler := c.NextBundler()
@@ -183,6 +187,27 @@ func (c *CommandQueue) Write(id Id) EntityCommand {
 	})
 	return EntityCommand{
 		cmd: &(c.commands[len(c.commands)-1]),
+	}
+}
+
+func (c *CommandQueue) Trigger(event Event, ids ...Id) {
+	// Special Case: no ids provided, so just trigger a single, unrelated
+	if len(ids) == 0 {
+		c.commands = append(c.commands, singleCmd{
+			Type:  CmdTypeTrigger,
+			id:    InvalidEntity,
+			event: event,
+		})
+
+		return
+	}
+
+	for _, id := range ids {
+		c.commands = append(c.commands, singleCmd{
+			Type:  CmdTypeTrigger,
+			id:    id,
+			event: event,
+		})
 	}
 }
 

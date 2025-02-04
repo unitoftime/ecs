@@ -23,6 +23,15 @@ type archEngine struct {
 	lookup      []*lookupList // Indexed by archetypeId
 	compStorage []storage     // Indexed by componentId
 	dcr         *componentRegistry
+
+	// TODO: Optimization: Hook loops can be improved by tracking a slice of CompId for each type of hook. Then when I Track components on that finalizeSlice, I can just loop over the list of CompId which will only be as long as the number of hooks that the user has added
+	onAddHooks    []Handler // A list of hooks to execute for onAdd events. Indexed by componentId
+	finalizeOnAdd []CompId  // The temporary list of components to run the onAdd hooks
+
+	// TODO: You could unify hooks with observers by making initial ranges of EventId
+	// [0, maxComponent) -> Add event per component
+	// [maxComponent, 2*maxComponent) -> Remove event per component
+	// etc...
 }
 
 func newArchEngine() *archEngine {
@@ -32,6 +41,8 @@ func newArchEngine() *archEngine {
 		lookup:      make([]*lookupList, 0, DefaultAllocation),
 		compStorage: make([]storage, maxComponentId+1),
 		dcr:         newComponentRegistry(),
+
+		onAddHooks: make([]Handler, maxComponentId+1),
 	}
 }
 
@@ -178,11 +189,6 @@ func (e *archEngine) getOrAddLookupIndex(archId archetypeId, id Id) int {
 	return index
 }
 
-// Writes all of the components to the archetype
-func (e *archEngine) write(loc entLoc, id Id, comp ...Component) {
-	e.writeIndex(loc, id, comp...)
-}
-
 // Writes all of the components to the archetype.
 // Internally requires that the id is not added to the archetype
 func (e *archEngine) spawn(archId archetypeId, id Id, comp ...Component) int {
@@ -191,6 +197,10 @@ func (e *archEngine) spawn(archId archetypeId, id Id, comp ...Component) int {
 	index := lookup.addToEasiestHole(id)
 	loc := entLoc{archId, uint32(index)}
 	e.writeIndex(loc, id, comp...)
+
+	// All components are added
+	e.finalizeOnAdd = markComponents(e.finalizeOnAdd, comp...)
+
 	return index
 }
 
@@ -234,62 +244,6 @@ func writeArch[T any](e *archEngine, archId archetypeId, index int, store *compo
 	cSlice.Write(index, val)
 }
 
-func readArch[T any](e *archEngine, loc entLoc, id Id) (T, bool) {
-	var ret T
-	lookup := e.lookup[loc.archId]
-	if lookup == nil {
-		return ret, false // TODO: when could this possibly happen?
-	}
-
-	// Get the dynamic componentSliceStorage
-	n := name(ret)
-	ss := e.compStorage[n]
-	if ss == nil {
-		return ret, false
-	}
-
-	storage, ok := ss.(*componentStorage[T])
-	if !ok {
-		panic(fmt.Sprintf("Wrong componentSliceStorage[T] type: %d != %d", name(ss), name(ret)))
-	}
-
-	// Get the underlying Archetype's componentSlice
-	cSlice, ok := storage.slice.Get(loc.archId)
-	if !ok {
-		return ret, false
-	}
-
-	return cSlice.comp[loc.index], true
-}
-
-func readPtrArch[T any](e *archEngine, loc entLoc, id Id) *T {
-	var ret T
-	lookup := e.lookup[loc.archId]
-	if lookup == nil {
-		return nil
-	}
-
-	// Get the dynamic componentSliceStorage
-	n := name(ret)
-	ss := e.compStorage[n]
-	if ss == nil {
-		return nil
-	}
-
-	storage, ok := ss.(*componentStorage[T])
-	if !ok {
-		panic(fmt.Sprintf("Wrong componentSliceStorage[T] type: %d != %d", name(ss), name(ret)))
-	}
-
-	// Get the underlying Archetype's componentSlice
-	cSlice, ok := storage.slice.Get(loc.archId)
-	if !ok {
-		return nil
-	}
-
-	return &cSlice.comp[loc.index]
-}
-
 // Returns the archetypeId of where the entity ends up
 func (e *archEngine) rewriteArch(loc entLoc, id Id, comp ...Component) entLoc {
 	// Calculate the new mask based on the bitwise or of the old and added masks
@@ -301,7 +255,7 @@ func (e *archEngine) rewriteArch(loc entLoc, id Id, comp ...Component) entLoc {
 	if oldMask == newMask {
 		// Case 1: Archetype and index stays the same.
 		// This means that we only need to write the newly added components because we wont be moving the base entity data
-		e.write(loc, id, comp...)
+		e.writeIndex(loc, id, comp...)
 		return loc
 	} else {
 		// 1. Move Archetype Data
@@ -309,6 +263,9 @@ func (e *archEngine) rewriteArch(loc entLoc, id Id, comp ...Component) entLoc {
 
 		// 2. Write new componts to new archetype/index location
 		e.writeIndex(newLoc, id, comp...)
+
+		// Mark all new components
+		e.finalizeOnAdd = markNewComponents(e.finalizeOnAdd, oldMask, comp...)
 
 		return newLoc
 	}
@@ -347,37 +304,6 @@ func (e *archEngine) moveArchetypeDown(oldLoc entLoc, newMask archetypeMask, id 
 	e.TagForDeletion(oldLoc, id)
 
 	return newLoc
-}
-
-func (e *archEngine) ReadEntity(loc entLoc, id Id) *Entity {
-	lookup := e.lookup[loc.archId]
-	if lookup == nil {
-		panic("Archetype doesn't have lookup list")
-	}
-	index := int(loc.index)
-
-	ent := NewEntity()
-	for n := range e.compStorage {
-		if e.compStorage[n] != nil {
-			e.compStorage[n].ReadToEntity(ent, loc.archId, index)
-		}
-	}
-	return ent
-}
-
-func (e *archEngine) ReadRawEntity(loc entLoc, id Id) *RawEntity {
-	lookup := e.lookup[loc.archId]
-	if lookup == nil {
-		panic("Archetype doesn't have lookup list")
-	}
-
-	ent := NewRawEntity()
-	for n := range e.compStorage {
-		if e.compStorage[n] != nil {
-			e.compStorage[n].ReadToRawEntity(ent, loc.archId, int(loc.index))
-		}
-	}
-	return ent
 }
 
 // This creates a "hole" in the archetype at the specified Id
@@ -458,3 +384,61 @@ func (e *archEngine) TagForDeletion(loc entLoc, id Id) {
 // 	// Clear holes slice
 // 	lookup.holes = lookup.holes[:0]
 // }
+
+//--------------------------------------------------------------------------------
+
+func (e *archEngine) runFinalizedHooks(id Id) {
+	// Run, then clear add hooks
+	for i := range e.finalizeOnAdd {
+		e.runAddHook(id, e.finalizeOnAdd[i])
+	}
+	e.finalizeOnAdd = e.finalizeOnAdd[:0]
+
+	// TODO: Run other hooks?
+}
+
+func (e *archEngine) runAddHook(id Id, compId CompId) {
+	current := e.onAddHooks[compId]
+	if current == nil {
+		return
+	}
+
+	current.Run(id, OnAdd{compId})
+}
+
+// Marks all provided components
+func markComponents(slice []CompId, comp ...Component) []CompId {
+	for i := range comp {
+		slice = append(slice, comp[i].CompId())
+	}
+	return slice
+}
+
+// Marks the provided components, excluding ones that are already set by the old mask
+func markNewComponents(slice []CompId, oldMask archetypeMask, comp ...Component) []CompId {
+	for i := range comp {
+		compId := comp[i].CompId()
+		if oldMask.hasComponent(compId) {
+			continue // Skip: Component already set in oldMask
+		}
+
+		slice = append(slice, compId)
+	}
+	return slice
+}
+
+func markComponentMask(slice []CompId, mask archetypeMask) []CompId {
+	// TODO: Optimization: Technically this only has to loop to the max registered compId, not the max possible. Also see optimization note in archEngine
+	for compId := CompId(0); compId <= maxComponentId; compId++ {
+		if mask.hasComponent(compId) {
+			slice = append(slice, compId)
+		}
+	}
+
+	return slice
+}
+
+func markComponentDiff(slice []CompId, newMask, oldMask archetypeMask) []CompId {
+	mask := newMask.bitwiseClear(oldMask)
+	return markComponentMask(slice, mask)
+}

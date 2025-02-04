@@ -19,6 +19,16 @@ type Velocity struct {
 	X, Y, Z float64
 }
 
+type PrintMessage struct {
+	Msg string
+}
+
+var PrintMessageEventId = ecs.NewEvent[PrintMessage]()
+
+func (p PrintMessage) EventId() ecs.EventId {
+	return PrintMessageEventId
+}
+
 func main() {
 	// Create a New World
 	world := ecs.NewWorld()
@@ -35,12 +45,48 @@ func main() {
 		cmd.Execute()
 	}
 
+	// Adding Component hooks
+	{
+		world.SetHookOnAdd(ecs.C(Velocity{}),
+			ecs.NewHandler(func(trigger ecs.Trigger[ecs.OnAdd]) {
+				fmt.Println("Hook:", trigger)
+			}))
+
+		cmd := ecs.NewCommandQueue(world)
+		cmd.SpawnEmpty().
+			Insert(ecs.C(Position{1, 2, 3})).
+			Insert(ecs.C(Velocity{1, 2, 3})).
+			Insert(ecs.C(Name("My First Entity")))
+		cmd.Execute()
+
+	}
+
+	// Adding Observers
+	{
+		cmd := ecs.NewCommandQueue(world)
+
+		// You can add observer handlers which run as a result of triggerred events
+		world.AddObserver(
+			ecs.NewHandler(func(trigger ecs.Trigger[PrintMessage]) {
+				fmt.Println("Observer 1:", trigger.Data.Msg)
+			}))
+		world.AddObserver(
+			ecs.NewHandler(func(trigger ecs.Trigger[PrintMessage]) {
+				fmt.Println("Observer 2!", trigger.Data.Msg)
+			}))
+
+		cmd.Trigger(PrintMessage{"Hello"})
+		cmd.Trigger(PrintMessage{"World"})
+
+		cmd.Execute()
+	}
+
 	scheduler := ecs.NewScheduler(world)
 
 	// Append physics systems, these run on a fixed time step, so dt will always be constant
 	scheduler.AddSystems(ecs.StageFixedUpdate,
 		// Comment out if you want to spawn a new entity every frame
-		// ecs.NewSystem1(world, SpawnSystem),
+		// ecs.NewSystem1(SpawnSystem),
 
 		// Option A: Create a function that returns a system
 		MoveSystemOption_A(world),
@@ -49,6 +95,8 @@ func main() {
 		ecs.NewSystem1(MoveSystemOption_B),
 
 		ecs.NewSystem1(PrintSystem),
+
+		ecs.NewSystem1(TriggerSystem),
 	)
 
 	// Also, add render systems if you want, These run as fast as possible
@@ -104,4 +152,8 @@ func PrintSystem(dt time.Duration, query *ecs.View2[Name, Position]) {
 	query.MapId(func(id ecs.Id, name *Name, pos *Position) {
 		fmt.Printf("%s: %v\n", *name, pos)
 	})
+}
+
+func TriggerSystem(dt time.Duration, cmd *ecs.CommandQueue) {
+	cmd.Trigger(PrintMessage{"Hello"})
 }
