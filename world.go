@@ -270,30 +270,6 @@ func (world *World) Exists(id Id) bool {
 	return world.arch.Has(id)
 }
 
-func GetInjectable[T any](world *World) T {
-	var t T
-	name := resourceName(t)
-
-	// 1. If already created, just use this variable
-	anyVal, ok := world.resources[name]
-	if ok {
-		return anyVal.(T)
-	}
-
-	// 2. If supports initialization, then make a new one and return it
-	tAny := any(t)
-	initializer, ok := tAny.(Initializer)
-	if ok {
-		anyVal = initializer.initialize(world)
-		world.resources[name] = anyVal
-		return anyVal.(T)
-	}
-
-	// 3. Fallback: Just return the default value for whatever it is
-	world.resources[name] = t
-	return t
-}
-
 // --------------------------------------------------------------------------------
 // - Observers
 // --------------------------------------------------------------------------------

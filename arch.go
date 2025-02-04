@@ -173,18 +173,6 @@ func getStorageByCompId[T any](e *archEngine, compId CompId) *componentStorage[T
 func (e *archEngine) getOrAddLookupIndex(archId archetypeId, id Id) int {
 	lookup := e.lookup[archId]
 
-	// TODO: Removed this here. Need to relocate this somewhere better
-	// // Check if we want to cleanup holes
-	// // TODO: This is a defragmentation operation. I'm not really sure how to compute heuristically that we should repack our slices. Too big it causes a stall, too small it causes unecessary repacks. maybe make it percentage based on holes per total entities. Maybe repack one at a time. Currently this should only trigger if we delete more than 1024 of the same archetype
-	// if len(lookup.holes) >= 1024 {
-	// 	e.CleanupHoles(archId)
-	// }
-
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	// Because the Id hasn't been added to this arch, we need to add it
-	// 	index = lookup.addToEasiestHole(id)
-	// }
 	index := lookup.addToEasiestHole(id)
 	return index
 }
@@ -322,7 +310,6 @@ func (e *archEngine) TagForDeletion(loc entLoc, id Id) {
 	lookup.holes = append(lookup.holes, int(loc.index))
 }
 
-// TODO: I removed this. there's one segement that needs to be fixed. Ideally it'd be nice to have a repack operation. I kinda feel like it isn't useful until after you do a bunch of writes though? Maybe execute repacks every so often after a command buffer execute
 // func (e *archEngine) CleanupHoles(archId archetypeId) {
 // 	lookup := e.lookup[archId]
 // 	if lookup == nil {
@@ -340,11 +327,6 @@ func (e *archEngine) TagForDeletion(loc entLoc, id Id) {
 // 			if lastId == InvalidEntity {
 // 				// If the last id is a hole, then slice it off
 // 				lookup.id = lookup.id[:lastIndex]
-// 				// for n := range e.compStorage {
-// 				// 	if e.compStorage[n] != nil {
-// 				// 		e.compStorage[n].Delete(archId, lastIndex)
-// 				// 	}
-// 				// }
 // 				for n := range e.compStorage {
 // 					if e.compStorage[n] != nil {
 // 						e.compStorage[n].Delete(archId, lastIndex)
@@ -385,60 +367,63 @@ func (e *archEngine) TagForDeletion(loc entLoc, id Id) {
 // 	lookup.holes = lookup.holes[:0]
 // }
 
-//--------------------------------------------------------------------------------
+// This is a defragment operation which tries to repack entities closer together
+// You wont usually need to do this, but if you delete a lot of entities of one archetype and dont plan
+// to add them back, then you can run this to repack
+func (w *World) CleanupHoles() {
+	for lookupIdx, lookup := range w.engine.lookup {
+		archId := archetypeId(lookupIdx)
 
-func (e *archEngine) runFinalizedHooks(id Id) {
-	// Run, then clear add hooks
-	for i := range e.finalizeOnAdd {
-		e.runAddHook(id, e.finalizeOnAdd[i])
-	}
-	e.finalizeOnAdd = e.finalizeOnAdd[:0]
+		for _, index := range lookup.holes {
+			// Pop all holes off the end of the archetype
+			for {
+				lastIndex := len(lookup.id) - 1
+				if lastIndex < 0 {
+					break // Break if the index we are trying to pop off is -1
+				}
+				lastId := lookup.id[lastIndex]
+				if lastId == InvalidEntity {
+					// If the last id is a hole, then slice it off
+					lookup.id = lookup.id[:lastIndex]
+					for n := range w.engine.compStorage {
+						if w.engine.compStorage[n] != nil {
+							w.engine.compStorage[n].Delete(archId, lastIndex)
+						}
+					}
 
-	// TODO: Run other hooks?
-}
+					continue // Try again
+				}
 
-func (e *archEngine) runAddHook(id Id, compId CompId) {
-	current := e.onAddHooks[compId]
-	if current == nil {
-		return
-	}
+				break
+			}
 
-	current.Run(id, OnAdd{compId})
-}
+			// Check bounds because we may have popped past our original index
+			if index >= len(lookup.id) {
+				continue
+			}
 
-// Marks all provided components
-func markComponents(slice []CompId, comp ...Component) []CompId {
-	for i := range comp {
-		slice = append(slice, comp[i].CompId())
-	}
-	return slice
-}
+			// Swap lastIndex (which is not a hole) with index (which is a hole)
+			lastIndex := len(lookup.id) - 1
+			lastId := lookup.id[lastIndex]
+			if lastId == InvalidEntity {
+				panic("Bug: This shouldn't happen")
+			}
 
-// Marks the provided components, excluding ones that are already set by the old mask
-func markNewComponents(slice []CompId, oldMask archetypeMask, comp ...Component) []CompId {
-	for i := range comp {
-		compId := comp[i].CompId()
-		if oldMask.hasComponent(compId) {
-			continue // Skip: Component already set in oldMask
+			// Update id list
+			lookup.id[index] = lastId
+			lookup.id = lookup.id[:lastIndex]
+
+			// Update entity location for this id
+			newEntLoc := entLoc{archId, uint32(index)} // lookup.index.Put(lastId, index)
+			w.arch.Put(lastId, newEntLoc)
+			for n := range w.engine.compStorage {
+				if w.engine.compStorage[n] != nil {
+					w.engine.compStorage[n].Delete(archId, index)
+				}
+			}
 		}
 
-		slice = append(slice, compId)
+		// Clear holes slice
+		lookup.holes = lookup.holes[:0]
 	}
-	return slice
-}
-
-func markComponentMask(slice []CompId, mask archetypeMask) []CompId {
-	// TODO: Optimization: Technically this only has to loop to the max registered compId, not the max possible. Also see optimization note in archEngine
-	for compId := CompId(0); compId <= maxComponentId; compId++ {
-		if mask.hasComponent(compId) {
-			slice = append(slice, compId)
-		}
-	}
-
-	return slice
-}
-
-func markComponentDiff(slice []CompId, newMask, oldMask archetypeMask) []CompId {
-	mask := newMask.bitwiseClear(oldMask)
-	return markComponentMask(slice, mask)
 }
