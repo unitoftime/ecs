@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-var positionId = C(position{})
-var velocityId = C(velocity{})
-var accelerationId = C(acceleration{})
-var radiusId = C(radius{})
+var positionId = NewComp[position]()
+var velocityId = NewComp[velocity]()
+var accelerationId = NewComp[acceleration]()
+var radiusId = NewComp[radius]()
 
 func (p position) CompId() CompId {
 	return positionId.CompId()
@@ -68,6 +68,35 @@ func compare[T comparable](t *testing.T, actual, expected T) {
 		_, f, l, _ := runtime.Caller(1)
 		t.Errorf("%s:%d - actual(%v) did not match expected(%v)", f, l, actual, expected)
 	}
+}
+
+func TestWorldSpawn(t *testing.T) {
+	world := NewWorld()
+
+	// Write position
+	id1 := world.Spawn(position{1, 1, 1})
+	id2 := world.Spawn(position{2, 2, 2}, velocity{3, 3, 3})
+
+	p, ok := Read[position](world, id1)
+	check(t, ok)
+	compare(t, p, position{1, 1, 1})
+
+	p, ok = Read[position](world, id2)
+	check(t, ok)
+	compare(t, p, position{2, 2, 2})
+
+	v, ok := Read[velocity](world, id2)
+	check(t, ok)
+	compare(t, v, velocity{3, 3, 3})
+}
+
+func TestBlankWrite(t *testing.T) {
+	world := NewWorld()
+	id := world.NewId()
+	Write(world, id)
+
+	ok := world.Exists(id)
+	check(t, !ok)
 }
 
 func TestWorldReadWrite(t *testing.T) {

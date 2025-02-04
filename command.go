@@ -1,7 +1,5 @@
 package ecs
 
-import "fmt"
-
 // type singleCmd interface {
 // 	apply(*World)
 // }
@@ -49,15 +47,15 @@ type EntityCommand struct {
 	cmd *singleCmd
 }
 
-func (e EntityCommand) Printout() {
-	fmt.Println("---")
-	for i := range e.cmd.bundler.Components {
-		if e.cmd.bundler.Set[i] {
-			fmt.Printf("+%v\n", e.cmd.bundler.Components[i])
-		}
-	}
-	// fmt.Printf("+%v\n", e.cmd.bundler)
-}
+// func (e EntityCommand) Printout() {
+// 	fmt.Println("---")
+// 	for i := range e.cmd.bundler.Components {
+// 		if e.cmd.bundler.Set[i] {
+// 			fmt.Printf("+%v\n", e.cmd.bundler.Components[i])
+// 		}
+// 	}
+// 	// fmt.Printf("+%v\n", e.cmd.bundler)
+// }
 
 func (e EntityCommand) Cancel() {
 	e.cmd.Type = CmdTypeNone
