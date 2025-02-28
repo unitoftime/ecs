@@ -36,7 +36,7 @@ func NewSystem(lambda func(dt time.Duration)) System {
 
 // Executes the system once, returning the time taken.
 // This is mostly used by the scheduler, but you can use it too.
-func (s *System) Run(dt time.Duration) time.Duration {
+func (s *System) step(dt time.Duration) time.Duration {
 	// Note: Disable timing
 	// s.Func(dt)
 	// return 0
@@ -229,10 +229,9 @@ func (s *Scheduler) GetRenderInterp() float64 {
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 func (s *Scheduler) Run() {
-	commandQueue := GetInjectable[*CommandQueue](s.world)
 	for _, sys := range s.startupSystems {
-		sys.Run(0)
-		commandQueue.Execute()
+		sys.step(0)
+		s.world.cmd.Execute()
 	}
 
 	frameStart := time.Now()
@@ -280,8 +279,8 @@ func (s *Scheduler) Run() {
 
 		// Input Systems
 		for _, sys := range s.input {
-			sysTime := sys.Run(dt)
-			commandQueue.Execute()
+			sysTime := sys.step(dt)
+			s.world.cmd.Execute()
 
 			s.sysLogBack = append(s.sysLogBack, SystemLog{
 				Name: sys.Name,
@@ -305,8 +304,8 @@ func (s *Scheduler) Run() {
 		// Physics Systems
 		for s.accumulator >= s.fixedTimeStep {
 			for _, sys := range s.physics {
-				sysTime := sys.Run(s.fixedTimeStep)
-				commandQueue.Execute()
+				sysTime := sys.step(s.fixedTimeStep)
+				s.world.cmd.Execute()
 
 				s.sysLogBackFixed = append(s.sysLogBackFixed, SystemLog{
 					Name: sys.Name,
@@ -319,8 +318,8 @@ func (s *Scheduler) Run() {
 		// Render Systems
 		if !s.pauseRender.Load() {
 			for _, sys := range s.render {
-				sysTime := sys.Run(dt)
-				commandQueue.Execute()
+				sysTime := sys.step(dt)
+				s.world.cmd.Execute()
 
 				s.sysLogBack = append(s.sysLogBack, SystemLog{
 					Name: sys.Name,

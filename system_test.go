@@ -33,7 +33,7 @@ func TestSystemCreationNew(t *testing.T) {
 
 	fmt.Println("NAME", sys.Name)
 	for range 100 {
-		sys.Run(16 * time.Millisecond)
+		sys.step(16 * time.Millisecond)
 	}
 }
 

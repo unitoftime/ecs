@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sync/atomic"
+	"time"
 
 	"reflect" // For resourceName
 )
@@ -27,11 +28,12 @@ type World struct {
 	engine       *archEngine
 	resources    map[reflect.Type]any
 	observers    *internalMap[EventId, list[Handler]] // TODO: SliceMap instead of map
+	cmd *CommandQueue
 }
 
 // Creates a new world
 func NewWorld() *World {
-	return &World{
+	world := &World{
 		nextId: firstEntity + 1,
 		minId:  firstEntity + 1,
 		maxId:  MaxEntity,
@@ -41,6 +43,10 @@ func NewWorld() *World {
 		resources: make(map[reflect.Type]any),
 		observers: newMap[EventId, list[Handler]](0),
 	}
+
+	world.cmd = GetInjectable[*CommandQueue](world)
+
+	return world
 }
 
 func (w *World) print() {
@@ -324,4 +330,16 @@ func GetResource[T any](world *World) *T {
 	}
 
 	return anyVal.(*T)
+}
+
+// --------------------------------------------------------------------------------
+// - Systems
+// --------------------------------------------------------------------------------
+func (w *World) StepSystemList(dt time.Duration, systems ...System) time.Duration {
+	var dur time.Duration
+	for i := range systems {
+		dur += systems[i].step(dt)
+	}
+	w.cmd.Execute()
+	return dur
 }
