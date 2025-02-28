@@ -339,7 +339,7 @@ func (w *World) StepSystemList(dt time.Duration, systems ...System) time.Duratio
 	var dur time.Duration
 	for i := range systems {
 		dur += systems[i].step(dt)
+		w.cmd.Execute()
 	}
-	w.cmd.Execute()
 	return dur
 }
