@@ -19,6 +19,7 @@ const (
 	CmdTypeSpawn
 	CmdTypeWrite
 	CmdTypeTrigger
+	CmdTypeDelete
 	// CmdTypeCustom
 )
 
@@ -29,17 +30,27 @@ type singleCmd struct {
 	event   Event
 }
 
-func (c singleCmd) apply(world *World) {
+func (c *singleCmd) apply(world *World) {
 	switch c.Type {
 	case CmdTypeNone:
 		// Do nothing, Command was probably cancelled
 	case CmdTypeSpawn:
-		// TODO: This could probably use a Spawn function which would be faster
-		c.bundler.Write(world, c.id)
+		if world.cmd.preWrite != nil {
+			world.cmd.preWrite(EntityCommand{c})
+		}
+		c.bundler.Write(world, c.id) // TODO: This could probably use a Spawn function which would be faster
 	case CmdTypeWrite:
+		if world.cmd.preWrite != nil {
+			world.cmd.preWrite(EntityCommand{c})
+		}
 		c.bundler.Write(world, c.id)
 	case CmdTypeTrigger:
 		world.Trigger(c.event, c.id)
+	case CmdTypeDelete:
+		if world.cmd.preDelete != nil {
+			world.cmd.preDelete(c.id)
+		}
+		Delete(world, c.id)
 	}
 }
 
@@ -59,6 +70,13 @@ type EntityCommand struct {
 
 func (e EntityCommand) Cancel() {
 	e.cmd.Type = CmdTypeNone
+}
+
+// Removes the supplied component type from this entity command.
+// TODO: Should this also remove it from the world? if it exists there?
+func (e EntityCommand) Remove(comp Component) {
+	compId := comp.CompId()
+	e.cmd.bundler.Remove(compId)
 }
 
 func (e EntityCommand) Empty() bool {
@@ -112,6 +130,8 @@ func ReadComp[T Component](e EntityCommand) (T, bool) {
 
 type CommandQueue struct {
 	world    *World
+	preWrite func(EntityCommand)
+	preDelete func(Id)
 	commands []singleCmd
 
 	currentBundlerIndex int
@@ -146,6 +166,11 @@ func unbundle(bundle Writer, bundler *Bundler) {
 	bundle.CompWrite(wd)
 }
 
+func remove(bundle Writer, bundler *Bundler) {
+	wd := W{bundler: bundler}
+	bundle.CompWrite(wd)
+}
+
 // func CmdSpawn[T Writer](c *CommandQueue, ub T) {
 // 	bundler := c.NextBundler()
 // 	unbundle(ub, bundler)
@@ -174,6 +199,14 @@ func (c *CommandQueue) SpawnEmpty() EntityCommand {
 		cmd: &(c.commands[len(c.commands)-1]),
 	}
 }
+
+// // Pushes a command to delete the entity
+// func (c *CommandQueue) Delete(id Id) {
+// 	c.commands = append(c.commands, singleCmd{
+// 		Type: CmdTypeDelete,
+// 		id: id,
+// 	})
+// }
 
 func (c *CommandQueue) Write(id Id) EntityCommand {
 	bundler := c.NextBundler()
@@ -209,9 +242,22 @@ func (c *CommandQueue) Trigger(event Event, ids ...Id) {
 	}
 }
 
+// Adds a prewrite function to be executed before every write or spawn command is executed
+// Useful for ensuring entities are fully formed before pushing them into the ECS
+func (c *CommandQueue) SetPrewrite(lambda func(EntityCommand)) {
+	c.preWrite = lambda
+}
+
+// // Adds a predelite function to be executed before every delete command is executed
+// // Useful for ensuring any external datastructures get cleaned up when an entity is deleted
+// func (c *CommandQueue) SetPredelete(lambda func(Id)) {
+// 	c.preDelete = lambda
+// }
+
 func (c *CommandQueue) Execute() {
 	// Perform all commands
-	for i := range c.commands {
+	// Note: We must check length every time in case calling one command adds more commands
+	for i := 0; i < len(c.commands); i++ {
 		c.commands[i].apply(c.world)
 	}
 

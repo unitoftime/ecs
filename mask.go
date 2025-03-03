@@ -55,6 +55,13 @@ func (m *archetypeMask) addComponent(compId CompId) {
 	m[idx] |= (1 << offset)
 }
 
+func (m *archetypeMask) removeComponent(compId CompId) {
+	// Ranges: [0, 64), [64, 128), [128, 192), [192, 256)
+	idx := compId / 64
+	offset := compId - (64 * idx)
+	m[idx] &= ^(1 << offset)
+}
+
 // Performs a bitwise OR on the base mask `m` with the added mask `a`
 func (m archetypeMask) bitwiseOr(a archetypeMask) archetypeMask {
 	for i := range m {

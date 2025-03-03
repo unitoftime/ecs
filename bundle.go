@@ -50,11 +50,10 @@ func readBundle[T Component](bun *Bundler) (T, bool) {
 // 	return bun.Components[compId], true
 // }
 
-// func (bun *Bundler) Remove(comp Component) {
-// 	compId := comp.id()
-// 	bun.archMask.removeComponent(compId)
-// 	bun.Set[compId] = true
-// }
+func (bun *Bundler) Remove(compId CompId) {
+	bun.archMask.removeComponent(compId)
+	bun.Set[compId] = false
+}
 
 // func WriteComponent[T any](bun *Bundler, comp T) {
 // 	compId := nameTyped(comp)
