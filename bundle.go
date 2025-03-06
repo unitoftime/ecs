@@ -69,5 +69,8 @@ func (bun *Bundler) Remove(compId CompId) {
 // }
 
 func (b *Bundler) Write(world *World, id Id) {
+	if b.archMask == blankArchMask {
+		return // If the bundler is empty, just dont do anything
+	}
 	world.writeBundler(id, b)
 }

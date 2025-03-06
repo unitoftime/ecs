@@ -39,11 +39,17 @@ func (c *singleCmd) apply(world *World) {
 			world.cmd.preWrite(EntityCommand{c})
 		}
 		c.bundler.Write(world, c.id) // TODO: This could probably use a Spawn function which would be faster
+		// if world.cmd.postWrite != nil {
+		// 	world.cmd.postWrite(c.id)
+		// }
 	case CmdTypeWrite:
 		if world.cmd.preWrite != nil {
 			world.cmd.preWrite(EntityCommand{c})
 		}
 		c.bundler.Write(world, c.id)
+		// if world.cmd.postWrite != nil {
+		// 	world.cmd.postWrite(c.id)
+		// }
 	case CmdTypeTrigger:
 		world.Trigger(c.event, c.id)
 	case CmdTypeDelete:
@@ -70,6 +76,7 @@ type EntityCommand struct {
 
 func (e EntityCommand) Cancel() {
 	e.cmd.Type = CmdTypeNone
+	e.cmd.id = InvalidEntity
 }
 
 // Removes the supplied component type from this entity command.
