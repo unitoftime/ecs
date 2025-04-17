@@ -19,7 +19,7 @@ type View1[A any] struct {
 	storageA *componentStorage[A]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
+// implement the initializer interface so that it can be automatically created and injected into systems
 func (v *View1[A]) initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query1[A](world)

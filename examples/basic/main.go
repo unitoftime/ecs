@@ -65,7 +65,7 @@ func main() {
 	{
 		cmd := ecs.NewCommandQueue(world)
 
-		// You can add observer handlers which run as a result of triggerred events
+		// You can add observer handlers which run as a result of triggered events
 		world.AddObserver(
 			ecs.NewHandler(func(trigger ecs.Trigger[PrintMessage]) {
 				fmt.Println("Observer 1:", trigger.Data.Msg)
@@ -102,7 +102,7 @@ func main() {
 	// Also, add render systems if you want, These run as fast as possible
 	// scheduler.AppendRender()
 
-	// This will block until the scheduler exits `scheudler.SetQuit(true)`
+	// This will block until the scheduler exits `scheduler.SetQuit(true)`
 	scheduler.Run()
 }
 
@@ -135,7 +135,7 @@ func MoveSystemOption_A(world *ecs.World) ecs.System {
 }
 
 // Option 2: Define a system and have all the queries created and injected for you
-// - Can be used for simpler systems that dont need to track much system-internal state
+// - Can be used for simpler systems that don't need to track much system-internal state
 // - Use the `ecs.NewSystemN(world, systemFunction)` syntax (Where N represents the number of required resources)
 func MoveSystemOption_B(dt time.Duration, query *ecs.View2[Position, Velocity]) {
 	query.MapId(func(id ecs.Id, pos *Position, vel *Velocity) {
