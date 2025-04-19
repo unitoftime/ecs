@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+func GetInjectable2[T any](world *World, t T) T {
+	return GetInjectable[T](world)
+}
+
 func GetInjectable[T any](world *World) T {
 	var t T
 	name := resourceName(t)
@@ -20,7 +24,7 @@ func GetInjectable[T any](world *World) T {
 	tAny := any(t)
 	initializer, ok := tAny.(Initializer)
 	if ok {
-		anyVal = initializer.initialize(world)
+		anyVal = initializer.Initialize(world)
 		world.resources[name] = anyVal
 		return anyVal.(T)
 	}
@@ -31,7 +35,7 @@ func GetInjectable[T any](world *World) T {
 }
 
 type Initializer interface {
-	initialize(*World) any
+	Initialize(*World) any
 }
 
 type SystemBuilder interface {

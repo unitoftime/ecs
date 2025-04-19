@@ -150,7 +150,7 @@ func NewCommandQueue(world *World) *CommandQueue {
 		world: world,
 	}
 }
-func (c *CommandQueue) initialize(world *World) any {
+func (c *CommandQueue) Initialize(world *World) any {
 	return NewCommandQueue(world)
 }
 

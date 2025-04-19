@@ -21,8 +21,8 @@ type View{{len $element}}[{{join $element ","}} any] struct {
 	storage{{$arg}} *componentStorage[{{$arg}}]{{end}}
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View{{len $element}}[{{join $element ","}}]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View{{len $element}}[{{join $element ","}}]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query{{len $element}}[{{join $element ","}}](world)
 }

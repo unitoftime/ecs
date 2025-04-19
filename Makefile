@@ -3,6 +3,9 @@ all: fmt build test benchmark
 fmt:
 	go fmt ./...
 
+gen:
+	go run ./internal/gen/
+
 build: fmt
 	go build -v ./...
 

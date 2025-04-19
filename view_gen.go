@@ -20,7 +20,7 @@ type View1[A any] struct {
 }
 
 // implement the initializer interface so that it can be automatically created and injected into systems
-func (v *View1[A]) initialize(world *World) any {
+func (v *View1[A]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query1[A](world)
 }
@@ -65,10 +65,6 @@ func (v *View1[A]) Read(id Id) *A {
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -300,8 +296,8 @@ type View2[A, B any] struct {
 	storageB *componentStorage[B]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View2[A, B]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View2[A, B]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query2[A, B](world)
 }
@@ -350,10 +346,6 @@ func (v *View2[A, B]) Read(id Id) (*A, *B) {
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -627,8 +619,8 @@ type View3[A, B, C any] struct {
 	storageC *componentStorage[C]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View3[A, B, C]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View3[A, B, C]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query3[A, B, C](world)
 }
@@ -681,10 +673,6 @@ func (v *View3[A, B, C]) Read(id Id) (*A, *B, *C) {
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -1000,8 +988,8 @@ type View4[A, B, C, D any] struct {
 	storageD *componentStorage[D]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View4[A, B, C, D]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View4[A, B, C, D]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query4[A, B, C, D](world)
 }
@@ -1058,10 +1046,6 @@ func (v *View4[A, B, C, D]) Read(id Id) (*A, *B, *C, *D) {
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil, nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -1419,8 +1403,8 @@ type View5[A, B, C, D, E any] struct {
 	storageE *componentStorage[E]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View5[A, B, C, D, E]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View5[A, B, C, D, E]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query5[A, B, C, D, E](world)
 }
@@ -1481,10 +1465,6 @@ func (v *View5[A, B, C, D, E]) Read(id Id) (*A, *B, *C, *D, *E) {
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil, nil, nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -1884,8 +1864,8 @@ type View6[A, B, C, D, E, F any] struct {
 	storageF *componentStorage[F]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View6[A, B, C, D, E, F]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View6[A, B, C, D, E, F]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query6[A, B, C, D, E, F](world)
 }
@@ -1950,10 +1930,6 @@ func (v *View6[A, B, C, D, E, F]) Read(id Id) (*A, *B, *C, *D, *E, *F) {
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil, nil, nil, nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -2395,8 +2371,8 @@ type View7[A, B, C, D, E, F, G any] struct {
 	storageG *componentStorage[G]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View7[A, B, C, D, E, F, G]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View7[A, B, C, D, E, F, G]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query7[A, B, C, D, E, F, G](world)
 }
@@ -2465,10 +2441,6 @@ func (v *View7[A, B, C, D, E, F, G]) Read(id Id) (*A, *B, *C, *D, *E, *F, *G) {
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil, nil, nil, nil, nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -2952,8 +2924,8 @@ type View8[A, B, C, D, E, F, G, H any] struct {
 	storageH *componentStorage[H]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View8[A, B, C, D, E, F, G, H]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View8[A, B, C, D, E, F, G, H]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query8[A, B, C, D, E, F, G, H](world)
 }
@@ -3026,10 +2998,6 @@ func (v *View8[A, B, C, D, E, F, G, H]) Read(id Id) (*A, *B, *C, *D, *E, *F, *G,
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil, nil, nil, nil, nil, nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -3555,8 +3523,8 @@ type View9[A, B, C, D, E, F, G, H, I any] struct {
 	storageI *componentStorage[I]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View9[A, B, C, D, E, F, G, H, I]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View9[A, B, C, D, E, F, G, H, I]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query9[A, B, C, D, E, F, G, H, I](world)
 }
@@ -3633,10 +3601,6 @@ func (v *View9[A, B, C, D, E, F, G, H, I]) Read(id Id) (*A, *B, *C, *D, *E, *F, 
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil, nil, nil, nil, nil, nil, nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -4204,8 +4168,8 @@ type View10[A, B, C, D, E, F, G, H, I, J any] struct {
 	storageJ *componentStorage[J]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View10[A, B, C, D, E, F, G, H, I, J]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View10[A, B, C, D, E, F, G, H, I, J]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query10[A, B, C, D, E, F, G, H, I, J](world)
 }
@@ -4286,10 +4250,6 @@ func (v *View10[A, B, C, D, E, F, G, H, I, J]) Read(id Id) (*A, *B, *C, *D, *E, 
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -4899,8 +4859,8 @@ type View11[A, B, C, D, E, F, G, H, I, J, K any] struct {
 	storageK *componentStorage[K]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query11[A, B, C, D, E, F, G, H, I, J, K](world)
 }
@@ -4985,10 +4945,6 @@ func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) Read(id Id) (*A, *B, *C, *D, *
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
@@ -5640,8 +5596,8 @@ type View12[A, B, C, D, E, F, G, H, I, J, K, L any] struct {
 	storageL *componentStorage[L]
 }
 
-// implement the intializer interface so that it can be automatically created and injected into systems
-func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) initialize(world *World) any {
+// implement the initializer interface so that it can be automatically created and injected into systems
+func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) Initialize(world *World) any {
 	// TODO: filters need to be a part of the query type
 	return Query12[A, B, C, D, E, F, G, H, I, J, K, L](world)
 }
@@ -5730,10 +5686,6 @@ func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) Read(id Id) (*A, *B, *C, *D
 	if lookup == nil {
 		panic("LookupList is missing!")
 	}
-	// index, ok := lookup.index.Get(id)
-	// if !ok {
-	// 	return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
-	// }
 	index := int(loc.index)
 
 	var retA *A
