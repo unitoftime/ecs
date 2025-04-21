@@ -36,17 +36,17 @@ func NewSystem(lambda func(dt time.Duration)) System {
 
 // Executes the system once, returning the time taken.
 // This is mostly used by the scheduler, but you can use it too.
-func (s *System) step(dt time.Duration) time.Duration {
+func (s *System) step(dt time.Duration) {
 	// Note: Disable timing
-	// s.Func(dt)
+	s.Func(dt)
 	// return 0
 
 	// fmt.Println(s.Name) // Spew
 
-	start := time.Now()
-	s.Func(dt)
+	// start := time.Now()
+	// s.Func(dt)
 
-	return time.Since(start)
+	// return time.Since(start)
 }
 
 // A log of a system and the time it took to execute
@@ -88,10 +88,10 @@ func (s *SystemLog) String() string {
 // Render: Execute render systems (Dynamic time systems)
 type Scheduler struct {
 	world                             *World
-	input, physics, render            []System
-	startupSystems                    []System
-	sysLogBack, sysLogFront           []SystemLog
-	sysLogBackFixed, sysLogFrontFixed []SystemLog
+	systems [][]System
+	sysTimeFront, sysTimeBack [][]SystemLog // Rotating log of how long each system takes
+	stageTimingFront, stageTimingBack []SystemLog // Rotating log of how long each stage takes
+
 	fixedTimeStep                     time.Duration
 	accumulator                       time.Duration
 	gameSpeed                         float64
@@ -104,14 +104,10 @@ type Scheduler struct {
 func NewScheduler(world *World) *Scheduler {
 	return &Scheduler{
 		world:            world,
-		startupSystems:   make([]System, 0),
-		input:            make([]System, 0),
-		physics:          make([]System, 0),
-		render:           make([]System, 0),
-		sysLogFront:      make([]SystemLog, 0),
-		sysLogBack:       make([]SystemLog, 0),
-		sysLogFrontFixed: make([]SystemLog, 0),
-		sysLogBackFixed:  make([]SystemLog, 0),
+		systems: make([][]System, StageLast + 1),
+		sysTimeFront: make([][]SystemLog, StageLast + 1),
+		sysTimeBack: make([][]SystemLog, StageLast + 1),
+
 		fixedTimeStep:    16 * time.Millisecond,
 		accumulator:      0,
 		gameSpeed:        1,
@@ -148,61 +144,57 @@ func (s *Scheduler) SetFixedTimeStep(t time.Duration) {
 
 type Stage uint8
 
+func (s Stage) String() string {
+	switch s {
+	case StageStartup:
+		return "StageStartup"
+	case StagePreUpdate:
+		return "StagePreUpdate"
+	case StageFixedUpdate:
+		return "StageFixedUpdate"
+	case StageUpdate:
+		return "StageUpdate"
+	case StageLast:
+		return "StageLast"
+	}
+	return "Unknown"
+}
+
 const (
+	// StagePreStartup
 	StageStartup Stage = iota
-	StagePreFixedUpdate
+	// StagePostStartup
+	// StageFirst
+	StagePreUpdate // Note: Used to be Input
+	// StageStateTransition
 	StageFixedUpdate
-	StagePostFixedUpdate
+	// StagePostFixedUpdate
 	StageUpdate
+	// StagePostUpdate
+	StageLast
 )
+
+// Returns true if the scheduler only has fixed systems
+func (s *Scheduler) isFixedOnly() bool {
+	return len(s.systems[StagePreUpdate]) == 0 && len(s.systems[StageUpdate]) == 0 && len(s.systems[StageLast]) == 0
+}
+
+func (s *Scheduler) ClearSystems(stage Stage) {
+	// Note: Make a new slices so that any of the old system pointers get released
+	s.systems[stage] = make([]System, 0)
+}
 
 func (s *Scheduler) AddSystems(stage Stage, systems ...SystemBuilder) {
 	for _, sys := range systems {
 		system := sys.Build(s.world)
-		switch stage {
-		case StageStartup:
-			s.startupSystems = append(s.startupSystems, system)
-		case StageFixedUpdate:
-			s.AppendPhysics(system)
-		case StageUpdate:
-			s.AppendRender(system)
-		}
+		s.systems[stage] = append(s.systems[stage], system)
 	}
 }
 
-// Adds a system to the list of input systems
-func (s *Scheduler) AppendInput(systems ...System) {
-	s.input = append(s.input, systems...)
+func (s *Scheduler) SetSystems(stage Stage, systems ...SystemBuilder) {
+	s.ClearSystems(stage)
+	s.AddSystems(stage, systems...)
 }
-
-// Adds a system to the list of physics systems
-func (s *Scheduler) AppendPhysics(systems ...System) {
-	s.physics = append(s.physics, systems...)
-}
-
-// Adds a system to the list of render systems
-func (s *Scheduler) AppendRender(systems ...System) {
-	s.render = append(s.render, systems...)
-}
-
-// Adds a system to the list of physics systems
-func (s *Scheduler) SetInput(systems ...System) {
-	s.input = systems
-}
-
-// Adds a system to the list of physics systems
-func (s *Scheduler) SetPhysics(systems ...System) {
-	s.physics = systems
-}
-
-// Adds a system to the list of render systems
-func (s *Scheduler) SetRender(systems ...System) {
-	s.render = systems
-}
-
-// func (s *Scheduler) AppendCleanup(systems ...System) {
-// 	s.cleanup = append(s.cleanup, systems...)
-// }
 
 // Sets the accumulator maximum point so that if the accumulator gets way to big, we will reset it and continue on, dropping all physics ticks that would have been executed. This is useful in a runtime like WASM where the browser may not let us run as frequently as we may need (for example, when the tab is hidden or minimized).
 // Note: This must be set before you call scheduler.Run()
@@ -211,14 +203,8 @@ func (s *Scheduler) SetMaxPhysicsLoopCount(count int) {
 	s.maxLoopCount = count
 }
 
-// Returns the front syslog so the user can analyze it. Note: This is only valid for the current frame, you should call this every frame if you use it!
-func (s *Scheduler) Syslog() []SystemLog {
-	return s.sysLogFront
-}
-
-// Returns the front syslog for fixed-dt systems only. Note: This is only valid for the current frame, you should call this every frame if you use it!
-func (s *Scheduler) SyslogFixed() []SystemLog {
-	return s.sysLogFrontFixed
+func (s *Scheduler) Syslog(stage Stage) []SystemLog {
+	return s.sysTimeFront[stage]
 }
 
 // Returns an interpolation value which represents how close we are to the next fixed time step execution. Can be useful for interpolating dynamic time systems to the fixed time systems. I might rename this
@@ -226,110 +212,81 @@ func (s *Scheduler) GetRenderInterp() float64 {
 	return s.accumulator.Seconds() / s.fixedTimeStep.Seconds()
 }
 
+func (s *Scheduler) runUntrackedStage(stage Stage, dt time.Duration) {
+	for _, sys := range s.systems[stage] {
+		sys.step(dt)
+		s.world.cmd.Execute()
+	}
+}
+
+func (s *Scheduler) runStage(stage Stage, dt time.Duration) {
+	start := time.Now()
+
+	for _, sys := range s.systems[stage] {
+		sysStart := time.Now()
+		sys.step(dt)
+		s.world.cmd.Execute()
+
+		{
+			tmp := s.sysTimeFront[stage]
+			s.sysTimeFront[stage] = s.sysTimeBack[stage]
+			s.sysTimeBack[stage] = tmp[:0]
+		}
+		s.sysTimeBack[stage] = append(s.sysTimeBack[stage], SystemLog{
+			Name: sys.Name,
+			Time: time.Since(sysStart),
+		})
+	}
+
+	{
+		tmp := s.stageTimingFront
+		s.stageTimingFront = s.stageTimingBack
+		s.stageTimingBack = tmp[:0]
+	}
+	s.stageTimingBack = append(s.stageTimingBack, SystemLog{
+		Name: "STAGE NAME TODO",
+		Time: time.Since(start),
+	})
+}
+
+// Performs a single step of the scheduler with the provided time
+func (s *Scheduler) Step(dt time.Duration) {
+	// Pre Update
+	s.runStage(StagePreUpdate, dt)
+
+	maxLoopCount := time.Duration(s.maxLoopCount)
+	if maxLoopCount > 0 {
+		if s.accumulator > (maxLoopCount * s.fixedTimeStep) {
+			s.accumulator = s.fixedTimeStep // Just run one loop
+		}
+	}
+
+	// Physics Systems
+	for s.accumulator >= s.fixedTimeStep {
+		s.runStage(StageFixedUpdate, s.fixedTimeStep)
+		s.accumulator -= s.fixedTimeStep
+	}
+
+	// Render Systems
+	if !s.pauseRender.Load() {
+		s.runStage(StageUpdate, dt)
+	}
+}
+
 // Note: Would be nice to sleep or something to prevent spinning while we wait for work to do
 // Could also separate the render loop from the physics loop (requires some thread safety in ECS)
 func (s *Scheduler) Run() {
-	for _, sys := range s.startupSystems {
-		sys.step(0)
-		s.world.cmd.Execute()
-	}
+	s.runUntrackedStage(StageStartup, 0)
 
 	frameStart := time.Now()
 	dt := s.fixedTimeStep
-	// var accumulator time.Duration
 	s.accumulator = 0
-	maxLoopCount := time.Duration(s.maxLoopCount)
-
-	// TODO: Cleanup systems?
-	// defer func() {
-	// 	for _, sys := range s.cleanup {
-	// 		sys.Run(dt)
-	// 		commandQueue.Execute()
-
-	// 		// TODO: Track syslog time?
-	// 		// s.sysLogBack = append(s.sysLogBack, SystemLog{
-	// 		// 	Name: sys.Name,
-	// 		// 	Time: sysTime,
-	// 		// })
-	// 	}
-	// }()
-
-	// go func() {
-	// 	for {
-	// 		time.Sleep(s.fixedTimeStep)
-	// 		for _, sys := range s.physics {
-	// 			sysTime := sys.Run(s.fixedTimeStep)
-	// commandQueue.Execute()
-
-	// 			s.sysLogBackFixed = append(s.sysLogBackFixed, SystemLog{
-	// 				Name: sys.Name,
-	// 				Time: sysTime,
-	// 			})
-	// 		}
-	// 	}
-	// }()
 
 	for !s.quit.Load() {
-		{
-			tmpSysLog := s.sysLogFront
-			s.sysLogFront = s.sysLogBack
-			s.sysLogBack = tmpSysLog
-			s.sysLogBack = s.sysLogBack[:0]
-		}
-
-		// Input Systems
-		for _, sys := range s.input {
-			sysTime := sys.step(dt)
-			s.world.cmd.Execute()
-
-			s.sysLogBack = append(s.sysLogBack, SystemLog{
-				Name: sys.Name,
-				Time: sysTime,
-			})
-		}
-
-		if maxLoopCount > 0 {
-			if s.accumulator > (maxLoopCount * s.fixedTimeStep) {
-				s.accumulator = s.fixedTimeStep // Just run one loop
-			}
-		}
-
-		// TODO - If we get a double run, then all are accumulated
-		if s.accumulator >= s.fixedTimeStep {
-			tmpSysLog := s.sysLogFrontFixed
-			s.sysLogFrontFixed = s.sysLogBackFixed
-			s.sysLogBackFixed = tmpSysLog
-			s.sysLogBackFixed = s.sysLogBackFixed[:0]
-		}
-		// Physics Systems
-		for s.accumulator >= s.fixedTimeStep {
-			for _, sys := range s.physics {
-				sysTime := sys.step(s.fixedTimeStep)
-				s.world.cmd.Execute()
-
-				s.sysLogBackFixed = append(s.sysLogBackFixed, SystemLog{
-					Name: sys.Name,
-					Time: sysTime,
-				})
-			}
-			s.accumulator -= s.fixedTimeStep
-		}
-
-		// Render Systems
-		if !s.pauseRender.Load() {
-			for _, sys := range s.render {
-				sysTime := sys.step(dt)
-				s.world.cmd.Execute()
-
-				s.sysLogBack = append(s.sysLogBack, SystemLog{
-					Name: sys.Name,
-					Time: sysTime,
-				})
-			}
-		}
+		s.Step(dt)
 
 		// Edge case for schedules only fixed time steps
-		if len(s.input) == 0 && len(s.render) == 0 {
+		if s.isFixedOnly() {
 			// Note: This is guaranteed to be positive because the physics execution loops until the accumulator is less than fixedtimestep
 			time.Sleep(s.fixedTimeStep - s.accumulator)
 		}
@@ -339,16 +296,8 @@ func (s *Scheduler) Run() {
 		dt = now.Sub(frameStart)
 		frameStart = now
 
-		// dt = time.Since(frameStart)
-		// frameStart = time.Now()
-
-		// s.accumulator += dt
-
 		scaledDt := float64(dt.Nanoseconds()) * s.gameSpeed
 		s.accumulator += time.Duration(scaledDt)
-
-		// s.accumulator += 16667 * time.Microsecond
-		// fmt.Println(dt, s.accumulator)
 	}
 }
 

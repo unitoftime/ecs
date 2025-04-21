@@ -336,10 +336,10 @@ func GetResource[T any](world *World) *T {
 // - Systems
 // --------------------------------------------------------------------------------
 func (w *World) StepSystemList(dt time.Duration, systems ...System) time.Duration {
-	var dur time.Duration
+	start := time.Now()
 	for i := range systems {
-		dur += systems[i].step(dt)
+		systems[i].step(dt)
 		w.cmd.Execute()
 	}
-	return dur
+	return time.Since(start)
 }
