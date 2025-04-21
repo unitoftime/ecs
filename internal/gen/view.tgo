@@ -163,8 +163,15 @@ func (v *View{{len $element}}[{{join $element ","}}]) MapIdParallel(lambda func(
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 { return }
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct{

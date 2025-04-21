@@ -158,8 +158,17 @@ func (v *View1[A]) MapIdParallel(lambda func(id Id, a *A)) {
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -459,8 +468,17 @@ func (v *View2[A, B]) MapIdParallel(lambda func(id Id, a *A, b *B)) {
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -806,8 +824,17 @@ func (v *View3[A, B, C]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C)) {
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -1199,8 +1226,17 @@ func (v *View4[A, B, C, D]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C, d
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -1638,8 +1674,17 @@ func (v *View5[A, B, C, D, E]) MapIdParallel(lambda func(id Id, a *A, b *B, c *C
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -2123,8 +2168,17 @@ func (v *View6[A, B, C, D, E, F]) MapIdParallel(lambda func(id Id, a *A, b *B, c
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -2654,8 +2708,17 @@ func (v *View7[A, B, C, D, E, F, G]) MapIdParallel(lambda func(id Id, a *A, b *B
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -3231,8 +3294,17 @@ func (v *View8[A, B, C, D, E, F, G, H]) MapIdParallel(lambda func(id Id, a *A, b
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -3854,8 +3926,17 @@ func (v *View9[A, B, C, D, E, F, G, H, I]) MapIdParallel(lambda func(id Id, a *A
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -4523,8 +4604,17 @@ func (v *View10[A, B, C, D, E, F, G, H, I, J]) MapIdParallel(lambda func(id Id, 
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -5238,8 +5328,17 @@ func (v *View11[A, B, C, D, E, F, G, H, I, J, K]) MapIdParallel(lambda func(id I
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
@@ -5999,8 +6098,17 @@ func (v *View12[A, B, C, D, E, F, G, H, I, J, K, L]) MapIdParallel(lambda func(i
 		totalWork += len(lookup.id) // - len(lookup.holes)
 	}
 
+	// Nothing to do if there is no work
+	if totalWork == 0 {
+		return
+	}
+
 	// 2. Calculate number of threads to execute with
 	numThreads := runtime.NumCPU()
+
+	// Ensure that the number of threads we plan to use is <= total amount of work
+	numThreads = min(totalWork, numThreads)
+
 	var waitGroup sync.WaitGroup
 
 	type workItem struct {
