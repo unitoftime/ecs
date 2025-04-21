@@ -88,29 +88,29 @@ func (s *SystemLog) String() string {
 // Render: Execute render systems (Dynamic time systems)
 type Scheduler struct {
 	world                             *World
-	systems [][]System
-	sysTimeFront, sysTimeBack [][]SystemLog // Rotating log of how long each system takes
-	stageTimingFront, stageTimingBack []SystemLog // Rotating log of how long each stage takes
+	systems                           [][]System
+	sysTimeFront, sysTimeBack         [][]SystemLog // Rotating log of how long each system takes
+	stageTimingFront, stageTimingBack []SystemLog   // Rotating log of how long each stage takes
 
-	fixedTimeStep                     time.Duration
-	accumulator                       time.Duration
-	gameSpeed                         float64
-	quit                              atomic.Bool
-	pauseRender                       atomic.Bool
-	maxLoopCount                      int
+	fixedTimeStep time.Duration
+	accumulator   time.Duration
+	gameSpeed     float64
+	quit          atomic.Bool
+	pauseRender   atomic.Bool
+	maxLoopCount  int
 }
 
 // Creates a scheduler
 func NewScheduler(world *World) *Scheduler {
 	return &Scheduler{
-		world:            world,
-		systems: make([][]System, StageLast + 1),
-		sysTimeFront: make([][]SystemLog, StageLast + 1),
-		sysTimeBack: make([][]SystemLog, StageLast + 1),
+		world:        world,
+		systems:      make([][]System, StageLast+1),
+		sysTimeFront: make([][]SystemLog, StageLast+1),
+		sysTimeBack:  make([][]SystemLog, StageLast+1),
 
-		fixedTimeStep:    16 * time.Millisecond,
-		accumulator:      0,
-		gameSpeed:        1,
+		fixedTimeStep: 16 * time.Millisecond,
+		accumulator:   0,
+		gameSpeed:     1,
 	}
 }
 

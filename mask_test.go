@@ -179,29 +179,29 @@ func TestBitwiseAnd(t *testing.T) {
 func TestAddCompMask(t *testing.T) {
 	type testStruct struct {
 		input    archetypeMask
-		add CompId
+		add      CompId
 		expected archetypeMask
 	}
 
 	tests := []testStruct{
 		{
 			input:    buildArchMaskFromId(0),
-			add: 1,
+			add:      1,
 			expected: buildArchMaskFromId(0, 1),
 		},
 		{
 			input:    buildArchMaskFromId(0, 1),
-			add: 3,
+			add:      3,
 			expected: buildArchMaskFromId(0, 1, 3),
 		},
 		{
 			input:    buildArchMaskFromId(0, 1),
-			add: 63,
+			add:      63,
 			expected: buildArchMaskFromId(0, 1, 63),
 		},
 		{
 			input:    buildArchMaskFromId(0, 1),
-			add: 1,
+			add:      1,
 			expected: buildArchMaskFromId(0, 1),
 		},
 	}
@@ -218,34 +218,34 @@ func TestAddCompMask(t *testing.T) {
 func TestRemoveCompMask(t *testing.T) {
 	type testStruct struct {
 		input    archetypeMask
-		remove CompId
+		remove   CompId
 		expected archetypeMask
 	}
 
 	tests := []testStruct{
 		{
 			input:    buildArchMaskFromId(0),
-			remove: 1,
+			remove:   1,
 			expected: buildArchMaskFromId(0),
 		},
 		{
 			input:    buildArchMaskFromId(0, 1),
-			remove: 63,
+			remove:   63,
 			expected: buildArchMaskFromId(0, 1),
 		},
 		{
 			input:    buildArchMaskFromId(0),
-			remove: 0,
+			remove:   0,
 			expected: buildArchMaskFromId(),
 		},
 		{
 			input:    buildArchMaskFromId(0, 1),
-			remove: 1,
+			remove:   1,
 			expected: buildArchMaskFromId(0),
 		},
 		{
 			input:    buildArchMaskFromId(0, 1),
-			remove: 0,
+			remove:   0,
 			expected: buildArchMaskFromId(1),
 		},
 	}

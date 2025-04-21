@@ -42,7 +42,7 @@ var lastTime time.Time
 func TestSchedulerPhysics(t *testing.T) {
 	world := NewWorld()
 	scheduler := NewScheduler(world)
-	scheduler.AppendPhysics(System{
+	scheduler.AddSystems(StageFixedUpdate, System{
 		Name: "TestSystem",
 		Func: func(dt time.Duration) {
 			fmt.Printf("%v - %v\n", dt, time.Since(lastTime))
@@ -60,7 +60,7 @@ var lastTimeInput, lastTimePhysics, lastTimeRender time.Time
 func TestSchedulerAll(t *testing.T) {
 	world := NewWorld()
 	scheduler := NewScheduler(world)
-	scheduler.AppendInput(System{
+	scheduler.AddSystems(StagePreUpdate, System{
 		Name: "TestSystemInput",
 		Func: func(dt time.Duration) {
 			fmt.Printf("Input:   %v - %v\n", dt, time.Since(lastTimeInput))
@@ -68,14 +68,14 @@ func TestSchedulerAll(t *testing.T) {
 			time.Sleep(1 * time.Millisecond)
 		},
 	})
-	scheduler.AppendPhysics(System{
+	scheduler.AddSystems(StageFixedUpdate, System{
 		Name: "TestSystemPhysics",
 		Func: func(dt time.Duration) {
 			fmt.Printf("Physics: %v - %v\n", dt, time.Since(lastTimePhysics))
 			lastTimePhysics = time.Now()
 		},
 	})
-	scheduler.AppendRender(System{
+	scheduler.AddSystems(StageUpdate, System{
 		Name: "TestSystemRender",
 		Func: func(dt time.Duration) {
 			fmt.Printf("Render:  %v - %v\n", dt, time.Since(lastTimeRender))

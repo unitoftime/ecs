@@ -136,10 +136,10 @@ func ReadComp[T Component](e EntityCommand) (T, bool) {
 }
 
 type CommandQueue struct {
-	world    *World
-	preWrite func(EntityCommand)
+	world     *World
+	preWrite  func(EntityCommand)
 	preDelete func(Id)
-	commands []singleCmd
+	commands  []singleCmd
 
 	currentBundlerIndex int
 	bundlers            []*Bundler

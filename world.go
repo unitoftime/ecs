@@ -28,7 +28,7 @@ type World struct {
 	engine       *archEngine
 	resources    map[reflect.Type]any
 	observers    *internalMap[EventId, list[Handler]] // TODO: SliceMap instead of map
-	cmd *CommandQueue
+	cmd          *CommandQueue
 }
 
 // Creates a new world
