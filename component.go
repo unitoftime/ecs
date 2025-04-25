@@ -60,6 +60,13 @@ func (c box[T]) CompWrite(wd W) {
 	c.WriteVal(wd, c.val)
 }
 
+func (c box[T]) OnInsert(ent EntityCommand) {
+	inserter, ok := any(c.val).(onInsert)
+	if ok {
+		inserter.OnInsert(ent)
+	}
+}
+
 // func (c Box[T]) getPtr(engine *archEngine, archId archetypeId, index int) *T {
 // 	store := getStorageByCompId[T](engine, c.Id())
 // 	slice := store.slice[archId]

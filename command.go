@@ -1,5 +1,9 @@
 package ecs
 
+type onInsert interface {
+	OnInsert(ent EntityCommand)
+}
+
 // type singleCmd interface {
 // 	apply(*World)
 // }
@@ -92,6 +96,14 @@ func (e EntityCommand) Empty() bool {
 
 func (e EntityCommand) Insert(bun Writer) EntityCommand {
 	unbundle(bun, e.cmd.bundler)
+
+	inserter, ok := bun.(onInsert)
+	if ok {
+		// TODO: If the implementer of OnInsert inserts itself, then this will infinitely recurse
+		// 1. Maybe check beforehand to see if this is the first insertion of bun?
+		inserter.OnInsert(e)
+	}
+
 	return e
 }
 

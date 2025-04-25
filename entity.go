@@ -79,6 +79,12 @@ func ReadFromEntity[T any](ent *Entity) (T, bool) {
 	}
 
 	icomp := ent.comp[idx]
+
+	val, ok := icomp.(T)
+	if ok {
+		return val, true
+	}
+
 	return icomp.(box[T]).val, true
 
 	// var t T
