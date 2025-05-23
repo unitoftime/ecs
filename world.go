@@ -113,6 +113,17 @@ func (world *World) spawn(id Id, comp ...Component) {
 	world.engine.runFinalizedHooks(id)
 }
 
+// returns true if the entity in the world has the compId
+func (world *World) hasCompId(id Id, compId CompId) bool {
+	loc, ok := world.arch.Get(id)
+	if !ok {
+		return false
+	}
+
+	lookup := world.engine.lookup[loc.archId]
+	return lookup.mask.hasComponent(compId)
+}
+
 // Writes components to the entity specified at id. This API can potentially break if you call it inside of a loop. Specifically, if you cause the archetype of the entity to change by writing a new component, then the loop may act in mysterious ways.
 // Deprecated: This API is tentative, I might replace it with something similar to bevy commands to alleviate the above concern
 func Write(world *World, id Id, comp ...Component) {

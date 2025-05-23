@@ -28,9 +28,9 @@ func (b *Bundler) Clear() {
 // 	bun.maxComponentIdAdded = max(bun.maxComponentIdAdded, compId)
 // }
 
-// func (bun *Bundler) Has(comp Component) bool {
-// 	return bun.Set[comp.CompId()]
-// }
+func (bun *Bundler) Has(comp Component) bool {
+	return bun.Set[comp.CompId()]
+}
 
 func readBundle[T Component](bun *Bundler) (T, bool) {
 	var comp T

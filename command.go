@@ -31,6 +31,7 @@ type singleCmd struct {
 	Type    CmdType
 	id      Id
 	bundler *Bundler
+	world   *World
 	event   Event
 }
 
@@ -107,15 +108,19 @@ func (e EntityCommand) Insert(bun Writer) EntityCommand {
 	return e
 }
 
-// // Inserts the component if it is missing
-// func (e EntityCommand) InsertIfMissing(bun Component) EntityCommand {
-// 	if e.cmd.bundler.Has(bun) {
-// 		return e
-// 	}
+// Inserts the component if it is missing
+func (e EntityCommand) InsertIfMissing(bun Component) EntityCommand {
+	if e.cmd.bundler.Has(bun) {
+		return e
+	}
 
-// 	unbundle(bun, e.cmd.bundler)
-// 	return e
-// }
+	if e.cmd.world.hasCompId(e.Id(), bun.CompId()) {
+		return e
+	}
+
+	unbundle(bun, e.cmd.bundler)
+	return e
+}
 
 func (e EntityCommand) Id() Id {
 	return e.cmd.id
@@ -213,6 +218,7 @@ func (c *CommandQueue) SpawnEmpty() EntityCommand {
 		Type:    CmdTypeSpawn,
 		id:      c.world.NewId(),
 		bundler: bundler,
+		world: c.world,
 	})
 	return EntityCommand{
 		cmd: &(c.commands[len(c.commands)-1]),
@@ -234,6 +240,7 @@ func (c *CommandQueue) Write(id Id) EntityCommand {
 		Type:    CmdTypeWrite,
 		id:      id,
 		bundler: bundler,
+		world: c.world,
 	})
 	return EntityCommand{
 		cmd: &(c.commands[len(c.commands)-1]),
@@ -247,6 +254,7 @@ func (c *CommandQueue) Trigger(event Event, ids ...Id) {
 			Type:  CmdTypeTrigger,
 			id:    InvalidEntity,
 			event: event,
+			world: c.world,
 		})
 
 		return
@@ -257,6 +265,7 @@ func (c *CommandQueue) Trigger(event Event, ids ...Id) {
 			Type:  CmdTypeTrigger,
 			id:    id,
 			event: event,
+			world: c.world,
 		})
 	}
 }
