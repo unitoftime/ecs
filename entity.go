@@ -193,15 +193,15 @@ func (e *RawEntity) Merge(e2 *RawEntity) {
 }
 
 // Returns a list of the components held by the entity
-func (e *RawEntity) Comps() []any {
-	ret := make([]any, 0, len(e.comp))
+func (e *RawEntity) Comps() []Component {
+	ret := make([]Component, 0, len(e.comp))
 	// for _, v := range e.comp {
 	// 	ret = append(ret, v)
 	// }
 	for compId := range maxComponentId {
 		v, ok := e.comp[CompId(compId)]
 		if !ok { continue }
-		ret = append(ret, v)
+		ret = append(ret, v.(Component))
 	}
 	return ret
 }

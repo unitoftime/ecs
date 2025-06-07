@@ -1,6 +1,7 @@
 package ecs
 
 type onInsert interface {
+	Component
 	OnInsert(ent EntityCommand)
 }
 
@@ -96,12 +97,16 @@ func (e EntityCommand) Empty() bool {
 }
 
 func (e EntityCommand) Insert(bun Writer) EntityCommand {
+	inserter, ok := bun.(onInsert)
+	alreadyHas := false
+	if ok {
+		alreadyHas = e.cmd.bundler.Has(inserter)
+	}
+
 	unbundle(bun, e.cmd.bundler)
 
-	inserter, ok := bun.(onInsert)
-	if ok {
-		// TODO: If the implementer of OnInsert inserts itself, then this will infinitely recurse
-		// 1. Maybe check beforehand to see if this is the first insertion of bun?
+	// Only run OnInsert, if the writer supports it and we havent already inserted it to the bundler
+	if ok && !alreadyHas {
 		inserter.OnInsert(e)
 	}
 
