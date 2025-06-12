@@ -55,6 +55,11 @@ func (w *World) print() {
 	w.engine.print()
 }
 
+// Returns the command queue for the world
+func (w *World) Cmd() *CommandQueue {
+	return w.cmd
+}
+
 // Sets an range of Ids that the world will use when creating new Ids. Potentially helpful when you have multiple worlds and don't want their Id space to collide.
 // Deprecated: This API is tentative. It may be better to just have the user create Ids as they see fit
 func (w *World) SetIdRange(min, max Id) {
