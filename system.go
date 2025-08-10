@@ -90,7 +90,7 @@ type Scheduler struct {
 	world                             *World
 	systems                           [][]System
 	sysTimeFront, sysTimeBack         [][]SystemLog // Rotating log of how long each system takes
-	stageTimingFront, stageTimingBack []SystemLog   // Rotating log of how long each stage takes
+	// stageTimingFront, stageTimingBack []SystemLog   // Rotating log of how long each stage takes
 
 	fixedTimeStep time.Duration
 	accumulator   time.Duration
@@ -220,33 +220,38 @@ func (s *Scheduler) runUntrackedStage(stage Stage, dt time.Duration) {
 }
 
 func (s *Scheduler) runStage(stage Stage, dt time.Duration) {
-	start := time.Now()
+	// start := time.Now()
 
+	// Rotate syslog
+	{
+		tmp := s.sysTimeFront[stage]
+		s.sysTimeFront[stage] = s.sysTimeBack[stage]
+		s.sysTimeBack[stage] = tmp[:0]
+	}
+
+	// Append all stages
 	for _, sys := range s.systems[stage] {
 		sysStart := time.Now()
 		sys.step(dt)
 		s.world.cmd.Execute()
 
-		{
-			tmp := s.sysTimeFront[stage]
-			s.sysTimeFront[stage] = s.sysTimeBack[stage]
-			s.sysTimeBack[stage] = tmp[:0]
-		}
 		s.sysTimeBack[stage] = append(s.sysTimeBack[stage], SystemLog{
 			Name: sys.Name,
 			Time: time.Since(sysStart),
 		})
 	}
 
-	{
-		tmp := s.stageTimingFront
-		s.stageTimingFront = s.stageTimingBack
-		s.stageTimingBack = tmp[:0]
-	}
-	s.stageTimingBack = append(s.stageTimingBack, SystemLog{
-		Name: "STAGE NAME TODO",
-		Time: time.Since(start),
-	})
+	// // Track full stage timing
+	// // TODO: This doesn't work, because it clears on every single stage run
+	// {
+	// 	tmp := s.stageTimingFront
+	// 	s.stageTimingFront = s.stageTimingBack
+	// 	s.stageTimingBack = tmp[:0]
+	// }
+	// s.stageTimingBack = append(s.stageTimingBack, SystemLog{
+	// 	Name: "STAGE NAME TODO",
+	// 	Time: time.Since(start),
+	// })
 }
 
 // Performs a single step of the scheduler with the provided time
