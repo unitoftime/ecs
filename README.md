@@ -24,7 +24,7 @@ You can find a fairly comprehensive example here:
 Import the library: `import "github.com/unitoftime/ecs"`
 
 Create Components like you normally would:
-```
+```go
 type Position struct {
     X, Y float64
 }
@@ -33,12 +33,12 @@ type Rotation float64
 ```
 
 Create a `World` to store all of your data
-```
+```go
 world := ecs.NewWorld()
 ```
 
 Create an entity and add components to it
-```
+```go
 id := world.NewId()
 ecs.Write(world, id,
     ecs.C(Position{1, 1}),
@@ -54,12 +54,12 @@ ecs.Write(world, id,
 ```
 
 Create a View, by calling `QueryN`:
-```
+```go
 query := ecs.Query2[Position, Rotation](world)
 ```
 
 Iterate on the query. You basically pass in a lambda, and internally the library calls it for every entity in the world which has all of the components specified. Notably your lambda takes pointer values which represent a pointer to the internally stored component. So modifying these pointers will modify the entity's data.
-```
+```go
 query.MapId(func(id ecs.Id, pos *Position, rot *Rotation) {
     pos.X += 1
     pos.Y += 1
@@ -69,7 +69,7 @@ query.MapId(func(id ecs.Id, pos *Position, rot *Rotation) {
 ```
 
 There are several map functions you can use, each with varying numbers of parameters. I support up to `Map12`. They all look like this:
-```
+```go
 ecs.MapN(world, func(id ecs.Id, a *ComponentA, /*... */, n *ComponentN) {
     // Do your work
 })
@@ -77,7 +77,7 @@ ecs.MapN(world, func(id ecs.Id, a *ComponentA, /*... */, n *ComponentN) {
 
 ### Advanced queries
 You can also filter your queries for more advanced usage:
-```
+```go
 // Returns a view of Position and Velocity, but only if the entity also has the `Rotation` component.
 query := ecs.Query2[Position, Velocity](world, ecs.With(Rotation))
 
@@ -88,7 +88,7 @@ query := ecs.Query2[Position, Velocity](world, ecs.Optional(Velocity))
 ### Commands
 
 Commands will eventually replace `ecs.Write(...)` once I figure out how their usage will work. Commands essentially buffer some work on the ECS so that the work can be executed later on. You can use them in loop safe ways by calling `Execute()` after your loop has completed. Right now they work like this:
-```
+```go
 world := NewWorld()
 cmd := NewCommandQueue(world)
 
