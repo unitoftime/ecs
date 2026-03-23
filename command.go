@@ -1,5 +1,7 @@
 package ecs
 
+import "fmt"
+
 type onInsert interface {
 	Component
 	OnInsert(ent EntityCommand)
@@ -80,6 +82,10 @@ type EntityCommand struct {
 // 	// fmt.Printf("+%v\n", e.cmd.bundler)
 // }
 
+func (e EntityCommand) Cmd() *CommandQueue{
+	return e.cmd.world.Cmd()
+}
+
 func (e EntityCommand) Cancel() {
 	e.cmd.Type = CmdTypeNone
 	e.cmd.id = InvalidEntity
@@ -97,6 +103,10 @@ func (e EntityCommand) Empty() bool {
 }
 
 func (e EntityCommand) Insert(bun Writer) EntityCommand {
+	if bun == nil {
+		panic(fmt.Sprintf("EntityCommand.Insert: Nil insert: %T", bun))
+	}
+
 	inserter, ok := bun.(onInsert)
 	alreadyHas := false
 	if ok {
