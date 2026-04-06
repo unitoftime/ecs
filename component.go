@@ -116,7 +116,6 @@ func (c comp[T]) WriteVal(cw W, val T) {
 func (c comp[T]) UnbundleVal(bun *Bundler, val T) {
 	compId := c.compId
 	bun.archMask.addComponent(compId)
-	bun.Set[compId] = true
 	if bun.Components[compId] == nil {
 		// Note: We need a pointer so that we dont do an allocation every time we set it
 		box := c.newBox(val)
@@ -126,5 +125,6 @@ func (c comp[T]) UnbundleVal(bun *Bundler, val T) {
 		rwComp.val = val
 	}
 
+	bun.Set[compId] = true
 	bun.maxComponentIdAdded = max(bun.maxComponentIdAdded, compId)
 }

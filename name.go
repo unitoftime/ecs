@@ -62,12 +62,15 @@ func name(t any) CompId {
 
 	typeof := reflect.TypeOf(t)
 	compId, ok := registeredComponents[typeof]
-	if !ok {
+ 	if !ok {
 		compId = componentRegistryCounter
+		if compId > maxComponentId {
+			panic(fmt.Sprintf("ecs: maximum number of components exceeded: %d", maxComponentId))
+		}
 		registeredComponents[typeof] = compId
 		componentRegistryCounter++
 	}
-	return compId
+ 	return compId
 }
 
 // // Possible solution: Runs faster than reflection (mostly useful for potentially removing/reducing ecs.C(...) overhead

@@ -3,14 +3,14 @@ package ecs
 type Bundler struct {
 	archMask archetypeMask // The current archetypeMask
 	// TODO: Instead of set, you could just use the arch mask
-	Set                 [maxComponentId]bool      // The list of components that are being bundled
-	Components          [maxComponentId]Component // Component storage array for everything we've bundled
+	Set                 [maxComponentId + 1]bool      // The list of components that are being bundled
+	Components          [maxComponentId + 1]Component // Component storage array for everything we've bundled
 	maxComponentIdAdded CompId
 }
 
 func (b *Bundler) Clear() {
 	b.archMask = blankArchMask
-	b.Set = [maxComponentId]bool{}
+	b.Set = [maxComponentId + 1]bool{}
 	b.maxComponentIdAdded = 0
 	// b.Components // Note: No need to clear because we only use set values
 }

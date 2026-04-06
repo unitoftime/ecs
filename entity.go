@@ -198,7 +198,7 @@ func (e *RawEntity) Comps() []Component {
 	// for _, v := range e.comp {
 	// 	ret = append(ret, v)
 	// }
-	for compId := range maxComponentId {
+	for compId := range maxComponentId + 1 {
 		v, ok := e.comp[CompId(compId)]
 		if !ok { continue }
 		ret = append(ret, v.(Component))
