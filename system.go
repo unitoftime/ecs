@@ -98,6 +98,7 @@ type Scheduler struct {
 	quit          atomic.Bool
 	pauseRender   atomic.Bool
 	maxLoopCount  int
+	frameRateLimit int
 }
 
 // Creates a scheduler
@@ -203,6 +204,14 @@ func (s *Scheduler) SetMaxPhysicsLoopCount(count int) {
 	s.maxLoopCount = count
 }
 
+func (s *Scheduler) SetFrameRateLimit(limit int) {
+	s.frameRateLimit = limit
+}
+
+func (s *Scheduler) FrameRateLimit() int {
+	return s.frameRateLimit
+}
+
 func (s *Scheduler) Syslog(stage Stage) []SystemLog {
 	return s.sysTimeFront[stage]
 }
@@ -294,6 +303,25 @@ func (s *Scheduler) Run() {
 		if s.isFixedOnly() {
 			// Note: This is guaranteed to be positive because the physics execution loops until the accumulator is less than fixedtimestep
 			time.Sleep(s.fixedTimeStep - s.accumulator)
+		}
+
+		if s.frameRateLimit > 0 {
+			targetDur := time.Second / time.Duration(s.frameRateLimit)
+			const sleepMargin = 2 * time.Millisecond
+
+			for {
+				elapsed := time.Since(frameStart)
+				if elapsed >= targetDur {
+					break
+				}
+
+				timeToWait := targetDur - elapsed
+				if timeToWait > sleepMargin {
+					time.Sleep(timeToWait - sleepMargin)
+				} else {
+					runtime.Gosched()
+				}
+			}
 		}
 
 		// Capture Frame time

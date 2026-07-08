@@ -82,7 +82,7 @@ type EntityCommand struct {
 // 	// fmt.Printf("+%v\n", e.cmd.bundler)
 // }
 
-func (e EntityCommand) Cmd() *CommandQueue{
+func (e EntityCommand) Cmd() *CommandQueue {
 	return e.cmd.world.Cmd()
 }
 
