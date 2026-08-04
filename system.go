@@ -334,6 +334,14 @@ func (s *Scheduler) Run() {
 	}
 }
 
+func (s *Scheduler) AddFakeRenderTime(dt time.Duration) {
+	if dt <= 0 {
+		return
+	}
+	// Add fake time directly into the scheduler's time accumulator
+	s.accumulator += dt
+}
+
 // //Separates physics loop from render loop
 // func (s *Scheduler) Run2() {
 // 	var worldMu sync.Mutex
